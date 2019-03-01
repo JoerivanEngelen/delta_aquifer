@@ -157,6 +157,7 @@ phi = np.linspace(0.125, 0.5, num=lev) * np.pi
 clay_conf = np.linspace(0.2, 1., num=lev)
 
 n_clay = np.linspace(0, 3, num=lev, dtype=int)
+clay_frac = 0.5 #FIXED FOR NOW ELSE np.linspace(0.1, 0.6, num=4)
 
 #%%For testing
 a = a[1]
@@ -203,15 +204,22 @@ d3_clay = {}
 clay_fracs = np.arange(1, n_clay+1)/(n_clay+1)
 
 for i, frac in enumerate(clay_fracs):
-    depth_clay=d2["bot"]*frac
-    d3_clay["c%d"%i] = (_ellipse(phi/2, depth_clay, phis).T + depth_clay)/2.
-    in_prism=(d3_clay["c%d"%i]<d3["tops"]) & (d3_clay["c%d"%i]>d3["bots"])
-    d3_clay["c%d"%i][~in_prism] = np.nan
-    
+    #This fractioning does not work yet...
+    depth_clay_top = d2["top"] + (d2["top"]+d2["bot"])*(frac - clay_frac/(n_clay*2))
+    depth_clay_bot = d2["top"] + (d2["top"]+d2["bot"])*(frac + clay_frac/(n_clay*2))
+    d3_clay["ct%d"%i] = (_ellipse(phi/2, depth_clay_top, phis).T + depth_clay_top)/2.
+    d3_clay["cb%d"%i] = (_ellipse(phi/2, depth_clay_bot, phis).T + depth_clay_bot)/2.
+    in_prism=(d3_clay["ct%d"%i]<d3["tops"]) & (d3_clay["ct%d"%i]>d3["bots"])
+    d3_clay["ct%d"%i][~in_prism] = np.nan
+    in_prism=(d3_clay["cb%d"%i]<d3["tops"]) & (d3_clay["cb%d"%i]>d3["bots"])
+    d3_clay["cb%d"%i][~in_prism] = np.nan
+
 plt.plot(d3["bots"][:, -50])
 plt.plot(d3["tops"][:, -50])
 for key, clayer in d3_clay.items():
-    plt.plot(clayer[:, -50])
+    plt.plot(clayer[:, -50], label = key)
+
+plt.legend()
 
 ##%%Convert to Cartesian regular grid
 #dx, dy = 1000, 1000
