@@ -60,9 +60,9 @@ def _calc_top(a, alpha, b, beta, gamma, L,  x):
     return(z, c_cells)
 
 def _calc_bot(apex, a, D, dD, L, x): 
-    d1 = apex - D*dD
-    slope = (d1 + D)/(L*a)
-    return(d1 - x*slope)
+    D_apex = apex - D*dD
+    slope = (D_apex + D)/(L*a)
+    return(D_apex - x*slope)
 
 #%%Main functions
 def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
