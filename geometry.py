@@ -6,6 +6,7 @@ Created on Mon Feb 25 16:31:17 2019
 """
 
 import xarray as xr
+from scipy.ndimage.filters import convolve as convolvend
 from scipy import interpolate
 import numpy as np
 import matplotlib.pyplot as plt
@@ -64,6 +65,11 @@ def _calc_bot(apex, a, D, dD, L, x):
     slope = (D_apex + D)/(L*a)
     return(D_apex - x*slope)
 
+def _get_pizza_slice(d1, length, phis):
+    idx_slice = d1["rho"] <= length
+    return(_pol2cart(*np.meshgrid(d1["rho"][idx_slice], phis)))
+    
+
 #%%Main functions
 def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
     d1 = {}
@@ -104,8 +110,7 @@ def create_top_bot(phi, d1):
 
 def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
     d2_clay = {}
-    idx_onshore = d1["rho"] < L*a
-    x_ons, y_ons = _pol2cart(*np.meshgrid(d1["rho"][idx_onshore], phis))
+    x_ons, y_ons = _get_pizza_slice(d1, L*a, phis)
     
     x_offset=L * a * (1-clay_conf)
     rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
@@ -132,7 +137,8 @@ def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
 def get_targgrid(dx, dy, L, phi_max):
     x_edge, y_edge = _pol2cart(L, phi_max)
 
-    x_out = np.arange(0.5 * dx, L-0.5*dx+1, dx)
+    x_max = np.round(L, -3) + 0.5*dx
+    x_out = np.arange(0.5 * dx, x_max+1, dx)
     y_max = np.round(y_edge, -3) + 0.5*dy
     y_out = np.arange(-y_max, y_max+1, dy)
     return(np.meshgrid(x_out, y_out))
@@ -157,6 +163,17 @@ def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
     for vrbl in vrbls:
         griddata[key_prep+vrbl] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
     return(griddata)
+
+def get_edges(ibound, bot, top, z_shelf):
+    weights=np.array([[[0,0,0],[0,1,0],[0,0,0]], [[0,1,0],[1,1,1],[0,1,0]], [[0,0,0],[0,1,0],[0,0,0]]])
+
+    edges=convolvend(ibound, weights, mode = "mirror") * ibound
+    dz = edges.z[1] - edges.z[0]
+    edges = edges.where(edges.z>(bot+4*dz)) #Completely filter out all erroneous bottom values
+    edges = edges.where(((top >z_shelf) & (edges.z>(top-dz))) | (top <z_shelf))
+    edges = xr.where(edges<np.sum(weights), 1, 0) * ibound
+    
+    return(edges, edges_top)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, figfol):
@@ -200,7 +217,7 @@ def clayer_plot(d2, d2_conf, figfol):
 
 #%%Path management
 figfol=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
-netcdf=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data\model.nc"
+netcdf=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data\synth_model.nc"
 
 #%%Parameters
 #Morris parameters
@@ -242,9 +259,9 @@ ani = np.logspace(0, 1.5, num=lev)
 
 #%%For testing
 #Domain geometry
-a = a[1]
-b = b[1]
-D = D[2]
+a = a[0]
+b = b[0]
+D = D[1]
 dD = dD[2]
 alpha = alpha[2]
 beta = beta[2]
@@ -256,7 +273,7 @@ n_clay = n_clay[3]
 
 #Hydrogeological parameters
 kh = kh[1]
-c_conf = c_conf[1]
+c_conf = c_conf[2]
 c_mar = c_mar[2]
 ani = ani[2]
 
@@ -293,7 +310,7 @@ clayer_plot(d2, d2_conf, figfol)
 #%%Convert to Cartesian regular grid
 d2_grid = {}
 
-d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, L, phi/2)
+d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, np.max(d2["x"][~nan_idx]), phi/2)
 d2_grid = pol2griddata(d2, nan_idx, d2_grid)
 d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
 
@@ -329,6 +346,9 @@ d3["Kh"] = d3["IBOUND"] * kh
 d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), d2_grid["conf_d"]/c_conf*ani, d3["Kh"])
 for i in range(n_clay):
     d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), d2_grid["cd%d"%i]/c_mar*ani, d3["Kh"])
+
+z_shelf_edge = d1["top"][~d1["slope"]][-1]
+d3["edges"], edges_top = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
 
 #%%Save as netcdf
 d3.to_netcdf(netcdf)
