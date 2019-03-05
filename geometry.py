@@ -70,7 +70,7 @@ def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
 
     gamma *= D/1000
     
-    d1["rho"] = np.linspace(0, L, num=ncell)
+    d1["rho"] = np.linspace(0, L, num=n_inp)
     d1["top"], d1["slope"] = _calc_top(a, alpha, b, beta, gamma, L, d1["rho"])
     d1["bot"] = _calc_bot(d1["top"][0], a, D, dD, L,  d1["rho"])
     
@@ -84,7 +84,7 @@ def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
 def create_top_bot(phi, d1):
     d2 = {}
 
-    phis = np.linspace(-phi/2, phi/2, num=ncell-20)
+    phis = np.linspace(-phi/2, phi/2, num=n_inp-20)
     d2["x"], d2["y"] = _pol2cart(*np.meshgrid(d1["rho"], phis))
     
     ##Fit ellipse for bottom
@@ -109,8 +109,8 @@ def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
     
     x_offset=L * a * (1-clay_conf)
     rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
-    rhos_clay = np.linspace(0, rho_clay, num=ncell)
-    phis_clay = np.linspace(-phi_clay, phi_clay, num=ncell-20)
+    rhos_clay = np.linspace(0, rho_clay, num=n_inp)
+    phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
     
     topf = interpolate.interp1d(d1["rho"], d1["top"])
     botf = interpolate.interp1d(d1["rho"], d1["bot"])
@@ -200,13 +200,14 @@ def clayer_plot(d2, d2_conf, figfol):
 
 #%%Path management
 figfol=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
+netcdf=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data\model.nc"
 
 #%%Parameters
 #Morris parameters
 lev = 4
 
 #Model input parameters
-ncell = 200
+n_inp = 200 #Discretization polar coordinates, not in actual model
 
 #Geometry input parameters
 L = 200000 #FIXED Check all delta lengths, so if this value is representative. Also check leakage factors whether this long enough
@@ -218,7 +219,6 @@ dD = np.linspace(0.2, 0.6, num=lev)
 
 alpha  = np.linspace(0.75e-4, 1.5e-4, num=lev) #Check this for deltas
 beta = np.linspace(6e-4, 12e-4, num=lev) #Check this for deltas
-
 gamma = 5e-2 #FIXED will be corrected based on thickness.
 
 #alpha = 8e-4 #in rads! For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
@@ -227,9 +227,18 @@ gamma = 5e-2 #FIXED will be corrected based on thickness.
 phi = np.linspace(0.125, 0.5, num=lev) * np.pi
 
 clay_conf = np.linspace(0.2, 1., num=lev)
-
 n_clay = np.linspace(0, 3, num=lev, dtype=int)
 SM = 0.3 #FIXED FOR NOW ELSE np.linspace(0.1, 0.6, num=4)
+
+#Model discretization
+dx, dy = 1000, 1000
+nz = 100
+
+#Hydrogeological parameters
+kh = np.logspace(0, 2, num=lev)
+c_conf = np.logspace(0, 3, num=lev)
+c_mar = np.logspace(1, 4, num=lev)
+ani = np.logspace(0, 1.5, num=lev)
 
 #%%For testing
 #Domain geometry
@@ -244,6 +253,12 @@ phi = phi[2]
 #Internal geometry
 clay_conf = clay_conf[2]
 n_clay = n_clay[3]
+
+#Hydrogeological parameters
+kh = kh[1]
+c_conf = c_conf[1]
+c_mar = c_mar[2]
+ani = ani[2]
 
 #%%Process central crosssection
 d1 = create_crosssection(a, alpha, b, beta, gamma, dD, D, L)
@@ -278,8 +293,6 @@ clayer_plot(d2, d2_conf, figfol)
 #%%Convert to Cartesian regular grid
 d2_grid = {}
 
-dx, dy = 1000, 1000
-
 d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, L, phi/2)
 d2_grid = pol2griddata(d2, nan_idx, d2_grid)
 d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
@@ -295,7 +308,7 @@ plt.close()
 #%%Create topsystem
 d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
            np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
-                                                  (d2_grid["tops"] >= 0)).astype(np.int16)
+                                                  (d2_grid["tops"] >= 0)).astype(np.int8)
 
 plt.imshow(d2_grid["topsys"])
 plt.savefig(os.path.join(figfol, "topsystem_grid.png"))
@@ -304,5 +317,18 @@ plt.close()
 #%%Create 3D 
 d2_grid = xr.Dataset(dict([(key, (["y", "x"], value)) for key, value in d2_grid.items() if key not in ["x", "y"]]),
                      coords = {"x" : d2_grid["x"][0, :],
-                               "y" : d2_grid["y"][:, 0]})
+                               "y" : d2_grid["y"][:, 0]})    
+d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
+for i in range(n_clay):
+    d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
 
+d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
+d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
+d3["Kh"] = d3["IBOUND"] * kh
+
+d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), d2_grid["conf_d"]/c_conf*ani, d3["Kh"])
+for i in range(n_clay):
+    d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), d2_grid["cd%d"%i]/c_mar*ani, d3["Kh"])
+
+#%%Save as netcdf
+d3.to_netcdf(netcdf)
