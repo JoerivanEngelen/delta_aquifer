@@ -146,6 +146,58 @@ def create_clayer(frac, bot, d3, phis, phi, a_off = 0.):
     clayer[~in_prism] = np.nan
     return(clayer)
 
+def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
+    #Remove nans,which broadcasts to 1 dimensional array.
+    for key, arr in poldata.items():
+        poldata[key] = arr[~nan_idx]
+    
+    vrbls = [i for i in poldata.keys() if not i in ["x", "y"]]
+    #Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
+    ip = interpolate.LinearNDInterpolator(np.vstack((poldata["x"],poldata["y"])).T, poldata[vrbls[0]])
+    for vrbl in vrbls:
+        griddata[key_prep+vrbl] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
+    return(griddata)
+
+#%%Plot functions
+def clayer_plot(d3, d3_conf, figfol):
+    slcs = [np.s_[:, 50],np.s_[90, :]]
+    dims = ["y", "x"]
+    fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
+    
+    for i, slc in enumerate(slcs):
+        xtop = xbot = d3[dims[i]][slc]
+        axes[i].plot(xbot, d3["bots"][slc], label = "bot")
+        axes[i].plot(xtop, d3["tops"][slc], label = "top")
+        
+        if dims[i] == "y":
+            xval = d3["x"][slc][90]
+            idx = np.searchsorted(d3_conf["x"][90, :], xval)
+            idx = np.s_[:, idx]
+        else:
+            axes[i].axvline(x=(a+b)*L, ls=":", color=".20")
+            axes[i].axvline(x=a*L, ls=":", color=".20")
+            axes[i].axvline(x=L, color="k")
+            idx = slc
+            
+        xconf = d3_conf[dims[i]][idx]
+    
+        axes[i].fill(np.append(xconf[::-1], xconf), np.append(d3_conf["tops"][idx][::-1], d3_conf["bots"][idx]), label="conf")
+        
+        for j in range(n_clay):
+            xtop = xbot = d3[dims[i]][slc]
+            top = d3["ct%d"%j][slc]
+            bot = d3["cb%d"%j][slc]
+            
+            xtop = xtop[~np.isnan(top)]
+            xbot = xbot[~np.isnan(bot)]
+            
+            axes[i].fill(np.append(xtop[::-1], xbot), np.append(top[~np.isnan(top)][::-1], bot[~np.isnan(bot)]), label = "c%d"%j)
+        
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(figfol, "clayers.png"))
+    plt.close()
+
 #%%Path management
 figfol=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
 
@@ -196,15 +248,6 @@ n_clay = n_clay[3]
 #%%Process central crosssection
 d2 = create_crosssection(a, alpha, b, beta, gamma, dD, D, L)
 
-##Plot
-plt.plot(d2["rho"], d2["top"])
-plt.plot(d2["rho"], d2["bot"])
-plt.axvline(x=(a+b)*L, ls=":", color=".20")
-plt.axvline(x=a*L, ls=":", color=".20")
-plt.axvline(x=L, color="k")
-plt.savefig(os.path.join(figfol, "2D_cross-section.png"))
-plt.close()
-
 #%%Create 3D top & bottom
 d3, nan_idx, phis = create_top_bot(phi, d2)
 
@@ -230,81 +273,36 @@ for i in range(n_clay):
     d3["cb%d"%i] = create_clayer(fracs[1::2][i], d2["bot"], d3, phis, phi)
 
 ##Plot
-slcs = [np.s_[:, 50],np.s_[90, :]]
-dims = ["y", "x"]
+clayer_plot(d3, d3_conf, figfol)
 
-fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
+#%%Convert to Cartesian regular grid
+d3_grid = {}
 
-for i, slc in enumerate(slcs):
-    xtop = xbot = d3[dims[i]][slc]
-    axes[i].plot(xbot, d3["bots"][slc], label = "bot")
-    axes[i].plot(xtop, d3["tops"][slc], label = "top")
-    
-    if dims[i] == "y":
-        xval = d3["x"][slc][90]
-        idx = np.searchsorted(d3_conf["x"][90, :], xval)
-        idx = np.s_[:, idx]
-    else:
-        idx = slc
-        
-    xconf = d3_conf[dims[i]][idx]
+dx, dy = 1000, 1000
 
-    axes[i].fill(np.append(xconf[::-1], xconf), np.append(d3_conf["tops"][idx][::-1], d3_conf["bots"][idx]), label="conf")
-    
-    for j in range(n_clay):
-        xtop = xbot = d3[dims[i]][slc]
-        top = d3["ct%d"%j][slc]
-        bot = d3["cb%d"%j][slc]
-        
-        xtop = xtop[~np.isnan(top)]
-        xbot = xbot[~np.isnan(bot)]
-        
-        axes[i].fill(np.append(xtop[::-1], xbot), np.append(top[~np.isnan(top)][::-1], bot[~np.isnan(bot)]), label = "c%d"%j)
-    
-plt.legend()
-plt.tight_layout()
-plt.savefig(os.path.join(figfol, "clayers.png"))
+d3_grid["x"], d3_grid["y"] = get_targgrid(dx, dy, L, phi/2)
+d3_grid = pol2griddata(d3, nan_idx, d3_grid)
+d3_grid = pol2griddata(d3_conf, nan_conf, d3_grid, "conf_")
+
+plt.imshow(d3_grid["tops"])
+plt.savefig(os.path.join(figfol, "top_grid.png"))
 plt.close()
 
+plt.imshow(d3_grid["bots"])
+plt.savefig(os.path.join(figfol, "bot_grid.png"))
+plt.close()
 
+#%%Create topsystem
+d3_grid["topsys"] = (np.nan_to_num(d3_grid["tops"]/d3_grid["tops"]) + 
+           np.nan_to_num(d3_grid["conf_tops"]/d3_grid["conf_tops"]) + 
+                                                  (d3_grid["tops"] >= 0)).astype(np.int16)
 
-##%%Convert to Cartesian regular grid
-#d3_grid = {}
-#
-#dx, dy = 1000, 1000
-#
-#d3_grid["x"], d3_grid["y"] = get_targgrid(dx, dy, L, phi/2)
-#
-##Remove nans,which broadcasts to 1 dimensional array.
-#for key, arr in d3.items():
-#    d3[key] = arr[~nan_idx]
-#
-##Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
-#ip = interpolate.LinearNDInterpolator(np.vstack((d3["x"],d3["y"])).T, d3["tops"])
-#vrbls = [i for i in d3.keys() if not i in ["x", "y"]]
-#for vrbl in vrbls:
-#    d3_grid[vrbl] = _griddata(ip, d3[vrbl], (d3_grid["x"], d3_grid["y"]))
-#
-#for key, arr in d3_conf.items():
-#    d3_conf[key] = arr[~nan_conf]
-#
-##Now for confining layer
-#ip = interpolate.LinearNDInterpolator(np.vstack((d3_conf["x"],d3_conf["y"])).T, d3_conf["tops"])
-#vrbls = [i for i in d3_conf.keys() if not i in ["x", "y"]]
-#for vrbl in vrbls:
-#    d3_grid[r"conf_"+vrbl] = _griddata(ip, d3_conf[vrbl], (d3_grid["x"], d3_grid["y"]))
-#
-#plt.imshow(d3_grid["tops"])
-#plt.savefig(os.path.join(figfol, "top_grid.png"))
-#plt.close()
-#
-#plt.imshow(d3_grid["bots"])
-#plt.savefig(os.path.join(figfol, "bot_grid.png"))
-#plt.close()
-#
-##%%Create topsystem
-#topsys = np.nan_to_num(d3_grid["tops"]/d3_grid["tops"]) + np.nan_to_num(d3_grid["conf_tops"]/d3_grid["conf_tops"]) + (d3_grid["tops"] >= 0)
-#
-#plt.imshow(topsys)
-#plt.savefig(os.path.join(figfol, "topsystem_grid.png"))
-#plt.close()
+plt.imshow(d3_grid["topsys"])
+plt.savefig(os.path.join(figfol, "topsystem_grid.png"))
+plt.close()
+
+#%%Create 3D 
+d3_grid = xr.Dataset(dict([(key, (["y", "x"], value)) for key, value in d3_grid.items() if key not in ["x", "y"]]),
+                     coords = {"x" : d3_grid["x"][0, :],
+                               "y" : d3_grid["y"][:, 0]})
+
