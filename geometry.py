@@ -71,7 +71,7 @@ def _get_pizza_slice(d1, length, phis):
     
 
 #%%Main functions
-def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
+def create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp):
     d1 = {}
 
     gamma *= D/1000
@@ -87,17 +87,17 @@ def create_crosssection(a, alpha, b, beta, gamma, dD, D, L):
 
     return(d1)
 
-def create_top_bot(phi, d1):
+def create_top_bot(phi, d1, n_inp):
     d2 = {}
 
     phis = np.linspace(-phi/2, phi/2, num=n_inp-20)
     d2["x"], d2["y"] = _pol2cart(*np.meshgrid(d1["rho"], phis))
     
-    ##Fit ellipse for bottom
-    d2["bots"]= _ellipse(phi/2, d1["bot"], phis).T
-    
     ##Create tops
     d2["tops"], _ = np.meshgrid(d1["top"], phis)
+
+    ##Fit ellipse for bottom
+    d2["bots"]= _ellipse(phi/2, d1["bot"], phis).T
     
     ##Clip off weird part where tops and bot intersect
     d2["tops"] = _clip_f(d2["tops"], d1["slope"], a_min = d2["bots"])
@@ -108,7 +108,7 @@ def create_top_bot(phi, d1):
         arr[nan_idx]=np.nan
     return(d2, nan_idx, phis)
 
-def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
+def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac, n_inp):
     d2_clay = {}
     x_ons, y_ons = _get_pizza_slice(d1, L*a, phis)
     
@@ -116,13 +116,15 @@ def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
     rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
     rhos_clay = np.linspace(0, rho_clay, num=n_inp)
     phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
-    
+  
     topf = interpolate.interp1d(d1["rho"], d1["top"])
     botf = interpolate.interp1d(d1["rho"], d1["bot"])
+    d_clay_coast = (botf(rhos_clay[-1]+x_offset) * frac)
     
-    depth_conf = topf(rhos_clay+x_offset) + botf(rhos_clay+x_offset) * frac
-    d2_clay["bots"] = -_ellipse(phi_clay, depth_conf, phis_clay).T
-    d2_clay["tops"] = np.zeros(d2_clay["bots"].shape) + topf(rhos_clay+x_offset) #Hack to get 2D tops of clay layer
+    depth_conf =  np.linspace(0, d_clay_coast, num=n_inp)
+
+    d2_clay["tops"] = np.zeros((n_inp-20, n_inp)) + topf(rhos_clay+x_offset) #Hack to get 2D tops of clay layer
+    d2_clay["bots"] = d2_clay["tops"] - _ellipse(phi_clay, depth_conf, phis_clay).T
     
     d2_clay["x"], d2_clay["y"] = _pol2cart(*np.meshgrid(rhos_clay, phis_clay))
     d2_clay["x"] += x_offset
@@ -131,7 +133,6 @@ def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac):
     nan_clay = np.greater(d2_clay["x"].T, np.nanmax(x_ons, axis = 1)).T
     for key, arr in d2_clay.items():
         arr[nan_clay] = np.nan
-#        d2_clay[key] = arr[~nan_clay]
     return(d2_clay, nan_clay)
 
 def get_targgrid(dx, dy, L, phi_max):
@@ -143,10 +144,13 @@ def get_targgrid(dx, dy, L, phi_max):
     y_out = np.arange(-y_max, y_max+1, dy)
     return(np.meshgrid(x_out, y_out))
 
-def create_clayer(frac, bot, d2, phis, phi, a_off = 0.):
+def create_clayer(frac, d1, d2, phis, phi, a):
+    idx = int(d1["top"].shape[0] * a)
+    base_slope = interpolate.interp1d(np.arange(idx), d1["top"][:idx], fill_value="extrapolate")
+    base_slope = base_slope(np.arange(d1["top"].shape[0]))
     
-#    depth_clay = d1["top"] + (d1["top"]+d1["bot"])*(frac)
-    depth_clay = a_off + bot*frac
+    depth_clay = base_slope  - (base_slope-d1["bot"])*(frac)
+
     clayer = (_ellipse(phi/2, depth_clay, phis).T + depth_clay)/2.
     in_prism=(clayer<d2["tops"]) & (clayer>d2["bots"])
     clayer[~in_prism] = np.nan
@@ -173,11 +177,108 @@ def get_edges(ibound, bot, top, z_shelf):
     edges = edges.where(((top >z_shelf) & (edges.z>(top-dz))) | (top <z_shelf))
     edges = xr.where(edges<np.sum(weights), 1, 0) * ibound
     
-    return(edges, edges_top)
+    return(edges)
+
+def ds_d2_grid(d2_grid):
+    return(xr.Dataset(dict([(key, (["y", "x"], value)) for key, value in d2_grid.items() if key not in ["x", "y"]]),
+                     coords = {"x" : d2_grid["x"][0, :],
+                               "y" : d2_grid["y"][:, 0]}))
+
+def calc_clay_thicknesses(d2_grid, n_clay):
+    d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
+    for i in range(n_clay):
+        d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
+    return(d2_grid)
+
+def create_3d_grid(d2_grid, d1, nz):
+    d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
+    d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
+    return(d3)
+
+def create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay):
+    d3["Kh"] = d3["IBOUND"] * kh
+    
+    d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), d2_grid["conf_d"]/c_conf*ani, d3["Kh"])
+    for i in range(n_clay):
+        d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), d2_grid["cd%d"%i]/c_mar*ani, d3["Kh"])
+    return(d3)
+
+#%%Master function
+def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L=None, 
+                 D=None,  dD=None,    phi=None,     SM=None,     n_clay=None,  clay_conf=None,
+                 kh=None, ani=None,   c_conf=None,  c_mar=None,
+                 dx=None, dy=None,    nz=None,      figfol=None, netcdf=None, ):
+
+    n_inp = 200 #Discretization polar coordinates, not in actual model
+    
+    #Process central crosssection
+    d1 = create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp)
+    
+    #Create 3D top & bottom    
+    d2, nan_idx, phis = create_top_bot(phi, d1, n_inp)
+    
+    if figfol is not None:
+        top_bot_3D_plot(d2, figfol)
+    
+    #Create confining layer
+    frac_sand = (1-SM) / (n_clay + 1)
+    frac_clay = SM/(n_clay+1)
+    
+    d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, phis, L, a, frac_clay, n_inp)
+    
+    #Create clay layers
+    fracs = np.cumsum([frac_sand] + [frac_clay, frac_sand]*n_clay)
+    
+    for i in range(n_clay):
+        d2["ct%d"%i] = create_clayer(fracs[0::2][i], d1, d2, phis, phi, a)
+        d2["cb%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+    
+    if figfol is not None:
+        clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
+    
+    #Convert to Cartesian regular grid
+    d2_grid = {}
+    
+    d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, np.max(d2["x"][~nan_idx]), phi/2)
+    d2_grid = pol2griddata(d2, nan_idx, d2_grid)
+    d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
+    
+    if figfol is not None:
+        top_bot_grid_plot(d2_grid,figfol)
+    
+    #Create 3D 
+    d2_grid = ds_d2_grid(d2_grid)
+    d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
+
+    #Create topsystem
+    d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
+               np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
+                                                      (d2_grid["tops"] >= 0)).astype(np.int8)
+
+    if figfol is not None:
+        _plot_imshow(d2_grid["topsys"], os.path.join(figfol, "topsystem_grid.png"))
+    
+    d2_grid = calc_clay_thicknesses(d2_grid, n_clay)
+    
+    d3 = create_3d_grid(d2_grid, d1, nz)
+    d3 = create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay)
+    
+    z_shelf_edge = d1["top"][~d1["slope"]][-1]
+    d3["edges"] = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
+    
+    d3["topsys"] = d2_grid["topsys"]
+    
+    #Save as netcdf
+    if netcdf is not None:
+        d3.to_netcdf(netcdf)
+    
+    return(d3, d2_grid)
 
 #%%Plot functions
-def clayer_plot(d2, d2_conf, figfol):
-    slcs = [np.s_[:, 50],np.s_[90, :]]
+def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
+    id_x = int(d2["bots"].shape[1] * a / 2)
+    
+    slcs = [np.s_[:, id_x],np.s_[90, :]]
     dims = ["y", "x"]
     fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
     
@@ -215,6 +316,23 @@ def clayer_plot(d2, d2_conf, figfol):
     plt.savefig(os.path.join(figfol, "clayers.png"))
     plt.close()
 
+def top_bot_3D_plot(d2, figfol):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(d2["x"], d2["y"], d2["bots"], zorder=1)
+    ax.plot_surface(d2["x"], d2["y"], d2["tops"], zorder=20)
+    plt.savefig(os.path.join(figfol, "3D_top_bot.png"))
+    plt.close()
+
+def _plot_imshow(da, fp):
+    plt.imshow(da)
+    plt.savefig(fp)
+    plt.close()    
+
+def top_bot_grid_plot(d2_grid,figfol):
+    _plot_imshow(d2_grid["tops"], os.path.join(figfol, "top_grid.png"))
+    _plot_imshow(d2_grid["bots"], os.path.join(figfol, "bot_grid.png"))
+    
 #%%Path management
 figfol=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
 netcdf=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data\synth_model.nc"
@@ -222,9 +340,6 @@ netcdf=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinp
 #%%Parameters
 #Morris parameters
 lev = 4
-
-#Model input parameters
-n_inp = 200 #Discretization polar coordinates, not in actual model
 
 #Geometry input parameters
 L = 200000 #FIXED Check all delta lengths, so if this value is representative. Also check leakage factors whether this long enough
@@ -258,97 +373,32 @@ c_mar = np.logspace(1, 4, num=lev)
 ani = np.logspace(0, 1.5, num=lev)
 
 #%%For testing
+pars = {}
+
 #Domain geometry
-a = a[0]
-b = b[0]
-D = D[1]
-dD = dD[2]
-alpha = alpha[2]
-beta = beta[2]
-phi = phi[2]
+pars["a"]  = a[1]
+pars["b"]  = b[1]
+pars["D"]  = D[1]
+pars["dD"] = dD[0]
+pars["alpha"] = alpha[2]
+pars["beta"]  = beta[2]
+pars["gamma"] = gamma
+pars["phi"] = phi[2]
+pars["L"]   = L
+pars["SM"]  = SM
 
 #Internal geometry
-clay_conf = clay_conf[2]
-n_clay = n_clay[3]
+pars["clay_conf"] = clay_conf[2]
+pars["n_clay"] = n_clay[3]
 
 #Hydrogeological parameters
-kh = kh[1]
-c_conf = c_conf[2]
-c_mar = c_mar[2]
-ani = ani[2]
+pars["kh"] = kh[1]
+pars["c_conf"] = c_conf[2]
+pars["c_mar"]  = c_mar[2]
+pars["ani"]    = ani[2]
 
-#%%Process central crosssection
-d1 = create_crosssection(a, alpha, b, beta, gamma, dD, D, L)
+#Discretization
+pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 
-#%%Create 3D top & bottom
-d2, nan_idx, phis = create_top_bot(phi, d1)
-
-##Plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(d2["x"], d2["y"], d2["bots"], zorder=1)
-ax.plot_surface(d2["x"], d2["y"], d2["tops"], zorder=20)
-plt.savefig(os.path.join(figfol, "3D_top_bot.png"))
-plt.close()
-
-#%%Create confining layer
-frac_sand = (1-SM) / (n_clay + 1)
-frac_clay = SM/(n_clay+1)
-
-d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, phis, L, a, frac_clay)
-
-#%%Create clay layers
-fracs = np.cumsum([frac_sand] + [frac_clay, frac_sand]*n_clay)
-
-for i in range(n_clay):
-    d2["ct%d"%i] = create_clayer(fracs[0::2][i], d1["bot"], d2, phis, phi)
-    d2["cb%d"%i] = create_clayer(fracs[1::2][i], d1["bot"], d2, phis, phi)
-
-##Plot
-clayer_plot(d2, d2_conf, figfol)
-
-#%%Convert to Cartesian regular grid
-d2_grid = {}
-
-d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, np.max(d2["x"][~nan_idx]), phi/2)
-d2_grid = pol2griddata(d2, nan_idx, d2_grid)
-d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
-
-plt.imshow(d2_grid["tops"])
-plt.savefig(os.path.join(figfol, "top_grid.png"))
-plt.close()
-
-plt.imshow(d2_grid["bots"])
-plt.savefig(os.path.join(figfol, "bot_grid.png"))
-plt.close()
-
-#%%Create topsystem
-d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
-           np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
-                                                  (d2_grid["tops"] >= 0)).astype(np.int8)
-
-plt.imshow(d2_grid["topsys"])
-plt.savefig(os.path.join(figfol, "topsystem_grid.png"))
-plt.close()
-
-#%%Create 3D 
-d2_grid = xr.Dataset(dict([(key, (["y", "x"], value)) for key, value in d2_grid.items() if key not in ["x", "y"]]),
-                     coords = {"x" : d2_grid["x"][0, :],
-                               "y" : d2_grid["y"][:, 0]})    
-d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
-for i in range(n_clay):
-    d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
-
-d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
-d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
-d3["Kh"] = d3["IBOUND"] * kh
-
-d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), d2_grid["conf_d"]/c_conf*ani, d3["Kh"])
-for i in range(n_clay):
-    d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), d2_grid["cd%d"%i]/c_mar*ani, d3["Kh"])
-
-z_shelf_edge = d1["top"][~d1["slope"]][-1]
-d3["edges"], edges_top = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
-
-#%%Save as netcdf
-d3.to_netcdf(netcdf)
+#%%
+d3, _ = get_geometry(figfol=figfol, netcdf=netcdf, **pars)
