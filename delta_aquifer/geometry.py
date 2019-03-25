@@ -246,7 +246,6 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     if figfol is not None:
         top_bot_grid_plot(d2_grid,figfol)
     
-    #Create 3D 
     d2_grid = ds_d2_grid(d2_grid)
     d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
 
@@ -258,8 +257,10 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     if figfol is not None:
         _plot_imshow(d2_grid["topsys"], os.path.join(figfol, "topsystem_grid.png"))
     
+    #Calculate clay thicknesses
     d2_grid = calc_clay_thicknesses(d2_grid, n_clay)
-    
+
+    #Create 3D 
     d3 = create_3d_grid(d2_grid, d1, nz)
     d3 = create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay)
     

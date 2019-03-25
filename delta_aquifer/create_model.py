@@ -5,7 +5,8 @@ Created on Thu Mar 21 17:15:21 2019
 @author: engelen
 """
 import numpy as np
-from . import geometry
+from delta_aquifer import geometry
+from delta_aquifer import boundary_conditions as bc
 
 #%%Path management
 figfol=r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
@@ -74,5 +75,18 @@ pars["ani"]    = ani[2]
 #Discretization
 pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 
-#%%
-d3, _ = geometry.get_geometry(figfol=figfol, netcdf=netcdf, **pars)
+#%%Get geometry
+geo, _ = geometry.get_geometry(figfol=figfol, netcdf=netcdf, **pars)
+
+#%%Create boundary conditions
+import numpy as np
+import xarray as xr
+
+#Path management
+spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
+
+
+ts = np.array([50000, 40000, 30000, 25000, 20000, 15000, 13000, 11000, 9000, 8500, 8000, 7500, 7000, 6500, 6000, 5000, 4000, 3000, 2000, 1000, 0])/1000
+sea_level = bc.get_sea_level(spratt, ts, figfol)
+
+sea_cells = xr.where(geo["edges"]<sea_level["50%"], geo["edges"], 0)
