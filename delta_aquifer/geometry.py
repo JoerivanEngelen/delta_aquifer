@@ -156,7 +156,7 @@ def create_clayer(frac, d1, d2, phis, phi, a):
     clayer[~in_prism] = np.nan
     return(clayer)
 
-def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
+def pol2griddata(poldata, nan_idx, griddata, key_prep = None):
     #Remove nans,which broadcasts to 1 dimensional array.
     for key, arr in poldata.items():
         poldata[key] = arr[~nan_idx]
@@ -165,7 +165,11 @@ def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
     #Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
     ip = interpolate.LinearNDInterpolator(np.vstack((poldata["x"],poldata["y"])).T, poldata[vrbls[0]])
     for vrbl in vrbls:
-        griddata[key_prep+vrbl] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
+        if key_prep is not None:
+            key = key_prep+vrbl
+        else:
+            key = vrbl
+        griddata[key] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
     return(griddata)
 
 def get_edges(ibound, bot, top, z_shelf):
@@ -207,7 +211,7 @@ def create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay):
 def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L=None, 
                  D=None,  dD=None,    phi=None,     SM=None,     n_clay=None,  clay_conf=None,
                  kh=None, ani=None,   c_conf=None,  c_mar=None,
-                 dx=None, dy=None,    nz=None,      figfol=None, netcdf=None, ):
+                 dx=None, dy=None,    nz=None,      figfol=None, netcdf=None, **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
@@ -267,13 +271,14 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
     d3["edges"] = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
     
-    d3["topsys"] = d2_grid["topsys"]
+    d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]
+    
     
     #Save as netcdf
     if netcdf is not None:
         d3.to_netcdf(netcdf)
     
-    return(d3, d2_grid)
+    return(d3)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
