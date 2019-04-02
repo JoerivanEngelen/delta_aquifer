@@ -122,7 +122,6 @@ geo = geometry.get_geometry(figfol=figfol, netcdf=netcdf, **pars)
 
 #%%Create boundary conditions
 import numpy as np
-import xarray as xr
 
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
@@ -131,19 +130,10 @@ spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_
 sea_level = bc.get_sea_level(spratt, ts, figfol)
 
 # Find active sea cells where GHB's should be assigned.
-coastline, coastline_x, rho_onshore = bc.get_coastline(
+coastline, coastline_loc, rho_onshore = bc.coastlines(
     geo, sea_level, figfol=figfol, **pars
 )
-
-
 # Determine sea cells
-sea_cells = xr.where(
-    (geo["edges"].z < sea_level["50%"]) & (coastline.x <= coastline_x), geo["edges"], 0
-)
-
-rivers = bc.get_river_grid(
-    geo, sea_level["50%"], coastline, rho_onshore, figfol=figfol, **pars
-)
-rivers = (rivers * geo["edges"].where(geo["edges"] != 0)).dropna(dim="z", how="all")
-
+sea_cells = bc.sea_3d(geo, sea_level["50%"], coastline_loc)
+rivers  = bc.river_3d(geo, sea_level["50%"], rho_onshore, figfol=figfol, **pars)
 
