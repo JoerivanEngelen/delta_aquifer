@@ -69,7 +69,7 @@ def _dumb(x):
 #%%Main functions
 def get_sea_level(path_eustatic, ts, figfol=None):
     df = pd.read_csv(path_eustatic, sep=" ", header=9).rename(
-        columns={"Age(ka)": "age"}
+        columns={"Age(ka)": "time"}
     )
     sea_level = calc_weighted_mean(df, ts)
 
@@ -86,32 +86,32 @@ def calc_weighted_mean(df, ts):
     by interpolation and subsequently granting the interpolated datapoint a lower weight.
     """
     means = []
-    ds = xr.Dataset.from_dataframe(df.set_index("age"))
-    dt = ds.age - ds.age.shift(age=1)  # Calc dts
+    ds = xr.Dataset.from_dataframe(df.set_index("time"))
+    dt = ds.time - ds.time.shift(time=1)  # Calc dts
     dt = dt.fillna(0)
     dt.name = "dt"
 
     for start, end in zip(ts[:-1], ts[1:]):
         weights_ends = (
-            np.array([start, end]) % dt.sel(age=[start, end], method="backfill")
+            np.array([start, end]) % dt.sel(time=[start, end], method="backfill")
         ).fillna(1.0)
 
-        sl = slice(*(weights_ends.age.values[::-1]))
+        sl = slice(*(weights_ends.time.values[::-1]))
 
-        vals_ends = ds.interp(age=[start, end])
-        weights_ends["age"] = vals_ends["age"]
+        vals_ends = ds.interp(time=[start, end])
+        weights_ends["time"] = vals_ends["time"]
 
         if weights_ends[0] > 0.0:
             weights_ends[0] = 1 - weights_ends[0]
 
-        weights = xr.concat([weights_ends, dt.sel(age=sl)], dim="age")
+        weights = xr.concat([weights_ends, dt.sel(time=sl)], dim="time")
 
-        vals = xr.concat([vals_ends, ds.sel(age=sl)], dim="age")
+        vals = xr.concat([vals_ends, ds.sel(time=sl)], dim="time")
 
         means.append((weights * vals).sum() / weights.sum())
 
-    means = xr.concat(means, dim="age")
-    means["age"] = (ts[:-1] + ts[1:]) / 2
+    means = xr.concat(means, dim="time")
+    means["time"] = (ts[:-1] + ts[1:]) / 2
 
     return means
 
@@ -128,8 +128,8 @@ def coastlines(geo, sea_level, phi=None, L = None, a = None,
 
     coastline_rho = xr.where(top_coast, top_coast.x, np.nan).min(dim="x").sel(y=0.0, method="nearest")
 
-    weights_trans = np.clip((sea_level.age - t_start)/(t_max - t_start), 0, 1)
-    weights_reg = np.clip((sea_level.age - t_max)/(t_end - t_max), 0, 1)
+    weights_trans = np.clip((sea_level.time - t_start)/(t_max - t_start), 0, 1)
+    weights_reg = np.clip((sea_level.time - t_max)/(t_end - t_max), 0, 1)
     weights = weights_trans - weights_reg
     
     coastline_rho = L * a * (1-tra) * weights + (1-weights) * coastline_rho
@@ -148,7 +148,7 @@ def coastlines(geo, sea_level, phi=None, L = None, a = None,
     coastline_loc = xr.Dataset(dict([(r"%s_loc" % dim, xr.where(coastline, coastline[dim], np.nan).max(dim=dim)) for dim in ["x", "y"]]))
     
     if figfol is not None:
-        coastline.sum(dim="age").plot()
+        coastline.sum(dim="time").plot()
         plt.savefig(os.path.join(figfol, "coastlines.png"))
         plt.tight_layout()
         plt.close()
@@ -172,7 +172,7 @@ def river_grid(
     h = apex - rhos * dhdx
 
     h = dict(
-        [(float(age), np.meshgrid(h.sel(age=age), phis)[0]) for age in h.age.values]
+        [(float(time), np.meshgrid(h.sel(time=time), phis)[0]) for time in h.time.values]
     )
     h["x"], h["y"] = geometry._pol2cart(*np.meshgrid(rhos, phis))
 
@@ -183,7 +183,7 @@ def river_grid(
         geometry.pol2griddata(h, np.zeros((n_inp - 20, n_inp)).astype(bool), h_grid)
     )
     h_grid = xr.concat(
-        [h_grid[age].assign_coords(age=age) for age in dhdx.age.values], dim="age"
+        [h_grid[time].assign_coords(time=time) for time in dhdx.time.values], dim="time"
     )
     h_grid = h_grid.where(h_grid > sea_level)
     
@@ -209,9 +209,9 @@ def river_3d(
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, figfol):
     start, end = int(ts[0]), int(ts[-1])
-    plt.plot(sea_level["age"], sea_level["50%"], drawstyle="steps-mid")
-    plt.scatter(sea_level["age"], sea_level["50%"])
-    plt.plot(df["age"][end:start], df["50%"][end:start])
+    plt.plot(sea_level["time"], sea_level["50%"], drawstyle="steps-mid")
+    plt.scatter(sea_level["time"], sea_level["50%"])
+    plt.plot(df["time"][end:start], df["50%"][end:start])
     ax = plt.gca()
     ax.invert_xaxis()
     plt.savefig(os.path.join(figfol, "sea_level_curve.png"))

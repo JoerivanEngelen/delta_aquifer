@@ -139,7 +139,7 @@ sea_cells = bc.sea_3d(geo, sea_level["50%"], coastline_loc)
 rivers  = bc.river_3d(geo, sea_level["50%"], rho_onshore, figfol=figfol, **pars)
 
 bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers})
-bcs = bcs.transpose("age", "z", "y", "x")
+bcs = bcs.transpose("time", "z", "y", "x")
 
 if ncfol is not None:
     bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
