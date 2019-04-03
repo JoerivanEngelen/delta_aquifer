@@ -8,6 +8,8 @@ import numpy as np
 from delta_aquifer import geometry
 from delta_aquifer import boundary_conditions as bc
 
+import netCDF4 as nc4
+
 #%%Path management
 figfol = (
     r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
@@ -128,18 +130,26 @@ import os
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
 # Get sea level
-sea_level = bc.get_sea_level(spratt, ts, figfol)
+sea_level = bc.get_sea_level(spratt, ts, figfol=figfol)
 
 # Find active sea cells where GHB's should be assigned.
 coastline, coastline_loc, rho_onshore = bc.coastlines(
     geo, sea_level, figfol=figfol, **pars
 )
 # Determine sea cells
-sea_cells = bc.sea_3d(geo, sea_level["50%"], coastline_loc)
-rivers  = bc.river_3d(geo, sea_level["50%"], rho_onshore, figfol=figfol, **pars)
+sea_cells = bc.sea_3d(geo, sea_level, coastline_loc)
+rivers  = bc.river_3d(geo, sea_level, rho_onshore, figfol=figfol, **pars)
 
 bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers})
 bcs = bcs.transpose("time", "z", "y", "x")
+#bcs["time"].attrs["units"] = "ka"
+bcs["time"] = bcs["time"].max() - bcs["time"]
+bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
 
 if ncfol is not None:
-    bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
+    bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
+
+    tempnc = nc4.Dataset(os.path.join(ncfol, "bcs.nc"), mode= 'a')
+    tempnc.variables["time"].setncattr("units", bcs["time"].attrs["units"])
+    print(tempnc.variables["time"])
+    tempnc.close()

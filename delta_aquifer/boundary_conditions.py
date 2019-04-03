@@ -67,26 +67,30 @@ def _dumb(x):
     return(x)
 
 #%%Main functions
-def get_sea_level(path_eustatic, ts, figfol=None):
+def get_sea_level(path_eustatic, ts, qt="50%", figfol=None):
     df = pd.read_csv(path_eustatic, sep=" ", header=9).rename(
         columns={"Age(ka)": "time"}
-    )
-    sea_level = calc_weighted_mean(df, ts)
+    ).set_index("time")
+    
+    df = df - df.iloc[0, :] #Correct sea levels so that the last timestep is 0.
+    
+    sea_level = calc_weighted_mean(df, ts, qt)
 
     if figfol is not None:
-        plot_sea_level_curve(sea_level, df, ts, figfol)
+        plot_sea_level_curve(sea_level, df, ts, qt, figfol)
 
     return sea_level
 
 
-def calc_weighted_mean(df, ts):
+def calc_weighted_mean(df, ts, qt):
     """Calculate weighted means of a dataframe for N timeslices from a array of timeslice bins (N+1). 
     
     Function accounts for timeslice bin edges that fall in between two datapoints of the dataframe 
     by interpolation and subsequently granting the interpolated datapoint a lower weight.
     """
     means = []
-    ds = xr.Dataset.from_dataframe(df.set_index("time"))
+#    ds = xr.Dataset.from_dataframe(df.set_index("time"))
+    ds = xr.Dataset.from_dataframe(df)[qt]
     dt = ds.time - ds.time.shift(time=1)  # Calc dts
     dt = dt.fillna(0)
     dt.name = "dt"
@@ -120,10 +124,10 @@ def coastlines(geo, sea_level, phi=None, L = None, a = None,
                   figfol=None, t_start=None, t_max=None, t_end=None, 
                   tra=None, **kwargs):
     # top_coast
-    top_coast = _isclose(geo["tops"], sea_level["50%"], atol=0.5, rtol=2e-1) & geo[
+    top_coast = _isclose(geo["tops"], sea_level, atol=0.5, rtol=2e-1) & geo[
         "edges"
     ].sel(
-        z=sea_level["50%"], method="pad"
+        z=sea_level, method="pad"
     )  # Get sea cells in upper layer
 
     coastline_rho = xr.where(top_coast, top_coast.x, np.nan).min(dim="x").sel(y=0.0, method="nearest")
@@ -193,7 +197,7 @@ def sea_3d(geo, sea_level, coastline_loc):
     coastline_loc["x_loc"] = coastline_loc["x_loc"].fillna(coastline_loc["x_loc"].min(dim="y"))
     
     return(xr.where(
-    (sea_level > geo["edges"].z) & (geo.x <= coastline_loc["x_loc"]), geo["edges"], 0
+    (sea_level > geo["edges"].z) & (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
     ))
 
 def river_3d(
@@ -207,11 +211,11 @@ def river_3d(
     return((h_grid * geo["edges"].where(geo["edges"] != 0)).dropna(dim="z", how="all"))
 
 #%%Plotting functions
-def plot_sea_level_curve(sea_level, df, ts, figfol):
+def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
     start, end = int(ts[0]), int(ts[-1])
-    plt.plot(sea_level["time"], sea_level["50%"], drawstyle="steps-mid")
-    plt.scatter(sea_level["time"], sea_level["50%"])
-    plt.plot(df["time"][end:start], df["50%"][end:start])
+    plt.plot(sea_level["time"], sea_level, drawstyle="steps-mid")
+    plt.scatter(sea_level["time"], sea_level)
+    plt.plot(df.index[end:start], df[qt][end:start])
     ax = plt.gca()
     ax.invert_xaxis()
     plt.savefig(os.path.join(figfol, "sea_level_curve.png"))
