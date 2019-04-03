@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import os
 from delta_aquifer import geometry
 
-#%%Override buggy xarray function with this hack.
+#%%Override buggy xarray function with this hack. This hack probably only works within this context.
 
 def _unique_value_groups(ar, sort=True):
     """Group an array by its unique values.
@@ -34,11 +34,12 @@ def _unique_value_groups(ar, sort=True):
     """
     inverse, values = pd.factorize(ar, sort=sort)
 #    groups = [[] for _ in range(len(values))]
-    groups = [[] for _ in range(len(values)+1)]
+    groups = [[] for _ in range(len(values)+1)] #Add extra list for NaNs
     for n, g in enumerate(inverse):
 #        if g >= 0:
         if True:
             # pandas uses -1 to mark NaN, but doesn't include them in values
+            # therefore NaNs are stored in the last (extra) list
             groups[g].append(n)
     
     if not groups[-1]:
@@ -61,7 +62,7 @@ def _mid_to_binedges(mids):
     return(binedges)
 
 def _dumb(x):
-    """This function is used as a hack to convert labeled groupby values back to array.
+    """This function is used as a hack to convert labeled groupby values back to a DataArray.
     """
     return(x)
 
@@ -192,7 +193,7 @@ def sea_3d(geo, sea_level, coastline_loc):
     coastline_loc["x_loc"] = coastline_loc["x_loc"].fillna(coastline_loc["x_loc"].min(dim="y"))
     
     return(xr.where(
-    (geo["edges"].z < sea_level) & (geo.x <= coastline_loc["x_loc"]), geo["edges"], 0
+    (sea_level > geo["edges"].z) & (geo.x <= coastline_loc["x_loc"]), geo["edges"], 0
     ))
 
 def river_3d(

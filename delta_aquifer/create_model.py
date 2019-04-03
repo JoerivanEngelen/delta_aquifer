@@ -12,7 +12,7 @@ from delta_aquifer import boundary_conditions as bc
 figfol = (
     r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
 )
-netcdf = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data\synth_model.nc"
+ncfol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data"
 
 #%%Parameters
 # Morris parameters
@@ -118,11 +118,12 @@ pars["t_end"] = t_end
 pars["t_start"] = t_start
 pars["t_max"] = t_max 
 #%%Get geometry
-geo = geometry.get_geometry(figfol=figfol, netcdf=netcdf, **pars)
+geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
 #%%Create boundary conditions
 import numpy as np
-
+import xarray as xr
+import os
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
@@ -137,3 +138,8 @@ coastline, coastline_loc, rho_onshore = bc.coastlines(
 sea_cells = bc.sea_3d(geo, sea_level["50%"], coastline_loc)
 rivers  = bc.river_3d(geo, sea_level["50%"], rho_onshore, figfol=figfol, **pars)
 
+bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers})
+bcs = bcs.transpose("age", "z", "y", "x")
+
+if ncfol is not None:
+    bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
