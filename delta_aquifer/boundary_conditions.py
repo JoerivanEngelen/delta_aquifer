@@ -198,14 +198,11 @@ def sea_3d(geo, sea_level, coastline_loc):
     
     sea_z = geo.sel(z= sea_level, method="pad").z
     
-    sea_edge = xr.where(sea_z >= geo["edges"].z, geo["edges"], 0)
+    sea_edge = xr.where(sea_z > geo["edges"].z, geo["edges"], 0)
     sea_trans = ((geo.x >= coastline_loc["x_loc"]) & (geo.z == sea_z)) * geo["IBOUND"]
     # & (sea_edge.sum(dim="z") == 0)
-#    sea = xr.where(
-#    (sea_z >= (geo["edges"].z)) | (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
-#    )
     
-    return((sea_edge|sea_trans).astype(int), sea_z)
+    return((sea_edge|sea_trans).astype(np.int16), sea_z)
 
 def river_3d(
     geo, sea_level, rho_onshore, phi=None, L=None, figfol=None, **kwargs        
