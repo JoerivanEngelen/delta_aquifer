@@ -211,7 +211,7 @@ def create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay):
 def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L=None, 
                  D=None,  dD=None,    phi=None,     SM=None,     n_clay=None,  clay_conf=None,
                  kh=None, ani=None,   c_conf=None,  c_mar=None,
-                 dx=None, dy=None,    nz=None,      figfol=None, netcdf=None, **kwargs):
+                 dx=None, dy=None,    nz=None,      figfol=None, ncfol=None, **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
@@ -275,8 +275,8 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     
     
     #Save as netcdf
-    if netcdf is not None:
-        d3.to_netcdf(netcdf)
+    if ncfol is not None:
+        d3.to_netcdf(os.path.join(ncfol, "geo.nc"))
     
     return(d3)
 
