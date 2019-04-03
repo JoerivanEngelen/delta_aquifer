@@ -139,7 +139,7 @@ coastline, coastline_loc, rho_onshore = bc.coastlines(
 )
 # Determine sea cells
 sea_cells, sea_z = bc.sea_3d(geo, sea_level, coastline_loc)
-rivers  = bc.river_3d(geo, sea_level, rho_onshore, figfol=figfol, **pars)
+rivers, z_bins   = bc.river_3d(geo, sea_level, rho_onshore, figfol=figfol, **pars)
 
 bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
 bcs = bcs.transpose("time", "z", "y", "x")

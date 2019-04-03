@@ -200,7 +200,6 @@ def sea_3d(geo, sea_level, coastline_loc):
     
     sea_edge = xr.where(sea_z > geo["edges"].z, geo["edges"], 0)
     sea_trans = ((geo.x >= coastline_loc["x_loc"]) & (geo.z == sea_z)) * geo["IBOUND"]
-    # & (sea_edge.sum(dim="z") == 0)
     
     return((sea_edge|sea_trans).astype(np.int16), sea_z)
 
@@ -215,8 +214,9 @@ def river_3d(
     z_bins = _mid_to_binedges(geo["z"].values)
     
     h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.z).apply(_dumb)
+    riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.z == h_grid["h_grid_bins"]))
     
-    return(h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.z == h_grid["h_grid_bins"])))
+    return(riv, z_bins)
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
