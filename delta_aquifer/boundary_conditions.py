@@ -196,11 +196,16 @@ def river_grid(
 def sea_3d(geo, sea_level, coastline_loc):
     coastline_loc["x_loc"] = coastline_loc["x_loc"].fillna(coastline_loc["x_loc"].min(dim="y"))
     
-    sea_z = geo.sel(z= sea_level, method="bfill").z
+    sea_z = geo.sel(z= sea_level, method="pad").z
     
-    return(xr.where(
-    (sea_z >= (geo["edges"].z)) & (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
-    ))
+    sea_edge = xr.where(sea_z >= geo["edges"].z, geo["edges"], 0)
+    sea_trans = ((geo.x >= coastline_loc["x_loc"]) & (geo.z == sea_z)) * geo["IBOUND"]
+    # & (sea_edge.sum(dim="z") == 0)
+#    sea = xr.where(
+#    (sea_z >= (geo["edges"].z)) | (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
+#    )
+    
+    return((sea_edge|sea_trans).astype(int), sea_z)
 
 def river_3d(
     geo, sea_level, rho_onshore, phi=None, L=None, figfol=None, **kwargs        
@@ -208,9 +213,13 @@ def river_3d(
     assert type(sea_level) == xr.core.dataarray.DataArray
     assert type(geo) == xr.core.dataarray.Dataset
     
-    h_grid = river_grid(geo, sea_level, rho_onshore, phi, L, figfol, **kwargs)
+    h_grid = xr.Dataset({"h_grid" : river_grid(geo, sea_level, rho_onshore, phi, L, figfol, **kwargs)})
     
-    return((h_grid * geo["edges"].where(geo["edges"] != 0)).dropna(dim="z", how="all"))
+    z_bins = _mid_to_binedges(geo["z"].values)
+    
+    h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.z).apply(_dumb)
+    
+    return(h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.z == h_grid["h_grid_bins"])))
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
