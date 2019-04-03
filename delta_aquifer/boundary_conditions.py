@@ -196,8 +196,10 @@ def river_grid(
 def sea_3d(geo, sea_level, coastline_loc):
     coastline_loc["x_loc"] = coastline_loc["x_loc"].fillna(coastline_loc["x_loc"].min(dim="y"))
     
+    sea_z = geo.sel(z= sea_level, method="bfill").z
+    
     return(xr.where(
-    (sea_level > geo["edges"].z) & (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
+    (sea_z >= (geo["edges"].z)) & (geo.x >= coastline_loc["x_loc"]), geo["edges"], 0
     ))
 
 def river_3d(
