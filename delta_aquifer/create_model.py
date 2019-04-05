@@ -103,7 +103,7 @@ pars["L"] = L
 
 # Internal geometry
 pars["SM"] = SM[3]
-pars["clay_conf"] = clay_conf[2]
+pars["clay_conf"] = clay_conf[3]
 pars["n_clay"] = n_clay[3]
 
 # Hydrogeological parameters
