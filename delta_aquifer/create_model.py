@@ -41,7 +41,8 @@ phi = np.linspace(0.125, 0.5, num=lev) * np.pi
 
 clay_conf = np.linspace(0.2, 1.0, num=lev)
 n_clay = np.linspace(0, 3, num=lev, dtype=int)
-SM = 0.3  # FIXED FOR NOW ELSE np.linspace(0.1, 0.6, num=4)
+#SM = 0.3  # FIXED FOR NOW ELSE np.linspace(0.1, 0.6, num=4)
+SM = np.linspace(0.1, 0.4, num=lev)
 
 # Model discretization
 dx, dy = 1000, 1000
@@ -99,9 +100,9 @@ pars["beta"] = beta[2]
 pars["gamma"] = gamma
 pars["phi"] = phi[2]
 pars["L"] = L
-pars["SM"] = SM
 
 # Internal geometry
+pars["SM"] = SM[3]
 pars["clay_conf"] = clay_conf[2]
 pars["n_clay"] = n_clay[3]
 
@@ -123,29 +124,7 @@ pars["t_max"] = t_max
 geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
 #%%Create boundary conditions
-import numpy as np
-import xarray as xr
-import os
-
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
-# Get sea level
-sea_level = bc.get_sea_level(spratt, ts, figfol=figfol)
-
-# Find active sea cells where GHB's should be assigned.
-coastline, coastline_loc, rho_onshore = bc.coastlines(
-    geo, sea_level, figfol=figfol, **pars
-)
-# Determine sea cells
-sea_cells, sea_z = bc.sea_3d(geo, sea_level, coastline_loc)
-rivers, z_bins   = bc.river_3d(geo, sea_level, rho_onshore, figfol=figfol, **pars)
-
-bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
-bcs = bcs.transpose("time", "z", "y", "x")
-#bcs["time"].attrs["units"] = "ka"
-bcs["time"] = bcs["time"].max() - bcs["time"]
-bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
-
-if ncfol is not None:
-    bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
+bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)

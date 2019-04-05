@@ -42,6 +42,7 @@ def _unique_value_groups(ar, sort=True):
             # therefore NaNs are stored in the last (extra) list
             groups[g].append(n)
     
+    #Have to delete empty list as subsequent combine will not work otherwise.
     if not groups[-1]:
         groups = groups[:-1]
     
@@ -67,8 +68,37 @@ def _dumb(x):
     return(x)
 
 #%%Main functions
-def get_sea_level(path_eustatic, ts, qt="50%", figfol=None):
-    df = pd.read_csv(path_eustatic, sep=" ", header=9).rename(
+def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, **kwargs):
+    # Get sea level
+    sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
+    
+    # Find active sea cells where GHB's should be assigned.
+    coastline, coastline_loc, rho_onshore = coastlines(
+        geo, sea_level, figfol=figfol, **kwargs
+    )
+    sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)
+    
+    #Create river stages
+    rivers, z_bins   = river_3d(geo, sea_level, rho_onshore, figfol=figfol, **kwargs)
+    
+    #Combine to dataset
+    bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
+    bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
+    bcs = bcs.transpose("time", "z", "y", "x")
+    
+    if ncfol is not None:
+        #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
+        bcs["time"] = bcs["time"].max() - bcs["time"]
+        #It also requires some CFTIME unit. This one is bullshit.
+        bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
+        bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
+        #Switch back to time in ka again
+        bcs["time"] = bcs["time"].max() - bcs["time"]
+
+    return(bcs)
+
+def get_sea_level(sl_curve, ts, qt="50%", figfol=None):
+    df = pd.read_csv(sl_curve, sep=" ", header=9).rename(
         columns={"Age(ka)": "time"}
     ).set_index("time")
     
@@ -162,34 +192,23 @@ def coastlines(geo, sea_level, phi=None, L = None, a = None,
 def river_grid(
     geo, sea_level, rho_onshore, phi=None, L=None, figfol=None, **kwargs
 ):
+    """Create grid with river stages. 
+    """
+    
     assert type(sea_level) == xr.core.dataarray.DataArray
     assert type(geo) == xr.core.dataarray.Dataset
+    
     # Create river cells
     apex = geo["tops"].max()
 
     dhdx = (apex - sea_level) / rho_onshore
 
-    n_inp = 200
-    rhos = np.linspace(0, L, num=n_inp)
-    rhos = xr.DataArray(rhos, coords=[rhos], dims=["rho"])
-    phis = np.linspace(-phi / 2, phi / 2, num=n_inp - 20)
-    h = apex - rhos * dhdx
-
-    h = dict(
-        [(float(time), np.meshgrid(h.sel(time=time), phis)[0]) for time in h.time.values]
-    )
-    h["x"], h["y"] = geometry._pol2cart(*np.meshgrid(rhos, phis))
-
-    h_grid = {}
-    h_grid["x"], h_grid["y"] = np.meshgrid(geo.x, geo.y)
-
-    h_grid = geometry.ds_d2_grid(
-        geometry.pol2griddata(h, np.zeros((n_inp - 20, n_inp)).astype(bool), h_grid)
-    )
-    h_grid = xr.concat(
-        [h_grid[time].assign_coords(time=time) for time in dhdx.time.values], dim="time"
-    )
-    h_grid = h_grid.where(h_grid > sea_level)
+    coords = {}
+    coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
+    
+    h_grid = apex - coords["rho"] * dhdx
+    
+    h_grid = h_grid.where((h_grid > sea_level) & (geo["IBOUND"].max(dim="z") == 1))
     
     return h_grid
 
@@ -212,9 +231,17 @@ def river_3d(
     h_grid = xr.Dataset({"h_grid" : river_grid(geo, sea_level, rho_onshore, phi, L, figfol, **kwargs)})
     
     z_bins = _mid_to_binedges(geo["z"].values)
+    layers = xr.DataArray(np.arange(len(geo.z))[::-1]+1, coords={"z":geo.z}, dims=["z"])
     
-    h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.z).apply(_dumb)
-    riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.z == h_grid["h_grid_bins"]))
+    h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=layers).apply(_dumb).rename({"h_grid_bins" : "h_l"})
+    #Displace h_grid_bins 1 down, except the maximum which should not go lower than the sea
+    #This to avoid h_l from going outside the model domain
+    h_grid["h_l"] = xr.where(h_grid["h_l"] == h_grid["h_l"].max(dim=["x", "y"]), h_grid["h_l"], h_grid["h_l"]+1)
+    
+    geo = geo.assign_coords(l = layers)
+
+    riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.l == h_grid["h_l"]))
+    riv = riv.drop("l")
     
     return(riv, z_bins)
 
