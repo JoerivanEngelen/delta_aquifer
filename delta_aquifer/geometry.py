@@ -236,6 +236,10 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     for i in range(n_clay):
         d2["ct%d"%i] = create_clayer(fracs[0::2][i], d1, d2, phis, phi, a)
         d2["cb%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+        #Fix edges at shoreline, so they extent fully to the sea
+        d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
+        #Fix top at bottom at the side edges
+        d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
