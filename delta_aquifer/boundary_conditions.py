@@ -207,7 +207,6 @@ def river_grid(
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
     
     h_grid = apex - coords["rho"] * dhdx
-    
     h_grid = h_grid.where((h_grid > sea_level) & (geo["IBOUND"].max(dim="z") == 1))
     
     return h_grid
