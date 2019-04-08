@@ -231,11 +231,11 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, phis, L, a, frac_clay, n_inp)
     
     #Create clay layers
-    fracs = np.cumsum([frac_sand] + [frac_clay, frac_sand]*n_clay)
+    fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
     
     for i in range(n_clay):
-        d2["ct%d"%i] = create_clayer(fracs[0::2][i], d1, d2, phis, phi, a)
-        d2["cb%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+        d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+        d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
         #Fix edges at shoreline, so they extent fully to the sea
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
         #Fix top at bottom at the side edges

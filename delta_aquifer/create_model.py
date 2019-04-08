@@ -94,7 +94,7 @@ pars = {}
 pars["a"] = a[1]
 pars["b"] = b[1]
 pars["D"] = D[1]
-pars["dD"] = dD[0]
+pars["dD"] = dD[1]
 pars["alpha"] = alpha[2]
 pars["beta"] = beta[2]
 pars["gamma"] = gamma
@@ -102,9 +102,9 @@ pars["phi"] = phi[2]
 pars["L"] = L
 
 # Internal geometry
-pars["SM"] = SM[3]
+pars["SM"] = SM[2]
 pars["clay_conf"] = clay_conf[3]
-pars["n_clay"] = n_clay[3]
+pars["n_clay"] = n_clay[2]
 
 # Hydrogeological parameters
 pars["kh"] = kh[1]
@@ -128,3 +128,6 @@ geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
 bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
+
+#%%
+import imod

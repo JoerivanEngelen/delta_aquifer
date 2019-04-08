@@ -68,35 +68,6 @@ def _dumb(x):
     return(x)
 
 #%%Main functions
-def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, **kwargs):
-    # Get sea level
-    sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
-    
-    # Find active sea cells where GHB's should be assigned.
-    coastline, coastline_loc, rho_onshore = coastlines(
-        geo, sea_level, figfol=figfol, **kwargs
-    )
-    sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)
-    
-    #Create river stages
-    rivers, z_bins   = river_3d(geo, sea_level, rho_onshore, figfol=figfol, **kwargs)
-    
-    #Combine to dataset
-    bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
-    bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
-    bcs = bcs.transpose("time", "z", "y", "x")
-    
-    if ncfol is not None:
-        #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
-        bcs["time"] = bcs["time"].max() - bcs["time"]
-        #It also requires some CFTIME unit. This one is bullshit.
-        bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
-        bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
-        #Switch back to time in ka again
-        bcs["time"] = bcs["time"].max() - bcs["time"]
-
-    return(bcs)
-
 def get_sea_level(sl_curve, ts, qt="50%", figfol=None):
     df = pd.read_csv(sl_curve, sep=" ", header=9).rename(
         columns={"Age(ka)": "time"}
@@ -119,7 +90,6 @@ def calc_weighted_mean(df, ts, qt):
     by interpolation and subsequently granting the interpolated datapoint a lower weight.
     """
     means = []
-#    ds = xr.Dataset.from_dataframe(df.set_index("time"))
     ds = xr.Dataset.from_dataframe(df)[qt]
     dt = ds.time - ds.time.shift(time=1)  # Calc dts
     dt = dt.fillna(0)
@@ -243,6 +213,36 @@ def river_3d(
     riv = riv.drop("l")
     
     return(riv, z_bins)
+
+#%%Master function
+def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, **kwargs):
+    # Get sea level
+    sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
+    
+    # Find active sea cells where GHB's should be assigned.
+    coastline, coastline_loc, rho_onshore = coastlines(
+        geo, sea_level, figfol=figfol, **kwargs
+    )
+    sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)
+    
+    #Create river stages
+    rivers, z_bins   = river_3d(geo, sea_level, rho_onshore, figfol=figfol, **kwargs)
+    
+    #Combine to dataset
+    bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
+    bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
+    bcs = bcs.transpose("time", "z", "y", "x")
+    
+    if ncfol is not None:
+        #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
+        bcs["time"] = bcs["time"].max() - bcs["time"]
+        #It also requires some CFTIME unit. This one is bullshit.
+        bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
+        bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
+        #Switch back to time in ka again
+        bcs["time"] = bcs["time"].max() - bcs["time"]
+    
+    return(bcs)
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
