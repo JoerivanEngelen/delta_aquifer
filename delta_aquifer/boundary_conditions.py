@@ -200,17 +200,13 @@ def river_3d(
     h_grid = xr.Dataset({"h_grid" : river_grid(geo, sea_level, rho_onshore, phi, L, figfol, **kwargs)})
     
     z_bins = _mid_to_binedges(geo["z"].values)
-    layers = xr.DataArray(np.arange(len(geo.z))[::-1]+1, coords={"z":geo.z}, dims=["z"])
-    
-    h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=layers).apply(_dumb).rename({"h_grid_bins" : "h_l"})
+
+    h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.layer).apply(_dumb).rename({"h_grid_bins" : "h_l"})
     #Displace h_grid_bins 1 down, except the maximum which should not go lower than the sea
     #This to avoid h_l from going outside the model domain
     h_grid["h_l"] = xr.where(h_grid["h_l"] == h_grid["h_l"].max(dim=["x", "y"]), h_grid["h_l"], h_grid["h_l"]+1)
     
-    geo = geo.assign_coords(l = layers)
-
-    riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.l == h_grid["h_l"]))
-    riv = riv.drop("l")
+    riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.layer == h_grid["h_l"]))
     
     return(riv, z_bins)
 
@@ -229,18 +225,19 @@ def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, 
     rivers, z_bins   = river_3d(geo, sea_level, rho_onshore, figfol=figfol, **kwargs)
     
     #Combine to dataset
-    bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"]})
+    bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"], "sea_level" : sea_level})
     bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
     bcs = bcs.transpose("time", "z", "y", "x")
     
     if ncfol is not None:
         #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
-        bcs["time"] = bcs["time"].max() - bcs["time"]
+        time = bcs["time"] 
+        bcs["time"] = np.arange(len(bcs["time"]))
         #It also requires some CFTIME unit. This one is bullshit.
         bcs["time"].attrs["units"] = "hours since 2000-01-01 00:00:00.0"
         bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"), unlimited_dims = ["time"])
         #Switch back to time in ka again
-        bcs["time"] = bcs["time"].max() - bcs["time"]
+        bcs["time"] = time
     
     return(bcs)
 

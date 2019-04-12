@@ -275,12 +275,15 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
     d3["edges"] = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
     
-    d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]
-    
+    d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]    
     
     #Save as netcdf
     if ncfol is not None:
         d3.to_netcdf(os.path.join(ncfol, "geo.nc"))
+
+    #Assign layers after writing nc, as Paraview otherwise struggles with double coordinates
+    layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
+    d3 = d3.assign_coords(layer = layers)
     
     return(d3)
 
