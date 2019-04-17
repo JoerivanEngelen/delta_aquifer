@@ -7,6 +7,7 @@ Created on Thu Mar 21 17:15:21 2019
 import numpy as np
 from delta_aquifer import geometry, defaults
 from delta_aquifer import boundary_conditions as bc
+from delta_aquifer import non_convergence as ncg
 from collections import OrderedDict
 
 #%%Path management
@@ -190,6 +191,8 @@ if approx_init == True:
 else:
     sconc = c_f
 
+z = geo.z
+
 geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
 bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
 
@@ -242,3 +245,8 @@ run_pars["rclosepks"] = 100.0
 imod.seawat_write(os.path.join(model_fol, "test_small"), model, runfile_parameters=run_pars)
 
 #%%non_conv_analyser
+cell1 = (11, 177, 102)
+ncg1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+
+cell2 = (50, 192, 153)
+ncg2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])

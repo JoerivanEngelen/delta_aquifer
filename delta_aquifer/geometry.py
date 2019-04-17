@@ -188,9 +188,15 @@ def get_edges(ibound, bot, top, z_shelf):
 
     edges=convolvend(ibound, weights, mode = "mirror") * ibound
     dz = edges.z[1] - edges.z[0]
-    edges = edges.where(edges.z>(bot+4*dz)) #Completely filter out all erroneous bottom values
+
     edges = edges.where(((top >z_shelf) & (edges.z>(top-dz))) | (top <z_shelf))
     edges = xr.where(edges<np.sum(weights), 1, 0) * ibound
+    
+    edges_z = edges.where(edges==1) * edges.z
+    edges_x = edges.where(edges==1) * edges.x
+    
+    edges = xr.where((edges.x == edges_x.max(dim="x")) | (edges.z == edges_z.max(dim="z")), edges, 0)
+    edges = edges.transpose("z", "y", "x")
     
     return(edges)
 
