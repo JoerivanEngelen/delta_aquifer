@@ -50,13 +50,9 @@ SM = np.linspace(0.1, 0.4, num=lev)
 
 # Hydrogeological parameters
 kh = np.logspace(0, 2, num=lev)
-#kh_conf = np.logspace(-4, 0, num=lev)
-#kh_mar = np.logspace(-4, -2, num=lev)
+kh_conf = np.logspace(-3, 0, num=lev)
+kh_mar = np.logspace(-4, -2, num=lev)
 ani = np.logspace(0, 1.5, num=lev)
-
-c_conf = np.logspace(0, 3, num=lev)
-c_mar = np.logspace(1, 4, num=lev)
-
 
 #Solute transport parameters
 por = np.linspace(0.1, 0.35, num=lev)
@@ -71,7 +67,7 @@ t_max = 7
 # Model discretization
 dx, dy = 1000, 1000
 nz = 100
-#nz=10
+
 ts = (
     np.array(
         [
@@ -122,8 +118,8 @@ pars["n_clay"] = n_clay[1]
 
 # Hydrogeological parameters
 pars["kh"] = kh[1]
-pars["c_conf"] = c_conf[2]
-pars["c_mar"] = c_mar[2]
+pars["kh_conf"] = kh_conf[1]
+pars["kh_mar"] = kh_mar[1]
 pars["ani"] = ani[2]
 pars["bc-res"] = 100
 
@@ -210,15 +206,15 @@ run_pars = defaults.get_seawat_default_runfile()
 run_pars["por"] = pars["por"]
 run_pars["al"] = pars["al"]
 run_pars["dt0"] = 100.0
-#run_pars["rclose"] = 100.0
-run_pars["pksf"] = True
-run_pars["rclosepks"] = 100.0
+run_pars["rclose"] = 100.0
+#run_pars["pksf"] = True
+#run_pars["rclosepks"] = 100.0
 
 imod.seawat_write(os.path.join(model_fol, "test_small"), model, runfile_parameters=run_pars)
 
 #%%non_conv_analyser
 cell1 = (11, 177, 102)
-ncg1, xyl1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+ncg1, xyz1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
 
 cell2 = (17, 193, 128)
-ncg2, xyl2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+ncg2, xyz2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])

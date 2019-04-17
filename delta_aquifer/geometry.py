@@ -216,18 +216,18 @@ def create_3d_grid(d2_grid, d1, nz):
     d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
     return(d3)
 
-def create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay):
+def create_Kh(d3, d2_grid, kh, ani, kh_conf, kh_mar, n_clay):
     d3["Kh"] = d3["IBOUND"] * kh
     
-    d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), d2_grid["conf_d"]/c_conf*ani, d3["Kh"])
+    d3["Kh"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), kh_conf, d3["Kh"])
     for i in range(n_clay):
-        d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), d2_grid["cd%d"%i]/c_mar*ani, d3["Kh"])
+        d3["Kh"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), kh_mar, d3["Kh"])
     return(d3)
 
 #%%Master function
 def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L=None, 
                  D=None,  dD=None,    phi=None,     SM=None,     n_clay=None,  clay_conf=None,
-                 kh=None, ani=None,   c_conf=None,  c_mar=None,
+                 kh=None, ani=None,   kh_conf=None, kh_mar = None, 
                  dx=None, dy=None,    nz=None,      figfol=None, ncfol=None, **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
@@ -303,7 +303,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
 
     #Create 3D 
     d3 = create_3d_grid(d2_grid, d1, nz)
-    d3 = create_Kh(d3, d2_grid, kh, ani, c_conf, c_mar, n_clay)
+    d3 = create_Kh(d3, d2_grid, kh, ani, kh_conf, kh_mar, n_clay)
     
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
     d3["edges"] = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
