@@ -8,6 +8,7 @@ import numpy as np
 from delta_aquifer import geometry, defaults
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
+from delta_aquifer import initial_conditions as ic
 from collections import OrderedDict
 
 #%%Path management
@@ -49,9 +50,13 @@ SM = np.linspace(0.1, 0.4, num=lev)
 
 # Hydrogeological parameters
 kh = np.logspace(0, 2, num=lev)
+#kh_conf = np.logspace(-4, 0, num=lev)
+#kh_mar = np.logspace(-4, -2, num=lev)
+ani = np.logspace(0, 1.5, num=lev)
+
 c_conf = np.logspace(0, 3, num=lev)
 c_mar = np.logspace(1, 4, num=lev)
-ani = np.logspace(0, 1.5, num=lev)
+
 
 #Solute transport parameters
 por = np.linspace(0.1, 0.35, num=lev)
@@ -149,27 +154,6 @@ import imod
 import xarray as xr
 import os
 import cftime
-
-def c2rho(c, denselp=0.7143, rho_ref=1000.):
-    return(rho_ref + c * denselp) #0.7142859 more accurate for denselp
-
-def ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s):
-    sea_level = bcs["sea_level"].isel(time=0, drop=True)
-    sea_loc_xy = bcs["sea"].isel(time=0, drop=True).max(dim="z")
-    
-    xsea_min = xr.where(sea_loc_xy==1, sea_loc_xy.x, np.nan).min()
-    ysea_max = xr.where(sea_loc_xy.sel(x=xsea_min)==1., sea_loc_xy.y, np.nan).max()
-    
-    rho_f, rho_s = c2rho(c_f), c2rho(c_s)
-    z_interface = sea_level + rho_f/(rho_s-rho_f) * (sea_level - river_stage_2d)
-    below_interface = (geo.z <= z_interface)
-    
-    sconc = xr.where( below_interface | (~np.isnan(sea_loc_xy) | (np.abs(sea_loc_xy.y) >= ysea_max) ), c_s, c_f)
-    srho = c2rho(sconc)
-    shd = rho_f/srho*shd + (srho-rho_f)/srho * geo.z
-    sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-    shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-    return(shd, sconc)
     
 start_year = 2000 #Must be minimum 1900 for iMOD-SEAWAT
 approx_init = True
@@ -177,33 +161,21 @@ approx_init = True
 c_f = 0.0
 c_s = 35.
 
-rho_f, rho_s = c2rho(c_f), c2rho(c_s)
+rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
 
-tb=bc._mid_to_binedges(geo["z"].values)
+tb=bc._mid_to_binedges(geo["z"].values)[::-1]
 z=geo.z
 
-#Initial conditions
-river_stage_2d = bcs["river_stage"].max(dim="z").isel(time=0, drop=True)
-shd = river_stage_2d.fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]
+shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
 
-if approx_init == True:
-    shd, sconc = ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s)
-else:
-    sconc = c_f
-
-z = geo.z
-
-geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
-bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
+geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
 bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
 
-geo = geo.sortby("layer")
-bcs = bcs.sortby("layer")
-tb = tb[::-1]
-
 #%%
-
 model = OrderedDict()
 
 model["bnd"] = (geo["IBOUND"] * xr.full_like(bcs.time, 1)).astype(np.int16)
@@ -249,4 +221,4 @@ cell1 = (11, 177, 102)
 ncg1, xyl1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
 
 cell2 = (17, 193, 128)
-ncg2, xyl1 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+ncg2, xyl2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
