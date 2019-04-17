@@ -69,6 +69,12 @@ def _get_pizza_slice(d1, length, phis):
     idx_slice = d1["rho"] <= length
     return(_pol2cart(*np.meshgrid(d1["rho"][idx_slice], phis)))
     
+def _rho_min_max(interface, rho):
+    rho_ct = np.where(~np.isnan(interface), rho, 0)
+    rho_max = np.max(rho_ct)
+    cutoff = rho_max - 0.1 * rho_max
+    rho_min = np.nanmin(np.where(np.max(rho_ct, axis=1) > cutoff, np.max(rho_ct, axis=1), np.nan))
+    return(rho_min, rho_max)
 
 #%%Main functions
 def create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp):
@@ -91,7 +97,9 @@ def create_top_bot(phi, d1, n_inp):
     d2 = {}
 
     phis = np.linspace(-phi/2, phi/2, num=n_inp-20)
-    d2["x"], d2["y"] = _pol2cart(*np.meshgrid(d1["rho"], phis))
+    d2["rho"], d2["phi"] = np.meshgrid(d1["rho"], phis)
+    d2["phi_nan"] = np.copy(d2["phi"])
+    d2["x"], d2["y"] = _pol2cart(d2["rho"], d2["phi"])
     
     ##Create tops
     d2["tops"], _ = np.meshgrid(d1["top"], phis)
@@ -104,8 +112,11 @@ def create_top_bot(phi, d1, n_inp):
     d2["bots"] = _clip_f(d2["bots"], ~d1["slope"], a_max = d2["tops"])
     nan_idx = np.isclose(d2["tops"], d2["bots"])
     nan_idx[:, ~d1["slope"]] = False
-    for i, arr in d2.items():
-        arr[nan_idx]=np.nan
+    for key, arr in d2.items():
+        if key == "phi_nan":
+            arr[~nan_idx] = np.nan
+        else:
+            arr[nan_idx] = np.nan
     return(d2, nan_idx, phis)
 
 def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac, n_inp):
@@ -144,7 +155,7 @@ def get_targgrid(dx, dy, L, phi_max):
     y_out = np.arange(-y_max, y_max+1, dy)
     return(np.meshgrid(x_out, y_out))
 
-def create_clayer(frac, d1, d2, phis, phi, a):
+def create_clayer(frac, d1, d2, phis, phi, a, bot_offset=0):
     idx = int(d1["top"].shape[0] * a)
     base_slope = interpolate.interp1d(np.arange(idx), d1["top"][:idx], fill_value="extrapolate")
     base_slope = base_slope(np.arange(d1["top"].shape[0]))
@@ -152,7 +163,7 @@ def create_clayer(frac, d1, d2, phis, phi, a):
     depth_clay = base_slope  - (base_slope-d1["bot"])*(frac)
 
     clayer = (_ellipse(phi/2, depth_clay, phis).T + depth_clay)/2.
-    in_prism=(clayer<d2["tops"]) & (clayer>d2["bots"])
+    in_prism=(clayer<(d2["tops"]+bot_offset)) & (clayer>d2["bots"])
     clayer[~in_prism] = np.nan
     return(clayer)
 
@@ -161,7 +172,7 @@ def pol2griddata(poldata, nan_idx, griddata, key_prep = None):
     for key, arr in poldata.items():
         poldata[key] = arr[~nan_idx]
     
-    vrbls = [i for i in poldata.keys() if not i in ["x", "y"]]
+    vrbls = [i for i in poldata.keys() if not i in ["x", "y", "phi", "phi_nan", "rho"]]
     #Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
     ip = interpolate.LinearNDInterpolator(np.vstack((poldata["x"],poldata["y"])).T, poldata[vrbls[0]])
     for vrbl in vrbls:
@@ -233,13 +244,28 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     #Create clay layers
     fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
     
+    phi_max = {}
+    rho_min = {}
+    rho_max = {}
+    
     for i in range(n_clay):
         d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
         d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
-        #Fix edges at shoreline, so they extent fully to the sea
+        
+        phi_max["ct%d"%i] = np.nanmax(d2["phi"][~np.isnan(d2["ct%d"%i])])
+        phi_max["cb%d"%i] = np.nanmax(d2["phi"][~np.isnan(d2["cb%d"%i])])
+        
+        rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
+        rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
+        
+        #Create edges at shoreline, so they extent fully to the sea
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
-        #Fix top at bottom at the side edges
+        #Create bottom at the side edges
         d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
+
+        
+    from copy import deepcopy
+    d2_return = deepcopy(d2)
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
@@ -248,8 +274,17 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     d2_grid = {}
     
     d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, np.max(d2["x"][~nan_idx]), phi/2)
+    d2_grid["rho"], d2_grid["phi"] = _cart2pol(d2_grid["x"], d2_grid["y"])
     d2_grid = pol2griddata(d2, nan_idx, d2_grid)
     d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
+    
+    for i in range(n_clay):
+        #Make sure empty corners of clay layers are filled
+        corner_top = ((d2_grid["rho"] < rho_max['ct0']) & (d2_grid["rho"] > rho_min['ct0']) & np.isnan(d2_grid["ct0"]))
+        corner_bot = ((d2_grid["rho"] < rho_max['cb0']) & (d2_grid["rho"] > rho_min['ct0']) & np.isnan(d2_grid["cb0"]))
+        
+        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
+        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["bots"], d2_grid["cb%d"%i])
     
     if figfol is not None:
         top_bot_grid_plot(d2_grid,figfol)
@@ -285,7 +320,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
     d3 = d3.assign_coords(layer = layers)
     
-    return(d3)
+    return(d3, d2_return, d2_grid, phi_max, rho_min, rho_max)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
