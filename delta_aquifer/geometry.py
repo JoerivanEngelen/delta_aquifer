@@ -250,16 +250,12 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     #Create clay layers
     fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
     
-    phi_max = {}
     rho_min = {}
     rho_max = {}
     
     for i in range(n_clay):
         d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
         d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
-        
-        phi_max["ct%d"%i] = np.nanmax(d2["phi"][~np.isnan(d2["ct%d"%i])])
-        phi_max["cb%d"%i] = np.nanmax(d2["phi"][~np.isnan(d2["cb%d"%i])])
         
         rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
         rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
@@ -268,10 +264,6 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
         #Create bottom at the side edges
         d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
-
-        
-    from copy import deepcopy
-    d2_return = deepcopy(d2)
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
@@ -326,7 +318,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
     d3 = d3.assign_coords(layer = layers)
     
-    return(d3, d2_return, d2_grid, phi_max, rho_min, rho_max)
+    return(d3)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):

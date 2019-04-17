@@ -135,7 +135,7 @@ pars["t_max"] = t_max
 # Discretization
 pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 #%%Get geometry
-geo, d2, d2_grid, phi_max, rho_min, rho_max = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
+geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
 #%%Create boundary conditions
 # Path management
@@ -246,7 +246,7 @@ imod.seawat_write(os.path.join(model_fol, "test_small"), model, runfile_paramete
 
 #%%non_conv_analyser
 cell1 = (11, 177, 102)
-ncg1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+ncg1, xyl1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
 
-cell2 = (50, 192, 153)
-ncg2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+cell2 = (17, 193, 128)
+ncg2, xyl1 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
