@@ -38,6 +38,11 @@ def look_around(model, cell_fortran, n=2, var=["ghb-head", "riv-stage", "khv", "
     ds = xr.merge([model[v].rename(v) for v in var])
     
     shape = [ds.dims[dim] for dim in ["layer", "y", "x"]]
-
     ds_sel = isel_out_bounds(ds, shape, cell, n)
-    return(ds_sel)
+    
+    try:
+        xyl = [ds_sel.x[n], ds_sel.y[n], ds_sel.layer[n]]
+    except IndexError:
+        xyl = [ds_sel.x[0], ds_sel.y[0], ds_sel.layer[0]]
+    
+    return(ds_sel, xyl)
