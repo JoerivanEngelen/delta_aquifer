@@ -112,7 +112,7 @@ pars["L"] = L
 # Internal geometry
 pars["SM"] = SM[2]
 pars["clay_conf"] = clay_conf[3]
-pars["n_clay"] = n_clay[2]
+pars["n_clay"] = n_clay[1]
 
 # Hydrogeological parameters
 pars["kh"] = kh[1]
@@ -134,15 +134,14 @@ pars["t_max"] = t_max
 # Discretization
 pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 #%%Get geometry
-geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
+geo, d2, d2_grid, phi_max, rho_min, rho_max = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
 #%%Create boundary conditions
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
 bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
-
-start_year = 2000 #Must be minimum 1900 for iMOD-SEAWAT
+bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 #%%
 import imod
@@ -150,14 +149,51 @@ import xarray as xr
 import os
 import cftime
 
+def c2rho(c, denselp=0.7143, rho_ref=1000.):
+    return(rho_ref + c * denselp) #0.7142859 more accurate for denselp
+
+def ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s):
+    sea_level = bcs["sea_level"].isel(time=0, drop=True)
+    sea_loc_xy = bcs["sea"].isel(time=0, drop=True).max(dim="z")
+    
+    xsea_min = xr.where(sea_loc_xy==1, sea_loc_xy.x, np.nan).min()
+    ysea_max = xr.where(sea_loc_xy.sel(x=xsea_min)==1., sea_loc_xy.y, np.nan).max()
+    
+    rho_f, rho_s = c2rho(c_f), c2rho(c_s)
+    z_interface = sea_level + rho_f/(rho_s-rho_f) * (sea_level - river_stage_2d)
+    below_interface = (geo.z <= z_interface)
+    
+    sconc = xr.where( below_interface | (~np.isnan(sea_loc_xy) | (np.abs(sea_loc_xy.y) >= ysea_max) ), c_s, c_f)
+    srho = c2rho(sconc)
+    shd = rho_f/srho*shd + (srho-rho_f)/srho * geo.z
+    sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+    shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+    return(shd, sconc)
+    
+start_year = 2000 #Must be minimum 1900 for iMOD-SEAWAT
+approx_init = True
+
+c_f = 0.0
+c_s = 35.
+
+rho_f, rho_s = c2rho(c_f), c2rho(c_s)
+
 tb=bc._mid_to_binedges(geo["z"].values)
+z=geo.z
+
+#Initial conditions
+river_stage_2d = bcs["river_stage"].max(dim="z").isel(time=0, drop=True)
+shd = river_stage_2d.fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]
+
+if approx_init == True:
+    shd, sconc = ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s)
+else:
+    sconc = c_f
 
 geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
 bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("y", ascending=False)
 
 bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
-
-bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 geo = geo.sortby("layer")
 bcs = bcs.sortby("layer")
@@ -171,6 +207,8 @@ model["bnd"] = (geo["IBOUND"] * xr.full_like(bcs.time, 1)).astype(np.int16)
 model["icbund"] = geo["IBOUND"]
 model["khv"] = geo["Kh"]
 model["kva"] = geo["Kh"]/pars["ani"]
+
+##Uncomment this to create homogeneous model.
 #model["khv"] = xr.full_like(geo["IBOUND"], 10.0) * geo["IBOUND"]
 #model["kva"] = xr.full_like(geo["IBOUND"], 10.0) * geo["IBOUND"]
 
@@ -178,24 +216,29 @@ model["top"] = xr.full_like(geo["IBOUND"], 1) * xr.DataArray(tb[:-1], coords = {
 model["bot"] = xr.full_like(geo["IBOUND"], 1) * xr.DataArray(tb[1:],  coords = {"layer":geo.layer}, dims=["layer"])
 model["thickness"] = model["top"] - model["bot"]
 
-shd = bcs["river_stage"].max(dim="layer").isel(time=0, drop=True).fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]
-model["shd"] = xr.where(geo["IBOUND"] == 1, shd, -9999)
-model["sconc"] = xr.where(geo["IBOUND"]==1., 0.0, -9999.0)
-
+#Boundary conditions
 model["ghb-head"] = xr.where(bcs["sea"]==1, bcs["sea_level"], np.nan)
 model["ghb-cond"] = bcs["sea"] * pars["dx"] * pars["dy"] / pars["bc-res"]
-model["ghb-dens"] = bcs["sea"] * 1025
-model["ghb-conc"] = bcs["sea"] * 35.
+model["ghb-dens"] = bcs["sea"] * rho_s
+model["ghb-conc"] = bcs["sea"] * c_s
 
 model["riv-stage"] = bcs["river_stage"]
 model["riv-cond"]  = xr.where(np.isfinite(bcs["river_stage"]), pars["dx"] * pars["dy"] / pars["bc-res"], bcs["river_stage"])
 model["riv-bot"]   = bcs["river_stage"] - 10.
-model["riv-dens"]  = xr.where(np.isfinite(bcs["river_stage"]), 1000., bcs["river_stage"])
+model["riv-dens"]  = xr.where(np.isfinite(bcs["river_stage"]), rho_f, bcs["river_stage"])
 model["riv-conc"]  = xr.where(np.isfinite(bcs["river_stage"]), 0., bcs["river_stage"])
+
+model["shd"]   = xr.where(geo["IBOUND"]==1,  shd, -9999.0)
+model["sconc"] = xr.where(geo["IBOUND"]==1., sconc, -9999.0)
 
 run_pars = defaults.get_seawat_default_runfile()
 run_pars["por"] = pars["por"]
 run_pars["al"] = pars["al"]
-run_pars["dt0"] = 10.0
+run_pars["dt0"] = 100.0
+#run_pars["rclose"] = 100.0
+run_pars["pksf"] = True
+run_pars["rclosepks"] = 100.0
 
 imod.seawat_write(os.path.join(model_fol, "test_small"), model, runfile_parameters=run_pars)
+
+#%%non_conv_analyser
