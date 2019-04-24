@@ -145,6 +145,9 @@ spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_
 bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
+geo = geo.sel(y=slice(0, geo.y.max()))
+bcs = bcs.sel(y=slice(0, geo.y.max()))
+
 #%%
 import imod
 import xarray as xr
@@ -210,11 +213,23 @@ run_pars["rclose"] = 100.0
 #run_pars["pksf"] = True
 #run_pars["rclosepks"] = 100.0
 
-imod.seawat_write(os.path.join(model_fol, "test_small"), model, runfile_parameters=run_pars)
+
+imod.seawat_write(os.path.join(model_fol, "test_half"), model, runfile_parameters=run_pars)
+
+#%%
+pointer_grid = geo["IBOUND"].sum(dim="layer")
+
+with open(os.path.join(model_fol, "test_half", "pointer_grid.asc"), "w") as pg:
+    for row in pointer_grid:
+        pg.write(("{:8.2f}  " * (len(row)-1) + "{:8.2f}\n").format(*tuple(row.values)))
+    
+
+##This does not work because the pointer grid should be .ASC, not .IDF (with a header)
+#imod.idf.save(os.path.join(model_fol, "test_half", "pointer_grid.idf"), geo["IBOUND"].sum(dim="layer"))
 
 #%%non_conv_analyser
-cell1 = (11, 177, 102)
-ncg1, xyz1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
-
-cell2 = (17, 193, 128)
-ncg2, xyz2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+#cell1 = (11, 177, 102)
+#ncg1, xyz1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+#
+#cell2 = (17, 193, 128)
+#ncg2, xyz2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
