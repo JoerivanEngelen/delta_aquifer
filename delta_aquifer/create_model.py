@@ -172,49 +172,68 @@ bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascen
 sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
-bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
+#bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
+bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001-01-01")])
 
 #%%
-model = OrderedDict()
 
-model["bnd"] = (geo["IBOUND"] * xr.full_like(bcs.time, 1)).astype(np.int16)
-model["icbund"] = geo["IBOUND"]
-model["khv"] = geo["Kh"]
-model["kva"] = geo["Kh"]/pars["ani"]
+m = imod.wq.SeawatModel("test_half_new")
+m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
+                             top=tb[0], 
+                             bottom=xr.DataArray(tb[1:], {"layer": geo.layer}, ("layer")), 
+                             starting_head=xr.where(geo["IBOUND"]==1,  shd, -9999.0))
 
-##Uncomment this to create homogeneous model.
-#model["khv"] = xr.full_like(geo["IBOUND"], 10.0) * geo["IBOUND"]
-#model["kva"] = xr.full_like(geo["IBOUND"], 10.0) * geo["IBOUND"]
-
-model["top"] = xr.full_like(geo["IBOUND"], 1) * xr.DataArray(tb[:-1], coords = {"layer":geo.layer}, dims=["layer"])
-model["bot"] = xr.full_like(geo["IBOUND"], 1) * xr.DataArray(tb[1:],  coords = {"layer":geo.layer}, dims=["layer"])
-model["thickness"] = model["top"] - model["bot"]
-
-#Boundary conditions
-model["ghb-head"] = xr.where(bcs["sea"]==1, bcs["sea_level"], np.nan)
-model["ghb-cond"] = bcs["sea"] * pars["dx"] * pars["dy"] / pars["bc-res"]
-model["ghb-dens"] = bcs["sea"] * rho_s
-model["ghb-conc"] = bcs["sea"] * c_s
-
-model["riv-stage"] = bcs["river_stage"]
-model["riv-cond"]  = xr.where(np.isfinite(bcs["river_stage"]), pars["dx"] * pars["dy"] / pars["bc-res"], bcs["river_stage"])
-model["riv-bot"]   = bcs["river_stage"] - 10.
-model["riv-dens"]  = xr.where(np.isfinite(bcs["river_stage"]), rho_f, bcs["river_stage"])
-model["riv-conc"]  = xr.where(np.isfinite(bcs["river_stage"]), 0., bcs["river_stage"])
-
-model["shd"]   = xr.where(geo["IBOUND"]==1,  shd, -9999.0)
-model["sconc"] = xr.where(geo["IBOUND"]==1., sconc, -9999.0)
-
-run_pars = defaults.get_seawat_default_runfile()
-run_pars["por"] = pars["por"]
-run_pars["al"] = pars["al"]
-run_pars["dt0"] = 100.0
-run_pars["rclose"] = 100.0
-#run_pars["pksf"] = True
-#run_pars["rclosepks"] = 100.0
+m["lpf"] = imod.wq.LayerPropertyFlow(
+    k_horizontal=geo["Kh"], k_vertical=geo["Kh"]/pars["ani"], specific_storage=0.0
+)
 
 
-imod.seawat_write(os.path.join(model_fol, "test_half"), model, runfile_parameters=run_pars)
+m["btn"] = imod.wq.BasicTransport(
+    icbund=geo["IBOUND"], 
+    starting_concentration=xr.where(geo["IBOUND"]==1., sconc, -9999.0), 
+    porosity=pars["por"]
+)
+
+m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
+m["dsp"] = imod.wq.Dispersion(
+        longitudinal=pars["al"], 
+        ratio_horizontal=0.1,
+        ratio_vertical=0.01,
+        diffusion_coefficient=8.64e-5
+)
+
+m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
+
+m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(bcs["sea"]==1, bcs["sea_level"], np.nan),
+                                       conductance=bcs["sea"] * pars["dx"] * pars["dy"] / pars["bc-res"],
+                                       density=bcs["sea"] * rho_s,
+                                       concentration=bcs["sea"] * c_s)
+
+m["riv"] = imod.wq.River(stage = bcs["river_stage"],
+                         conductance = xr.where(np.isfinite(bcs["river_stage"]), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
+                         bottom_elevation = bcs["river_stage"] - 10.,
+                         density = xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),
+                         concentration = xr.where(np.isfinite(bcs["river_stage"]), 0., np.nan))
+
+m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
+                                             partition="uniform",
+                                             solver="pcg",
+                                             preconditioner="ilu",
+                                             deflate=False,
+                                             debug=False,)
+
+m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30, 
+                                             cclose=1e-6,
+                                             relax=0.98,
+                                             partition="uniform",
+                                             solver="bicgstab",
+                                             preconditioner="ilu",
+                                             debug=False,)
+
+m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
+
+m.time_discretization(endtime="2005-01-01")
+m.write(directory = r"c:\Users\engelen\test_imodpython\synth_delta_test\test_obj")
 
 #%%
 pointer_grid = geo["IBOUND"].sum(dim="layer")
