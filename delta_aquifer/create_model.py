@@ -177,7 +177,9 @@ bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001
 
 #%%
 
-m = imod.wq.SeawatModel("test_half_new")
+mname = "test_half_new"
+
+m = imod.wq.SeawatModel(mname)
 m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
                              top=tb[0], 
                              bottom=xr.DataArray(tb[1:], {"layer": geo.layer}, ("layer")), 
@@ -216,7 +218,7 @@ m["riv"] = imod.wq.River(stage = bcs["river_stage"],
                          concentration = xr.where(np.isfinite(bcs["river_stage"]), 0., np.nan))
 
 m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
-                                             partition="uniform",
+                                             partition="rcb",
                                              solver="pcg",
                                              preconditioner="ilu",
                                              deflate=False,
@@ -225,7 +227,7 @@ m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
 m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30, 
                                              cclose=1e-6,
                                              relax=0.98,
-                                             partition="uniform",
+                                             partition="rcb",
                                              solver="bicgstab",
                                              preconditioner="ilu",
                                              debug=False,)
@@ -233,18 +235,7 @@ m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30,
 m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
 
 m.time_discretization(endtime="2005-01-01")
-m.write(directory = r"c:\Users\engelen\test_imodpython\synth_delta_test\test_obj")
-
-#%%
-pointer_grid = geo["IBOUND"].sum(dim="layer")
-
-with open(os.path.join(model_fol, "test_half", "pointer_grid.asc"), "w") as pg:
-    for row in pointer_grid:
-        pg.write(("{:8.2f}  " * (len(row)-1) + "{:8.2f}\n").format(*tuple(row.values)))
-    
-
-##This does not work because the pointer grid should be .ASC, not .IDF (with a header)
-#imod.idf.save(os.path.join(model_fol, "test_half", "pointer_grid.idf"), geo["IBOUND"].sum(dim="layer"))
+m.write(directory = r"c:\Users\engelen\test_imodpython\synth_delta_test")
 
 #%%non_conv_analyser
 #cell1 = (11, 177, 102)
