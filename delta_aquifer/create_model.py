@@ -9,7 +9,10 @@ from delta_aquifer import geometry, defaults
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
-from collections import OrderedDict
+
+import imod
+import xarray as xr
+import cftime
 
 #%%Path management
 figfol = (
@@ -71,26 +74,25 @@ nz = 100
 ts = (
     np.array(
         [
-            50000,
-            49000,
-#            40000,
-#            30000,
-#            25000,
-#            20000,
-#            15000,
-#            13000,
-#            12000,
-#            11000,
-#            10000,
-#            9000,
-#            8000,
-#            7000,
-#            6000,
-#            5000,
-#            4000,
-#            3000,
-#            2000,
-#            1000,
+            46000,
+            38000,
+            30000,
+            25000,
+            20000,
+            15000,
+            13000,
+            12000,
+            11000,
+            10000,
+            9000,
+            8000,
+            7000,
+            6000,
+            5000,
+            4000,
+            3000,
+            2000,
+            1000,
             0,
         ]
     )
@@ -149,11 +151,7 @@ geo = geo.sel(y=slice(0, geo.y.max()))
 bcs = bcs.sel(y=slice(0, geo.y.max()))
 
 #%%
-import imod
-import xarray as xr
-import os
-import cftime
-    
+   
 start_year = 2000 #Must be minimum 1900 for iMOD-SEAWAT
 approx_init = True
 
@@ -172,8 +170,14 @@ bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascen
 sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
-#bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
-bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001-01-01")])
+t_act = -1 * (ts * 1000 - ts[0] * 1000)
+
+bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
+#bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001-01-01")])
+
+#Remove empty layers to reduce amount of .idfs written
+river_stage = bcs["river_stage"].dropna(dim="layer", how="all")
+sea = bcs["sea"].dropna(dim="layer", how="all")
 
 #%%
 
@@ -188,7 +192,6 @@ m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy),
 m["lpf"] = imod.wq.LayerPropertyFlow(
     k_horizontal=geo["Kh"], k_vertical=geo["Kh"]/pars["ani"], specific_storage=0.0
 )
-
 
 m["btn"] = imod.wq.BasicTransport(
     icbund=geo["IBOUND"], 
@@ -206,16 +209,16 @@ m["dsp"] = imod.wq.Dispersion(
 
 m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
 
-m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(bcs["sea"]==1, bcs["sea_level"], np.nan),
-                                       conductance=bcs["sea"] * pars["dx"] * pars["dy"] / pars["bc-res"],
-                                       density=bcs["sea"] * rho_s,
-                                       concentration=bcs["sea"] * c_s)
+m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(sea==1, bcs["sea_level"], np.nan),
+                                       conductance=sea * pars["dx"] * pars["dy"] / pars["bc-res"],
+                                       density= rho_s, #sea * rho_s,
+                                       concentration=sea * c_s)
 
-m["riv"] = imod.wq.River(stage = bcs["river_stage"],
+m["riv"] = imod.wq.River(stage = river_stage,
                          conductance = xr.where(np.isfinite(bcs["river_stage"]), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
-                         bottom_elevation = bcs["river_stage"] - 10.,
-                         density = xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),
-                         concentration = xr.where(np.isfinite(bcs["river_stage"]), 0., np.nan))
+                         bottom_elevation = river_stage - 10.,
+                         density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
+                         concentration =  xr.where(np.isfinite(bcs["river_stage"]), 0., np.nan)) #0.) 
 
 m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
                                              partition="rcb",
@@ -234,7 +237,9 @@ m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30,
 
 m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
 
-m.time_discretization(endtime="2005-01-01")
+#m.time_discretization(endtime="2005-01-01")
+m.time_discretization(endtime=cftime.DatetimeProlepticGregorian(start_year + 7800, 1, 1), 
+                      transport_initial_timestep=100.)
 m.write(directory = r"c:\Users\engelen\test_imodpython\synth_delta_test")
 
 #%%non_conv_analyser
