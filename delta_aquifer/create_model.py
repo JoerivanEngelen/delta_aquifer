@@ -5,10 +5,11 @@ Created on Thu Mar 21 17:15:21 2019
 @author: engelen
 """
 import numpy as np
-from delta_aquifer import geometry, defaults
+from delta_aquifer import geometry, defaults, time_util
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
+import os
 
 import imod
 import xarray as xr
@@ -124,6 +125,7 @@ pars["kh_conf"] = kh_conf[1]
 pars["kh_mar"] = kh_mar[1]
 pars["ani"] = ani[2]
 pars["bc-res"] = 100
+pars["riv_depth"] = 10.
 
 #Solute transport
 pars["por"] = por[-1]
@@ -152,7 +154,7 @@ bcs = bcs.sel(y=slice(0, geo.y.max()))
 
 #%%
    
-start_year = 2000 #Must be minimum 1900 for iMOD-SEAWAT
+start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
 approx_init = True
 
 c_f = 0.0
@@ -170,77 +172,95 @@ bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascen
 sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
-t_act = -1 * (ts * 1000 - ts[0] * 1000)
-
-bcs = bcs.assign_coords(time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (bcs.time.values[::-1] * 100 + start_year)])
 #bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001-01-01")])
 
-#Remove empty layers to reduce amount of .idfs written
-river_stage = bcs["river_stage"].dropna(dim="layer", how="all")
-sea = bcs["sea"].dropna(dim="layer", how="all")
+t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
+max_perlen = 8000
 
-#%%
+sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear, max_perlen)
 
 mname = "test_half_new"
 
-m = imod.wq.SeawatModel(mname)
-m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
-                             top=tb[0], 
-                             bottom=xr.DataArray(tb[1:], {"layer": geo.layer}, ("layer")), 
-                             starting_head=xr.where(geo["IBOUND"]==1,  shd, -9999.0))
+#%%
+for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
+    print(".........processing model nr. {}..........".format(mod_nr))
+    bcs_mod = bcs.isel(time=slice(i_start, i_end)).assign_coords(
+            time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
+    
+    #Remove empty layers to reduce amount of .idfs written
+    river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
+    sea = bcs_mod["sea"].dropna(dim="layer", how="all")
 
-m["lpf"] = imod.wq.LayerPropertyFlow(
-    k_horizontal=geo["Kh"], k_vertical=geo["Kh"]/pars["ani"], specific_storage=0.0
-)
-
-m["btn"] = imod.wq.BasicTransport(
-    icbund=geo["IBOUND"], 
-    starting_concentration=xr.where(geo["IBOUND"]==1., sconc, -9999.0), 
-    porosity=pars["por"]
-)
-
-m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
-m["dsp"] = imod.wq.Dispersion(
-        longitudinal=pars["al"], 
-        ratio_horizontal=0.1,
-        ratio_vertical=0.01,
-        diffusion_coefficient=8.64e-5
-)
-
-m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
-
-m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(sea==1, bcs["sea_level"], np.nan),
-                                       conductance=sea * pars["dx"] * pars["dy"] / pars["bc-res"],
-                                       density= rho_s, #sea * rho_s,
-                                       concentration=sea * c_s)
-
-m["riv"] = imod.wq.River(stage = river_stage,
-                         conductance = xr.where(np.isfinite(bcs["river_stage"]), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
-                         bottom_elevation = river_stage - 10.,
-                         density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
-                         concentration =  xr.where(np.isfinite(bcs["river_stage"]), 0., np.nan)) #0.) 
-
-m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
-                                             partition="rcb",
-                                             solver="pcg",
-                                             preconditioner="ilu",
-                                             deflate=False,
-                                             debug=False,)
-
-m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30, 
-                                             cclose=1e-6,
-                                             relax=0.98,
-                                             partition="rcb",
-                                             solver="bicgstab",
-                                             preconditioner="ilu",
-                                             debug=False,)
-
-m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
-
-#m.time_discretization(endtime="2005-01-01")
-m.time_discretization(endtime=cftime.DatetimeProlepticGregorian(start_year + 7800, 1, 1), 
-                      transport_initial_timestep=100.)
-m.write(directory = r"c:\Users\engelen\test_imodpython\synth_delta_test")
+    mname_sub = mname + str(mod_nr)
+    
+    m = imod.wq.SeawatModel(mname_sub)
+    
+    if mod_nr == 0:
+        starting_head = xr.where(geo["IBOUND"]==1,  shd, -9999.0)
+        starting_conc = xr.where(geo["IBOUND"]==1., sconc, -9999.0)
+    else:
+        year_str = cftime.DatetimeProlepticGregorian(
+                sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
+        starting_head = "bas/head_{}_l?.idf".format(year_str)
+        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
+    
+    m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
+                                 top=tb[0], 
+                                 bottom=xr.DataArray(tb[1:], {"layer": geo.layer}, ("layer")), 
+                                 starting_head=starting_head)
+    
+    m["lpf"] = imod.wq.LayerPropertyFlow(
+        k_horizontal=geo["Kh"], k_vertical=geo["Kh"]/pars["ani"], specific_storage=0.0
+    )
+    
+    m["btn"] = imod.wq.BasicTransport(
+        icbund=geo["IBOUND"], 
+        starting_concentration=starting_conc, 
+        porosity=pars["por"]
+    )
+    
+    m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
+    m["dsp"] = imod.wq.Dispersion(
+            longitudinal=pars["al"], 
+            ratio_horizontal=0.1,
+            ratio_vertical=0.01,
+            diffusion_coefficient=8.64e-5
+    )
+    
+    m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
+    
+    m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(sea==1, bcs_mod["sea_level"], np.nan),
+                                           conductance=sea * pars["dx"] * pars["dy"] / pars["bc-res"],
+                                           density= rho_s, #sea * rho_s,
+                                           concentration=sea * c_s)
+    
+    m["riv"] = imod.wq.River(stage = river_stage,
+                             conductance = xr.where(np.isfinite(river_stage), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
+                             bottom_elevation = river_stage - pars["riv_depth"],
+                             density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
+                             concentration =  xr.where(np.isfinite(river_stage), 0., np.nan)) #0.) 
+    
+    m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
+                                                 partition="rcb",
+                                                 solver="pcg",
+                                                 preconditioner="ilu",
+                                                 deflate=False,
+                                                 debug=False,)
+    
+    m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30, 
+                                                 cclose=1e-6,
+                                                 relax=0.98,
+                                                 partition="rcb",
+                                                 solver="bicgstab",
+                                                 preconditioner="ilu",
+                                                 debug=False,)
+    
+    m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
+    
+    #m.time_discretization(endtime=np.datetime("2005-01-01"))
+    m.time_discretization(endtime=cftime.DatetimeProlepticGregorian(sub_ends[mod_nr]+start_year, 1, 1), 
+                          transport_initial_timestep=100.)
+    m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
 #%%non_conv_analyser
 #cell1 = (11, 177, 102)
