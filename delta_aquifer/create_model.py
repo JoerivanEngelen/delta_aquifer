@@ -257,9 +257,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
     
-    #m.time_discretization(endtime=np.datetime("2005-01-01"))
-    m.time_discretization(endtime=cftime.DatetimeProlepticGregorian(sub_ends[mod_nr]+start_year, 1, 1), 
-                          transport_initial_timestep=100.)
+    time_util.time_discretization(m, 1000., 
+                                  endtime=cftime.DatetimeProlepticGregorian(sub_ends[mod_nr]+start_year, 1, 1))
+    
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
 #%%non_conv_analyser

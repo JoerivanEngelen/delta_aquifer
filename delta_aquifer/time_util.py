@@ -6,6 +6,52 @@ Created on Wed May  1 13:58:51 2019
 """
 
 import numpy as np
+import imod
+import xarray as xr
+from datetime import timedelta
+
+
+def add_timesteps(max_perlen, times, nstp_extra):
+    nu_times = []
+    for i, nstp in enumerate(nstp_extra):
+        start_time = times[i]
+        nu_times += [start_time + timedelta(j*max_perlen*365.25) for j in range(0, nstp+1)]
+    nu_times.append(times[-1])   
+    return(nu_times)
+
+def time_discretization(model, max_perlen, endtime, starttime=None):
+    """
+    Collect all unique times and subdivde. Adapted from the function in imod/wq/model.py
+    """
+    
+    model.use_cftime = model._use_cftime()
+
+    times = []
+    for pkg in model.values():
+        if "time" in pkg.coords:
+            times.append(pkg["time"].values)
+
+    # TODO: check that endtime is later than all other times.
+    times.append(imod.wq.timeutil.to_datetime(endtime, model.use_cftime))
+    if starttime is not None:
+        times.append(imod.wq.timeutil.to_datetime(starttime, model.use_cftime))
+
+    # np.unique also sorts
+    times = np.unique(np.hstack(times))    
+    duration = imod.wq.timeutil.timestep_duration(times, use_cftime=True)
+    
+    # Update times, ensuring that max_perlen is not exceeded.
+    nstp_extra = [int(d/(max_perlen*365.25)) for d in duration]
+    nu_times = add_timesteps(max_perlen, times, nstp_extra)    
+    nu_duration = imod.wq.timeutil.timestep_duration(nu_times, use_cftime=True)
+    # Generate time discretization, just rely on default arguments
+    # Probably won't be used that much anyway?    
+    timestep_duration = xr.DataArray(
+        nu_duration, coords={"time": np.array(nu_times)[:-1]}, dims=("time",)
+    )
+    model["time_discretization"] = imod.wq.TimeDiscretization(
+        timestep_duration=timestep_duration
+    )
 
 def split_list(ls, splits):
     return([ls[i : j] for i, j in zip([0] + 
