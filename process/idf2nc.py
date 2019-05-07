@@ -12,6 +12,7 @@ import sys, os
 modelfol = sys.arg[1]
 mod_nr = sys.argv[2]
 s_nr = sys.argv[3]
+##For testing
 #modelfol = r"g:\synthdelta\test_idf_output"
 #mod_nr = 1
 #s_nr = 17
