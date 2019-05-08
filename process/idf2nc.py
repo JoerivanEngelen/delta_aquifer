@@ -18,8 +18,7 @@ s_nr = sys.argv[3]
 #s_nr = 17
 
 #%%Path management
-mname = os.path.basename(modelfol)
-path = os.path.join(modelfol, mname+str(mod_nr), "results" ,"*", "*_p{:03d}.IDF".format(s_nr))
+path = os.path.join(modelfol, "results" ,"*", "*_p{:03d}.IDF".format(s_nr))
 
 #%%Process
 ds = imod.idf.open_dataset(path, use_cftime=True, pattern=r"{name}_{time}_l{layer}_p\d*")
