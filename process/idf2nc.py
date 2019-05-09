@@ -9,7 +9,7 @@ import imod
 import xarray as xr
 import sys, os
 
-modelfol = sys.arg[1]
+modelfol = sys.argv[1]
 mod_nr = sys.argv[2]
 s_nr = sys.argv[3]
 ##For testing
