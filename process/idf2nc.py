@@ -18,7 +18,7 @@ s_nr = int(sys.argv[3])
 #s_nr = 0
 
 #%%Path management
-path = os.path.join(modelfol, "results" ,"*", "*_p{:03d}.IDF".format(s_nr))
+path = os.path.join(modelfol, "results" ,"*", "*_p{:03d}.[iI][dD][fF]".format(s_nr))
 
 #%%Process
 ds = imod.idf.open_dataset(path, use_cftime=True, pattern=r"{name}_{time}_l{layer}_p\d*")
