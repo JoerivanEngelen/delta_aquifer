@@ -34,7 +34,7 @@ mod_nr = int(sys.argv[2])
 
 globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
 
-r = re.compile("([a-zA-Z]_+)([0-9]+)")
+r = re.compile("([a-zA-Z_]+)([0-9]+)")
 mname =  r.match(os.path.basename(modelfol)).group(1)
 
 #%%Process
