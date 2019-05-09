@@ -10,8 +10,8 @@ import xarray as xr
 import sys, os
 
 modelfol = sys.argv[1]
-mod_nr = sys.argv[2]
-s_nr = sys.argv[3]
+mod_nr = int(sys.argv[2])
+s_nr = int(sys.argv[3])
 ##For testing
 #modelfol = r"g:\synthdelta\test_idf_output"
 #mod_nr = 1

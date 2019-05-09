@@ -30,7 +30,7 @@ def combine_all(ds_list):
 #mod_nr = 2
 
 modelfol = sys.argv[1]
-mod_nr = sys.argv[2]
+mod_nr = int(sys.argv[2])
 
 globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
 
