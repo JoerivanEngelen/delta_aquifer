@@ -25,13 +25,17 @@ def combine_all(ds_list):
     return(ds_tot)
 
 #%%Path management
-modelfol = sys.argv[1]
-mod_nr = sys.argv[2]
 ##For Testing
 #modelfol = r"g:\synthdelta\test_idf_output"
 #mod_nr = 2
-mname = os.path.basename(modelfol)
-globpath=os.path.join(modelfol, mname+str(mod_nr), "results", "results_{:03d}_*.nc".format(mod_nr))
+
+modelfol = sys.argv[1]
+mod_nr = sys.argv[2]
+
+globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
+
+r = re.compile("([a-zA-Z]+)([0-9]+)")
+mname =  r.match(os.path.basename(modelfol)).group(1)
 
 #%%Process
 nc_paths = natural_sort(glob(globpath))
@@ -50,8 +54,8 @@ ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)
 #since dask has to load all individual idfs into memory seperately.
 ds_ini = ds_tot.isel(time=-1)[["conc", "head"]].load()
 
-idf.save(os.path.join(modelfol, mname+str(mod_nr+1), "bas", "head"), ds_ini["head"], use_cftime=True)
-idf.save(os.path.join(modelfol, mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"], use_cftime=True)
+idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "bas", "head"), ds_ini["head"], use_cftime=True)
+idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"], use_cftime=True)
 
 #%%Plot subdomains
 qm = ds_tot["subdomain"].plot(cmap="prism", add_colorbar = False)
