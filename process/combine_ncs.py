@@ -50,6 +50,10 @@ ds_list = [xr.broadcast(xr.open_dataset(
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
+
+ds_tot["conc"] = xr.where(ds_tot["conc"] < 1e20, ds_tot["conc"], -9999.)
+ds_tot["head"] = xr.where(ds_tot["head"] < 1e20, ds_tot["head"], -9999.)
+
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
 
 #%%Create initial heads and concentrations for next run.
