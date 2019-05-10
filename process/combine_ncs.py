@@ -62,5 +62,5 @@ qm = ds_tot["subdomain"].plot(cmap="prism", add_colorbar = False)
 
 for i, mid in enumerate(mids):
     plt.text(mid[0], mid[1], str(i), horizontalalignment = 'center', verticalalignment = 'center')
-    
-plt.savefig(os.path.join(globpath, "..", "subdomains.png"), dpi=200)
+
+plt.savefig(os.path.join(modelfol, "results", "subdomains.png"), dpi=200)
