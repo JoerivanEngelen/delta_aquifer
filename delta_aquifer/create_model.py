@@ -24,6 +24,8 @@ ncfol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelin
 #model_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Model"
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 
+mname = "test_half_new"
+
 #%%Parameters
 # Morris parameters
 lev = 4
@@ -142,6 +144,8 @@ pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 #%%Get geometry
 geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
+topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
+
 #%%Create boundary conditions
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
@@ -149,37 +153,36 @@ spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_
 bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
+#%%Data processing for model
+#Cut model in half to speed up calculations
 geo = geo.sel(y=slice(0, geo.y.max()))
 bcs = bcs.sel(y=slice(0, geo.y.max()))
 
-#%%
-   
-start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
+#Cut off unused x and y cells 
+#otherwise writing the initial conditions for the next model run is 
+#problematic due to the RCB algorithms completely leaving out usused rows and columns
+geo = geo.dropna("x", how="all", subset=["tops"]).dropna("y", how="all", subset=["tops"])
+bcs = bcs.dropna("x", how="all").dropna("y", how="all")
+#%%Create initial conditions
 approx_init = True
 
 c_f = 0.0
 c_s = 35.
 
 rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
-
-tb=bc._mid_to_binedges(geo["z"].values)[::-1]
-z=geo.z
-
 shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
 
+#%%Some extra processing to make iMOD-python accept these DataArrays
 geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
-#bcs = bcs.assign_coords(time = [np.datetime64("2000-01-01"), np.datetime64("2001-01-01")])
-
+#%%Time management
+start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
 t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
 max_perlen = 8000
-
 sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear, max_perlen)
-
-mname = "test_half_new"
 
 #%%
 for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
@@ -205,8 +208,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         starting_conc = "btn/conc_{}_l?.idf".format(year_str)
     
     m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
-                                 top=tb[0], 
-                                 bottom=xr.DataArray(tb[1:], {"layer": geo.layer}, ("layer")), 
+                                 top=topbot[0], 
+                                 bottom=xr.DataArray(topbot[1:], {"layer": geo.layer}, ("layer")), 
                                  starting_head=starting_head)
     
     m["lpf"] = imod.wq.LayerPropertyFlow(
