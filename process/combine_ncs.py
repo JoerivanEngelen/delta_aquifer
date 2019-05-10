@@ -9,7 +9,10 @@ import xarray as xr
 from glob import glob
 import re, os, sys
 import numpy as np
+import matplotlib 
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
+plt.ioff()
 from imod import idf
 
 def natural_sort(l): 
