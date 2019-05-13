@@ -266,8 +266,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
 #%%non_conv_analyser
-#cell1 = (11, 177, 102)
-#ncg1, xyz1 = ncg.look_around(model, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+cell1 = (21,88,136)
+#ncg1, xyz1 = ncg.look_around(m, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
 #
 #cell2 = (17, 193, 128)
-#ncg2, xyz2 = ncg.look_around(model, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+#ncg2, xyz2 = ncg.look_around(m, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])

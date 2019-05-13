@@ -26,7 +26,13 @@ def isel_out_bounds(ds, shape, cell, n):
     
     return(ds.isel(**ddims))      
 
-def look_around(model, cell_fortran, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"], z = None):
+def look_around(model, cell_fortran, n=2, 
+                var={
+         "ghb" : "head", 
+         "riv" : "stage", 
+         "lpf" : "k_horizontal", 
+         "btn" : "icbund"
+         }, z = None):
     """Look around cell that gave non-convergence. 
     
     Insert the indexes of the troublesome cell in Fortran (1 based) based indexing!
@@ -35,7 +41,7 @@ def look_around(model, cell_fortran, n=2, var=["ghb-head", "riv-stage", "khv", "
 
     cell = (cell_fortran[0]-1, cell_fortran[1]-1, cell_fortran[2]-1)
     
-    ds = xr.merge([model[v].rename(v) for v in var])
+    ds = xr.merge([model[pack][v] for pack, v in var.items()])
     
     shape = [ds.dims[dim] for dim in ["layer", "y", "x"]]
     ds_sel = isel_out_bounds(ds, shape, cell, n)
@@ -45,6 +51,7 @@ def look_around(model, cell_fortran, n=2, var=["ghb-head", "riv-stage", "khv", "
     except IndexError:
         xyz = [ds_sel.x[0], ds_sel.y[0], ds_sel.layer[0]]
     
-    xyz[2] = z[xyz[2]-1]
+    if z is not None:
+        xyz[2] = z[xyz[2]-1]
     
     return(ds_sel, xyz)
