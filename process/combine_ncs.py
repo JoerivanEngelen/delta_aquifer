@@ -25,12 +25,13 @@ def combine_all(ds_list):
     for ds in ds_list[1:]:
         ds_tot = ds_tot.combine_first(ds)
     
+    ds_tot = ds_tot.sel(y=slice(None, None, -1))    
     return(ds_tot)
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_idf_output"
-#mod_nr = 2
+#modelfol = r"g:\synthdelta\test_idf_output3"
+#mod_nr = 0
 
 modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
