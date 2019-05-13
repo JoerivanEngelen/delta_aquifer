@@ -30,7 +30,7 @@ def combine_all(ds_list):
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_idf_output3"
+#modelfol = r"g:\synthdelta\test_idf_output4"
 #mod_nr = 0
 
 modelfol = sys.argv[1]

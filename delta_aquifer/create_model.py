@@ -24,7 +24,7 @@ ncfol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelin
 #model_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Model"
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 
-mname = "test_half_new"
+mname = "test_model"
 
 #%%Parameters
 # Morris parameters
@@ -243,7 +243,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                              density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
                              concentration =  xr.where(np.isfinite(river_stage), 0., np.nan)) #0.) 
     
-    m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 100., 0.98,
+    m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 1000., 0.98,
                                                  partition="rcb",
                                                  solver="pcg",
                                                  preconditioner="ilu",
@@ -266,9 +266,5 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
 #%%non_conv_analyser
-cell1 = (21,88,136)
-#ncg1, xyz1 = ncg.look_around(m, cell1, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
-ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
-#
-#cell2 = (17, 193, 128)
-#ncg2, xyz2 = ncg.look_around(m, cell2, n=2, var=["ghb-head", "riv-stage", "khv", "icbund"])
+#cell1 = (21,88,136)
+#ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
