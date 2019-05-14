@@ -127,7 +127,8 @@ pars["kh_conf"] = kh_conf[1]
 pars["kh_mar"] = kh_mar[1]
 pars["ani"] = ani[2]
 pars["bc-res"] = 100
-pars["riv_depth"] = 10.
+#pars["riv_depth"] = 10.
+pars["riv_depth"] = pars["D"] #set this very low to see if rivers are causing non-convergence
 
 #Solute transport
 pars["por"] = por[-1]
@@ -152,6 +153,10 @@ spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_
 
 bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
+
+#%%Dynamic geology
+geo = geometry.dynamic_confining_layer(geo, bcs["sea"])
+geo = geometry.create_Kh(geo, **pars)
 
 #%%Data processing for model
 #Cut model in half to speed up calculations
@@ -184,11 +189,22 @@ t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
 max_perlen = 8000
 sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear, max_perlen)
 
+#%%Non convergence
+crashed_model = 4
+cell1 = (25,31,152)
+
 #%%
 for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     print(".........processing model nr. {}..........".format(mod_nr))
     bcs_mod = bcs.isel(time=slice(i_start, i_end)).assign_coords(
             time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
+    
+    geo_mod = geo.isel(time=slice(i_start, i_end)).assign_coords(
+            time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
+    
+    #Check if model is Kh is equal everywhere
+    if (geo_mod["Kh"]==geo_mod["Kh"].isel(time=0)).all(dim=None):
+        print("bla")
     
     #Remove empty layers to reduce amount of .idfs written
     river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
@@ -207,6 +223,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         starting_head = "bas/head_{}_l?.idf".format(year_str)
         starting_conc = "btn/conc_{}_l?.idf".format(year_str)
     
+    #TODO: Refer to model0 for static idfs: IBOUND, Kh, Kv, ICBUND. Can save 4000 idfs, approximately half.
+    #Does not work for IBOUND?
     m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
                                  top=topbot[0], 
                                  bottom=xr.DataArray(topbot[1:], {"layer": geo.layer}, ("layer")), 
@@ -243,20 +261,29 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                              density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
                              concentration =  xr.where(np.isfinite(river_stage), 0., np.nan)) #0.) 
     
-    m["pksf"] = imod.wq.ParallelKrylovFlowSolver(1000, 100, 0.0001, 1000., 0.98,
+    m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
+                                                 max_iter=1000, 
+                                                 inner_iter=100, 
+                                                 hclose=0.0001, 
+                                                 rclose=1000., 
+                                                 relax=1.00,
                                                  partition="rcb",
                                                  solver="pcg",
                                                  preconditioner="ilu",
                                                  deflate=False,
-                                                 debug=False,)
+                                                 debug=False,
+                                                 )
     
-    m["pkst"] = imod.wq.ParallelKrylovTransportSolver(1000, 30, 
+    m["pkst"] = imod.wq.ParallelKrylovTransportSolver(
+                                                 max_iter=1000, 
+                                                 inner_iter=30, 
                                                  cclose=1e-6,
                                                  relax=0.98,
                                                  partition="rcb",
                                                  solver="bicgstab",
                                                  preconditioner="ilu",
-                                                 debug=False,)
+                                                 debug=False,
+                                                 )
     
     m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
     
@@ -265,6 +292,6 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
-#%%non_conv_analyser
-#cell1 = (21,88,136)
-#ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
+    #%non_conv_analyser
+    if mod_nr == crashed_model:
+        ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
