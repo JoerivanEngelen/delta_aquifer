@@ -30,8 +30,8 @@ def combine_all(ds_list):
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_idf_output4"
-#mod_nr = 0
+#modelfol = r"g:\synthdelta\test_cftime_error2"
+#mod_nr = 2
 
 modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
