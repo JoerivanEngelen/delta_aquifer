@@ -37,7 +37,8 @@ L = (
 b = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
 a = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
 
-D = np.array([70, 250, 500, 1000])
+#D = np.array([70, 250, 500, 1000])
+D = np.logspace(np.log10(70), np.log10(1000), num=lev)
 dD = np.linspace(0.2, 0.6, num=lev)
 
 alpha = np.linspace(0.75e-4, 1.5e-4, num=lev)  # Check this for deltas
