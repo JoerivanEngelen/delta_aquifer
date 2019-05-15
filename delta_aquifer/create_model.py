@@ -24,7 +24,7 @@ ncfol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelin
 #model_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Model"
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 
-mname = "test_model"
+mname = "test_dynamic_conf"
 
 #%%Parameters
 # Morris parameters
@@ -155,7 +155,7 @@ bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 #%%Dynamic geology
-geo = geometry.dynamic_confining_layer(geo, bcs["sea"])
+geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
 geo = geometry.create_Kh(geo, **pars)
 
 #%%Data processing for model
@@ -201,10 +201,10 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     geo_mod = geo.isel(time=slice(i_start, i_end)).assign_coords(
             time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
-    
-    #Check if model is Kh is equal everywhere
-    if (geo_mod["Kh"]==geo_mod["Kh"].isel(time=0)).all(dim=None):
-        print("bla")
+
+    #Select for each timestep 
+    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
+    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
     
     #Remove empty layers to reduce amount of .idfs written
     river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
@@ -223,7 +223,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         starting_head = "bas/head_{}_l?.idf".format(year_str)
         starting_conc = "btn/conc_{}_l?.idf".format(year_str)
     
-    #TODO: Refer to model0 for static idfs: IBOUND, Kh, Kv, ICBUND. Can save 4000 idfs, approximately half.
+    #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
     #Does not work for IBOUND?
     m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
                                  top=topbot[0], 
@@ -231,7 +231,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                  starting_head=starting_head)
     
     m["lpf"] = imod.wq.LayerPropertyFlow(
-        k_horizontal=geo["Kh"], k_vertical=geo["Kh"]/pars["ani"], specific_storage=0.0
+        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=0.0
     )
     
     m["btn"] = imod.wq.BasicTransport(

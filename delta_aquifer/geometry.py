@@ -229,8 +229,10 @@ def create_lith(d3, d2_grid, n_clay):
         d3["lith"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), clay_nr , d3["lith"])
     return(d3)
 
-def dynamic_confining_layer(d3, sea):
-    d3["lith"] = xr.where((d3["lith"] == 2) & (sea == 1), 1, d3["lith"]).astype(np.int64)
+def dynamic_confining_layer(d3, sea, t_max):
+    sea = sea.max(dim="z")
+    d3["lith"] = xr.where((d3["lith"] == 2) & (sea == 1)          , 1, d3["lith"]).astype(np.int64)
+    d3["lith"] = xr.where((d3["lith"] == 2) & (d3["time"] > t_max), 1, d3["lith"]).astype(np.int64)
     return(d3)
 
 def create_Kh(d3, kh=0., kh_conf=0., kh_mar=0., **kwargs):
