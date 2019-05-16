@@ -62,8 +62,8 @@ ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)
 #since dask has to load all individual idfs into memory seperately.
 ds_ini = ds_tot.isel(time=-1)[["conc", "head"]].load()
 
-idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "bas", "head"), ds_ini["head"], use_cftime=True)
-idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"], use_cftime=True)
+idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "bas", "head"), ds_ini["head"])
+idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"])
 
 #%%Plot subdomains
 qm = ds_tot["subdomain"].plot(cmap="prism", add_colorbar = False)
