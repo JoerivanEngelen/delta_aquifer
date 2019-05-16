@@ -292,11 +292,11 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
     
-    n_timesteps_p1 = 8
+    n_timesteps_p1 = 10
     time_util.time_discretization(m, 1000., 
                                   endtime=endtime,
                                   n_timesteps_p1=n_timesteps_p1,
-                                  timestep_multiplier=5.)
+                                  timestep_multiplier=7.)
     
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 

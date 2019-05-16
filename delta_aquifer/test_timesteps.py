@@ -19,7 +19,7 @@ def get_dt(perlen, tsmult, nstp):
     return(np.array(dt))
 
 
-dt = get_dt(1000.*365.25, 5., 8)
+dt = get_dt(1000.*365.25, 7., 10)
 
 
 print(dt)
