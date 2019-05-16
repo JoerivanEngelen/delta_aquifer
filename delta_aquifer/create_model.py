@@ -197,11 +197,15 @@ cell1 = (25,31,152)
 #%%
 for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     print(".........processing model nr. {}..........".format(mod_nr))
+    
+    timesteps_mod = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)]
+    endtime=cftime.DatetimeProlepticGregorian(sub_ends[mod_nr]+start_year, 1, 1)
+    
     bcs_mod = bcs.isel(time=slice(i_start, i_end)).assign_coords(
-            time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
+            time = timesteps_mod)
     
     geo_mod = geo.isel(time=slice(i_start, i_end)).assign_coords(
-            time = [cftime.DatetimeProlepticGregorian(t, 1, 1) for t in (sub_ts[mod_nr]+start_year)])
+            time = timesteps_mod)
 
     #Select for each timestep 
     time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
@@ -288,8 +292,11 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
     
+    n_timesteps_p1 = 8
     time_util.time_discretization(m, 1000., 
-                                  endtime=cftime.DatetimeProlepticGregorian(sub_ends[mod_nr]+start_year, 1, 1))
+                                  endtime=endtime,
+                                  n_timesteps_p1=n_timesteps_p1,
+                                  timestep_multiplier=5.)
     
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
