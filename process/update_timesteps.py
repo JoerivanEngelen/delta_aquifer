@@ -17,10 +17,10 @@ def natural_sort(l):
     return sorted(l, key = alphanum_key)
 
 #%%Path management
-res_folder = sys.argv[1]
-#res_folder = r"g:\synthdelta\test_cftime_update"
+inp_folder = sys.argv[1]
+res_folder = sys.argv[2]
 
-nc_paths = natural_sort(glob(os.path.join(res_folder, "results_*.nc")))
+nc_paths = natural_sort(glob(os.path.join(inp_folder, "*", "results_[0-9][0-9][0-9].nc")))
 
 #%%Processing
 
@@ -52,7 +52,6 @@ for i, year_arr in enumerate(years):
     ds_ls[i].transpose("time", "layer", "y", "x")
 
 for i, nc_path in enumerate(nc_paths):
-#    nu_nc_path = nc_path.replace("results", "nu_results")
-#    ds_ls[i].to_netcdf(nu_nc_path)
+    fname = os.path.basename(nc_path)
+    ds_ls[i].to_netcdf(os.path.join(res_folder, fname))
     #Can't save time as unlimited times. Luckily does not matter for Paraview.
-    ds_ls[i].to_netcdf(nc_path)
