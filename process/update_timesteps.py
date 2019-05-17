@@ -20,7 +20,7 @@ def natural_sort(l):
 inp_folder = sys.argv[1]
 res_folder = sys.argv[2]
 
-nc_paths = natural_sort(glob(os.path.join(inp_folder, "*", "results_[0-9][0-9][0-9].nc")))
+nc_paths = natural_sort(glob(os.path.join(inp_folder, "*", "results", "results_[0-9][0-9][0-9].nc")))
 
 #%%Processing
 
