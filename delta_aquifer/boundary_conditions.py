@@ -191,6 +191,18 @@ def sea_3d(geo, sea_level, coastline_loc):
     
     return((sea_edge|sea_trans).astype(np.int16), sea_z)
 
+def perturb_sea_conc(sea, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.):
+    """Mathematical formula taken from:
+        Simmons et al. [1999]
+        On a test case for density-dependent 
+        groundwater flow and solute transport models: 
+            The salt lake problem
+    """
+    np.random.seed(seed)
+    flat_sea = sea.max(dim=["z", "time"])
+    noise = np.random.rand(*flat_sea.shape)
+    return(flat_sea*conc_sea + noise_frac * (conc_sea-conc_fresh) * (noise - 0.5))
+    
 def river_3d(
     geo, sea_level, rho_onshore, phi=None, L=None, figfol=None, **kwargs        
 ):
@@ -211,7 +223,8 @@ def river_3d(
     return(riv, z_bins)
 
 #%%Master function
-def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, **kwargs):
+def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, 
+                        qt = "50%", figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
     
@@ -227,6 +240,8 @@ def boundary_conditions(sl_curve, ts, geo, qt = "50%", figfol=None, ncfol=None, 
     #Combine to dataset
     bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"], "sea_level" : sea_level})
     bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
+    bcs["sea_conc"] = perturb_sea_conc(bcs["sea"], conc_sea, conc_fresh=conc_fresh)
+    
     bcs = bcs.transpose("time", "z", "y", "x")
     
     if ncfol is not None:

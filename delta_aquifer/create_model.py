@@ -152,7 +152,10 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 # Path management
 spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
 
-bcs = bc.boundary_conditions(spratt, ts, geo, figfol=figfol, ncfol=ncfol, **pars)
+c_f = 0.0
+c_s = 35.
+
+bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, figfol=figfol, ncfol=ncfol, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 #%%Dynamic geology
@@ -168,12 +171,9 @@ bcs = bcs.sel(y=slice(0, geo.y.max()))
 #otherwise writing the initial conditions for the next model run is 
 #problematic due to the RCB algorithms completely leaving out usused rows and columns
 geo = geo.dropna("x", how="all", subset=["tops"]).dropna("y", how="all", subset=["tops"])
-bcs = bcs.dropna("x", how="all").dropna("y", how="all")
+bcs = bcs.dropna("x", how="all", subset=["sea", "river_stage"]).dropna("y", how="all", subset=["sea", "river_stage"])
 #%%Create initial conditions
 approx_init = True
-
-c_f = 0.0
-c_s = 35.
 
 rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
 shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
@@ -256,12 +256,12 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
     
     m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(sea==1, bcs_mod["sea_level"], np.nan),
-                                           conductance=sea * pars["dx"] * pars["dy"] / pars["bc-res"],
-                                           density= rho_s, #sea * rho_s,
-                                           concentration=sea * c_s)
+                                           conductance=pars["dx"] * pars["dy"] / pars["bc-res"],
+                                           density= sea * ic.c2rho(bcs["sea_conc"]), #rho_s,
+                                           concentration=sea * bcs["sea_conc"])
     
     m["riv"] = imod.wq.River(stage = river_stage,
-                             conductance = xr.where(np.isfinite(river_stage), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
+                             conductance  = pars["dx"] * pars["dy"] / pars["bc-res"], #xr.where(np.isfinite(river_stage), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
                              bottom_elevation = river_stage - pars["riv_depth"],
                              density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
                              concentration =  xr.where(np.isfinite(river_stage), 0., np.nan)) #0.) 
