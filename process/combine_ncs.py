@@ -28,6 +28,11 @@ def combine_all(ds_list):
     ds_tot = ds_tot.sel(y=slice(None, None, -1))    
     return(ds_tot)
 
+def move_window_mean(da, dimmap):
+    """Modified moving window that ignores nans of shifted window
+    """
+    return((da+da.shift(dimmap).fillna(0.))/2)
+
 #%%Path management
 ##For Testing
 #modelfol = r"g:\synthdelta\test_conc_peturb_no_conf2"
@@ -52,8 +57,12 @@ ds_list = [xr.broadcast(xr.open_dataset(
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
-
-ds_tot = xr.where(ds_tot["conc"] < 1e20, ds_tot, -9999.)
+ds_tot = ds_tot.where(ds_tot["conc"] < 1e20)
+ds_tot["qz"] = move_window_mean(ds_tot["bdgflf"], dimmap = {"layer" : 1})
+ds_tot["qy"] = move_window_mean(ds_tot["bdgfff"], dimmap = {"y" : 1})
+ds_tot["qx"] = move_window_mean(ds_tot["bdgfrf"], dimmap = {"x" : 1})
+ds_tot = ds_tot.drop(["bdgflf", "bdgfff", "bdgfrf"])
+ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
 
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
 
