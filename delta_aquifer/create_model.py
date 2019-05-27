@@ -9,22 +9,44 @@ from delta_aquifer import geometry, defaults, time_util
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
-import os
+import os, sys
 
 import imod
 import xarray as xr
 import cftime
 
+from pkg_resources import resource_filename
+
+#%%TODO Tests
+#-Fluxen wegschrijven + omschrijven
+#-Wat gebeurt er als zand boven de shelf legt?
+
+#%%TODO Processen
+#-Brijn onderin?
+#
+#-Recharge
+#-Conductance waar grote rivier. 1 cel dik.
+#->Recharge + conductance combinatie? 
+#-Drain? Om te helpen (zoute) rivieren te laten infiltreren
+#
+#-Zoute rivieren (Savenije methode) -> Overal in waaier
+#-Aantal riviertakken.
+#
+#-Conductiviteit preferente stroombaan door mariene klei (confining layer ook)
+#-Breedte preferente stroombaan
+
 #%%Path management
-figfol = (
-    r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Figures"
-)
-ncfol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Data"
-
-#model_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Modelinput\Model"
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
+mname = "test_more_peturb_no_conf"
 
-mname = "test_dynamic_conf"
+figfol = os.path.join(model_fol, "input", "figures")
+ncfol  = os.path.join(model_fol, "input", "data")
+
+os.makedirs(figfol, exist_ok=True)
+os.makedirs(ncfol,  exist_ok=True)
+
+#spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
+spratt = os.path.abspath(resource_filename("delta_aquifer", "../data/spratt2016.txt"))
 
 #%%Parameters
 # Morris parameters
@@ -45,8 +67,8 @@ alpha = np.linspace(0.75e-4, 1.5e-4, num=lev)  # Check this for deltas
 beta = np.linspace(6e-4, 12e-4, num=lev)  # Check this for deltas
 gamma = 5e-2  # FIXED will be corrected based on thickness.
 
-# alpha = 8e-4 #in rads! For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
-# beta = 1e-4 #in rads! For nile roughly: np.arctan(15/150000)
+# beta = 8e-4 #in rads! For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
+# alpha = 1e-4 #in rads! For nile roughly: np.arctan(15/150000)
 
 phi = np.linspace(0.125, 0.5, num=lev) * np.pi
 
@@ -73,6 +95,7 @@ t_max = 7
 
 # Model discretization
 dx, dy = 1000, 1000
+#dx, dy = 500, 500
 nz = 100
 
 ts = (
@@ -126,7 +149,8 @@ pars["n_clay"] = n_clay[1]
 pars["kh"] = kh[1]
 pars["kh_conf"] = kh_conf[1]
 pars["kh_mar"] = kh_mar[1]
-pars["ani"] = ani[2]
+#pars["ani"] = ani[2]
+pars["ani"] = 10.
 pars["bc-res"] = 100
 #pars["riv_depth"] = 10.
 pars["riv_depth"] = pars["D"] #set this very low to see if rivers are causing non-convergence
@@ -143,6 +167,10 @@ pars["t_max"] = t_max
 
 # Discretization
 pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
+#%%Solver settings
+hclose = 1e-4
+rclose = pars["dx"] * pars["dy"] * hclose * 10.
+
 #%%Get geometry
 geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
 
@@ -150,12 +178,11 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
 # Path management
-spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
-
 c_f = 0.0
 c_s = 35.
 
-bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, figfol=figfol, ncfol=ncfol, **pars)
+bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
+                             conc_noise = 0.05, figfol=figfol, ncfol=ncfol, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 #%%Dynamic geology
@@ -208,8 +235,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
             time = timesteps_mod)
 
     #Select for each timestep 
-    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
-    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
+#    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
+#    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
+    kh = geo["Kh"].isel(time=0).drop("time")
     
     #Remove empty layers to reduce amount of .idfs written
     river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
@@ -220,7 +248,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m = imod.wq.SeawatModel(mname_sub)
     
     if mod_nr == 0:
-        starting_head = xr.where(geo["IBOUND"]==1,  shd, -9999.0)
+        starting_head = xr.where(geo["IBOUND"]==1,  shd,   -9999.0)
         starting_conc = xr.where(geo["IBOUND"]==1., sconc, -9999.0)
     else:
         year_str = cftime.DatetimeProlepticGregorian(
@@ -236,7 +264,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                  starting_head=starting_head)
     
     m["lpf"] = imod.wq.LayerPropertyFlow(
-        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=0.0
+        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=0.0,
+        save_budget=True,
     )
     
     m["btn"] = imod.wq.BasicTransport(
@@ -269,8 +298,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                  max_iter=1000, 
                                                  inner_iter=100, 
-                                                 hclose=0.0001, 
-                                                 rclose=1000., 
+                                                 hclose=hclose, 
+                                                 rclose=rclose, 
                                                  relax=1.00,
                                                  partition="rcb",
                                                  solver="pcg",
@@ -290,7 +319,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                                  debug=False,
                                                  )
     
-    m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True)
+    m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True, save_budget_idf=True)
     
     n_timesteps_p1 = 10
     time_util.time_discretization(m, 1000., 

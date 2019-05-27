@@ -30,8 +30,8 @@ def combine_all(ds_list):
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_cftime_error2"
-#mod_nr = 2
+#modelfol = r"g:\synthdelta\test_conc_peturb_no_conf2"
+#mod_nr = 1
 
 modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
@@ -45,15 +45,15 @@ mname =  r.match(os.path.basename(modelfol)).group(1)
 nc_paths = natural_sort(glob(globpath))
 
 ds_list = [xr.broadcast(xr.open_dataset(
-        nc, use_cftime=True, chunks = {"x" : -1, "y": -1, "layer": -1, "time": 1}
+        nc, use_cftime=True, chunks = {"x" : -1, "y": -1, "layer": -1, "time": 1},
+        drop_variables=["bdgsto", "bdgbnd"],
         ).assign(subdomain=i), 
                         exclude=["time", "layer"])[0] for i, nc in enumerate(nc_paths)]
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
 
-ds_tot["conc"] = xr.where(ds_tot["conc"] < 1e20, ds_tot["conc"], -9999.)
-ds_tot["head"] = xr.where(ds_tot["head"] < 1e20, ds_tot["head"], -9999.)
+ds_tot = xr.where(ds_tot["conc"] < 1e20, ds_tot, -9999.)
 
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
 
