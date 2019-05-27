@@ -223,7 +223,7 @@ def river_3d(
     return(riv, z_bins)
 
 #%%Master function
-def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, 
+def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, conc_noise = 0.01, 
                         qt = "50%", figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
@@ -240,7 +240,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     #Combine to dataset
     bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"], "sea_level" : sea_level})
     bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
-    bcs["sea_conc"] = perturb_sea_conc(bcs["sea"], conc_sea, conc_fresh=conc_fresh)
+    bcs["sea_conc"] = perturb_sea_conc(bcs["sea"], conc_sea, noise_frac=conc_noise, conc_fresh=conc_fresh)
     
     bcs = bcs.transpose("time", "z", "y", "x")
     
