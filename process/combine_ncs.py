@@ -14,6 +14,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 from imod import idf
+import configparser
 
 def natural_sort(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
@@ -42,9 +43,23 @@ modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
 
 globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
+run_path=os.path.join(modelfol, "*{}.run".format(mod_nr))
 
 r = re.compile("([a-zA-Z_]+)([0-9]+)")
 mname =  r.match(os.path.basename(modelfol)).group(1)
+
+#%%Get z values from runfile
+runf = glob(run_path)
+if len(runf) != 1:
+    raise ValueError("More than 1 runfile in this folder")
+
+cfg = configparser.ConfigParser(delimiters=["="])
+cfg.read(runf[0])
+top=cfg.getfloat("dis", "top")
+bots=[float(bot) for _, bot in cfg.items("dis") if "botm_" in _]
+tb=np.array([top]+bots)
+z=(tb[1:] + tb[:-1])/2
+dz=tb[:-1] - tb[1:]
 
 #%%Process
 nc_paths = natural_sort(glob(globpath))
@@ -57,24 +72,42 @@ ds_list = [xr.broadcast(xr.open_dataset(
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
-ds_tot = ds_tot.where(ds_tot["conc"] < 1e20)
-ds_tot["qz"] = move_window_mean(ds_tot["bdgflf"], dimmap = {"layer" : 1})
-ds_tot["qy"] = move_window_mean(ds_tot["bdgfff"], dimmap = {"y" : 1})
-ds_tot["qx"] = move_window_mean(ds_tot["bdgfrf"], dimmap = {"x" : 1})
-ds_tot = ds_tot.drop(["bdgflf", "bdgfff", "bdgfrf"])
-ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
+subdomain = ds_tot["subdomain"]
+ds_tot = ds_tot.drop(["subdomain"])
 
+ds_tot = ds_tot.where(ds_tot["conc"] < 1e20)
+
+#%%Add z
+ds_tot = ds_tot.assign_coords(z=xr.ones_like(ds_tot.layer) * z)
+ds_tot = ds_tot.assign_coords(dz=xr.ones_like(ds_tot.layer) * dz)
+
+#%%Calc velocities
+ds_tot["vz"] = move_window_mean(ds_tot["bdgflf"], dimmap = {"layer" : 1})
+ds_tot["vy"] = move_window_mean(ds_tot["bdgfff"], dimmap = {"y" : 1})
+ds_tot["vx"] = move_window_mean(ds_tot["bdgfrf"], dimmap = {"x" : 1})
+ds_tot = ds_tot.drop(["bdgflf", "bdgfff", "bdgfrf"])
+
+ds_tot["vz"] = ds_tot["vz"] /(ds_tot["dx"] * ds_tot["dy"] * -1) #*-1 because dy is negative
+ds_tot["vy"] = ds_tot["vy"] /(ds_tot["dx"] * ds_tot["dz"])
+ds_tot["xy"] = ds_tot["vx"] /(ds_tot["dy"] * ds_tot["dz"]* -1) #*-1 because dy is negative
+
+#%%Save to netcdf
+ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
+ds_tot["subdomain"] = subdomain
+
+ds_tot = ds_tot.swap_dims({"layer" : "z"})
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
 
 #%%Create initial heads and concentrations for next run.
 #Load into memory as otherwise saving is really slow 
 #since dask has to load all individual idfs into memory seperately.
-ds_ini = ds_tot.isel(time=-1)[["conc", "head"]].load()
+ds_ini = ds_tot.swap_dims({"z" : "layer"}).isel(time=-1)[["conc", "head"]].load()
 
 idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "bas", "head"), ds_ini["head"])
 idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"])
 
 #%%Plot subdomains
+
 qm = ds_tot["subdomain"].plot(cmap="prism", add_colorbar = False)
 
 for i, mid in enumerate(mids):
