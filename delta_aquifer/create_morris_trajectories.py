@@ -70,13 +70,15 @@ problem = {
         "bounds" : [[0, lev-1]] * len(par_morris)
         }
 
-param_values = sample(problem, N=100, grid_jump=grid_jump, num_levels=lev,
-                      optimal_trajectories=4).astype(np.int64)
+param_values = sample(problem, N=12, grid_jump=grid_jump, num_levels=lev,
+                      sample4uniformity = 1000).astype(np.int64)
 
+#%%Plot
 fig2 = plt.figure()
 sample_histograms(fig2, param_values, problem, {'color': 'y'})
 plt.tight_layout()
 plt.show()
 
+#%%To 
 traj_real = pd.DataFrame(OrderedDict([(par, pars[par][param_values[:, i]]) for i, par in enumerate(par_morris)]))
 traj_ref  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enumerate(par_morris)]))
