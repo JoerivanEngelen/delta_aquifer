@@ -34,8 +34,15 @@ def move_window_mean(da, dimmap):
     """
     return((da+da.shift(dimmap).fillna(0.))/2)
 
+def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
+    """See Post, Kooi & Simmons (2007)
+    Using hydraulic head measurements in variable-density ground water flow analyses
+    """
+    rho_i = dense_ref+conc*denselp
+    return(rho_i/dense_ref * head - (rho_i - dense_ref)/dense_ref * head.z)
+
 #%%Path management
-##For Testing
+#For Testing
 #modelfol = r"g:\synthdelta\test_output\test_conc_peturb_no_conf2"
 #mod_nr = 1
 
@@ -90,6 +97,9 @@ ds_tot = ds_tot.drop(["bdgflf", "bdgfff", "bdgfrf"])
 ds_tot["vz"] = ds_tot["vz"] /(ds_tot["dx"] * ds_tot["dy"] * -1) #*-1 because dy is negative
 ds_tot["vy"] = ds_tot["vy"] /(ds_tot["dx"] * ds_tot["dz"])
 ds_tot["vx"] = ds_tot["vx"] /(ds_tot["dy"] * ds_tot["dz"]* -1) #*-1 because dy is negative
+
+#%%Calc fresh water head
+ds_tot["fhead"] = calc_fresh_water_head(ds_tot["head"], ds_tot["conc"])
 
 #%%Save to netcdf
 ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
