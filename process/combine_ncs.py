@@ -36,7 +36,7 @@ def move_window_mean(da, dimmap):
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_conc_peturb_no_conf2"
+#modelfol = r"g:\synthdelta\test_output\test_conc_peturb_no_conf2"
 #mod_nr = 1
 
 modelfol = sys.argv[1]

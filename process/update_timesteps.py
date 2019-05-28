@@ -26,7 +26,7 @@ nc_paths = natural_sort(glob(os.path.join(inp_folder, "*", "results", "results_[
 
 ##We do not use xr.open_mfdataset, as as of now encoding attributes are lost when using open_mfdataset
 ds_ls = [xr.open_dataset(path, use_cftime=True, 
-                         chunks=dict(x = -1, y=-1, layer=10, time=-1)
+                         chunks=dict(x = -1, y=-1, z=10, time=-1)
                          ) for path in nc_paths]
 
 start_year = cftime.num2date(0., ds_ls[0].time.encoding["units"], 
