@@ -89,7 +89,7 @@ ds_tot = ds_tot.drop(["bdgflf", "bdgfff", "bdgfrf"])
 
 ds_tot["vz"] = ds_tot["vz"] /(ds_tot["dx"] * ds_tot["dy"] * -1) #*-1 because dy is negative
 ds_tot["vy"] = ds_tot["vy"] /(ds_tot["dx"] * ds_tot["dz"])
-ds_tot["xy"] = ds_tot["vx"] /(ds_tot["dy"] * ds_tot["dz"]* -1) #*-1 because dy is negative
+ds_tot["vx"] = ds_tot["vx"] /(ds_tot["dy"] * ds_tot["dz"]* -1) #*-1 because dy is negative
 
 #%%Save to netcdf
 ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
