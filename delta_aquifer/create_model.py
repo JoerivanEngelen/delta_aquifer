@@ -18,7 +18,6 @@ import cftime
 from pkg_resources import resource_filename
 
 #%%TODO Tests
-#-Fluxen wegschrijven + omschrijven
 #-Wat gebeurt er als zand boven de shelf legt?
 
 #%%TODO Processen
@@ -37,7 +36,7 @@ from pkg_resources import resource_filename
 
 #%%Path management
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-mname = "test_more_peturb_no_conf"
+mname = "test_all_GHB"
 
 figfol = os.path.join(model_fol, "input", "figures")
 ncfol  = os.path.join(model_fol, "input", "data")
@@ -172,7 +171,7 @@ hclose = 1e-4
 rclose = pars["dx"] * pars["dy"] * hclose * 10.
 
 #%%Get geometry
-geo = geometry.get_geometry(figfol=figfol, ncfol=ncfol, **pars)
+geo = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
@@ -182,7 +181,7 @@ c_f = 0.0
 c_s = 35.
 
 bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
-                             conc_noise = 0.05, figfol=figfol, ncfol=ncfol, **pars)
+                             conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
 #%%Dynamic geology
@@ -205,18 +204,27 @@ approx_init = True
 rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
 shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
 
-#%%Some extra processing to make iMOD-python accept these DataArrays
-geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-
 #%%Time management
 start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
 t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
 max_perlen = 8000
 sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear, max_perlen)
 
+#%%Save ncs
+time_util.num2date_ds(t_kyear[1:], bcs, geo)
+
+bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
+geo.to_netcdf(os.path.join(ncfol, "geo.nc"))
+
+#%%Some extra processing to make iMOD-python accept these DataArrays
+geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+
+#%%
+bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["river_stage"])
+bcs["conc"] = xr.where(np.isfinite(bcs["river_stage"]), 0., bcs["sea"] * bcs["sea_conc"])
 #%%Non convergence
 crashed_model = 4
 cell1 = (25,31,152)
@@ -240,8 +248,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     kh = geo["Kh"].isel(time=0).drop("time")
     
     #Remove empty layers to reduce amount of .idfs written
-    river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
-    sea = bcs_mod["sea"].dropna(dim="layer", how="all")
+#    river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
+#    sea = bcs_mod["sea"].dropna(dim="layer", how="all")
 
     mname_sub = mname + str(mod_nr)
     
@@ -284,17 +292,11 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
     
-    m["ghb"] = imod.wq.GeneralHeadBoundary(head = xr.where(sea==1, bcs_mod["sea_level"], np.nan),
+    m["ghb"] = imod.wq.GeneralHeadBoundary(head = bcs_mod["heads"],
                                            conductance=pars["dx"] * pars["dy"] / pars["bc-res"],
-                                           density= sea * ic.c2rho(bcs["sea_conc"]), #rho_s,
-                                           concentration=sea * bcs["sea_conc"])
-    
-    m["riv"] = imod.wq.River(stage = river_stage,
-                             conductance  = pars["dx"] * pars["dy"] / pars["bc-res"], #xr.where(np.isfinite(river_stage), pars["dx"] * pars["dy"] / pars["bc-res"], np.nan),
-                             bottom_elevation = river_stage - pars["riv_depth"],
-                             density = rho_f, #xr.where(np.isfinite(bcs["river_stage"]), rho_f, np.nan),  
-                             concentration =  xr.where(np.isfinite(river_stage), 0., np.nan)) #0.) 
-    
+                                           density=ic.c2rho(bcs_mod["conc"]), 
+                                           concentration=bcs_mod["conc"])
+        
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                  max_iter=1000, 
                                                  inner_iter=100, 
@@ -329,6 +331,6 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
 
-    #%non_conv_analyser
-    if mod_nr == crashed_model:
-        ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
+#    #%non_conv_analyser
+#    if mod_nr == crashed_model:
+#        ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
