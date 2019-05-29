@@ -151,8 +151,6 @@ pars["kh_mar"] = kh_mar[1]
 #pars["ani"] = ani[2]
 pars["ani"] = 10.
 pars["bc-res"] = 100
-#pars["riv_depth"] = 10.
-pars["riv_depth"] = pars["D"] #set this very low to see if rivers are causing non-convergence
 
 #Solute transport
 pars["por"] = por[-1]
