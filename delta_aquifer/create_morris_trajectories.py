@@ -10,9 +10,23 @@ from SALib.sample.morris import sample
 from SALib.plotting.morris import sample_histograms
 from collections import OrderedDict
 import pandas as pd
+import matplotlib 
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
+plt.ioff()
 
-#Morris parameters
+import os
+from pkg_resources import resource_filename
+
+#%%Path management
+traj_real_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_real.csv"))
+traj_id_path   = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
+
+fig_out_path = os.path.abspath(resource_filename("delta_aquifer", "../data/morris_inp_dist.png"))
+
+fixed_pars_path = os.path.abspath(resource_filename("delta_aquifer", "../data/fixed_pars.csv"))
+
+#%%Morris parameters
 lev = 4
 grid_jump = 2
 
@@ -43,9 +57,9 @@ pars["n_clay"]      = np.linspace(0, 3, num=lev, dtype=int)
 pars["kh"]          = np.logspace(0, 2, num=lev)
 pars["kh_conf"]     = np.logspace(-3, 0, num=lev)
 pars["kh_mar"]      = np.logspace(-4, -2, num=lev)
-pars["ani"]         = np.logspace(0, 1.5, num=lev)
-pars["bc-res"]      = 100
-pars["riv_depth"]   = pars["D"][-1] #set this very low to linearize system
+#pars["ani"]         = np.logspace(0, 1.5, num=lev)
+pars["ani"]         = 10.
+pars["bc-res"]      = 100.
 
 #Solute transport
 pars["por"]         = np.linspace(0.1, 0.35, num=lev)
@@ -62,6 +76,8 @@ par_morris = [
         key for key, var in pars.items() if isinstance(var, np.ndarray) if len(var) == lev
         ]
 
+fixed_pars = OrderedDict([(key, var) for key, var in pars.items() if not isinstance(var, np.ndarray)])
+
 #%%Create morris sample
 problem = {
         "num_vars" : len(par_morris),
@@ -74,11 +90,16 @@ param_values = sample(problem, N=12, grid_jump=grid_jump, num_levels=lev,
                       sample4uniformity = 1000).astype(np.int64)
 
 #%%Plot
-fig2 = plt.figure()
-sample_histograms(fig2, param_values, problem, {'color': 'y'})
+fig = plt.figure(figsize=(8, 6))
+sample_histograms(fig, param_values, problem, {'color': 'y'})
 plt.tight_layout()
-plt.show()
+plt.savefig(fig_out_path, dpi=100)
 
-#%%To 
+#%%Save as csv
 traj_real = pd.DataFrame(OrderedDict([(par, pars[par][param_values[:, i]]) for i, par in enumerate(par_morris)]))
-traj_ref  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enumerate(par_morris)]))
+traj_id  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enumerate(par_morris)]))
+fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
+
+traj_real.to_csv(traj_real_path)
+traj_id.to_csv(traj_id_path)
+fixed_pars.to_csv(fixed_pars_path)

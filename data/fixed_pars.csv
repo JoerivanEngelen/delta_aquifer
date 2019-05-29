@@ -1,0 +1,2 @@
+,gamma,L,ani,bc-res,t_start,t_max,t_end,dx,dy,nz
+fix,0.05,200000,10.0,100.0,14,7,0,1000,1000,100
