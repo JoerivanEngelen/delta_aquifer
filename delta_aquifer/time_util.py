@@ -9,7 +9,20 @@ import numpy as np
 import imod
 import xarray as xr
 from datetime import timedelta
+import cftime
 
+def num2date_ds(years, *datasets):
+    
+    units = "days since 0000-01-01"
+    calendar = '365_day'
+
+    days = cftime.num2date(years*365, units=units, calendar=calendar)
+
+    for ds in datasets:
+        ds["time"] = days
+        ds["time"].encoding["units"] = units
+        ds["time"].encoding["calendar"] = calendar
+    
 
 def add_timesteps(max_perlen, times, nper_extra):
     nu_times = []
