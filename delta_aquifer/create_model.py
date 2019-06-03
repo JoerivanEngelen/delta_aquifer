@@ -5,6 +5,7 @@ Created on Thu Mar 21 17:15:21 2019
 @author: engelen
 """
 import numpy as np
+import pandas as pd
 from delta_aquifer import geometry, defaults, time_util
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
@@ -36,7 +37,12 @@ from pkg_resources import resource_filename
 
 #%%Path management
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-mname = "test_all_GHB"
+sim_nr = 23
+
+#model_fol = sys.argv[1]
+#sim_nr = sys.argv[2]
+
+mname = "SD_i{:03d}".format(sim_nr)
 
 figfol = os.path.join(model_fol, "input", "figures")
 ncfol  = os.path.join(model_fol, "input", "data")
@@ -44,59 +50,19 @@ ncfol  = os.path.join(model_fol, "input", "data")
 os.makedirs(figfol, exist_ok=True)
 os.makedirs(ncfol,  exist_ok=True)
 
-#spratt = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\delta_aquifer\data\spratt2016.txt"
-spratt = os.path.abspath(resource_filename("delta_aquifer", "../data/spratt2016.txt"))
+datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+
+spratt = os.path.join(datafol, "spratt2016.txt")
 
 #%%Parameters
-# Morris parameters
-lev = 4
+dtypes = {"nz" : np.int64, "n_clay" : np.int64}
 
-# Geometry input parameters
-L = (
-    200000
-)  # FIXED Check all delta lengths, so if this value is representative. Also check leakage factors whether this long enough
-b = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
-a = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
+fixpars = pd.read_csv(os.path.join(datafol, "fixed_pars.csv"), index_col=0, dtype=dtypes).iloc[[0]]
+varpars = pd.read_csv(os.path.join(datafol, "traj_real.csv" ), index_col=0, dtype=dtypes).iloc[[sim_nr]]
+pars = pd.concat([fixpars.reset_index(), varpars.reset_index()], axis=1)
+pars = dict([(key, pars[key].values[0]) for key in pars.columns])
 
-#D = np.array([70, 250, 500, 1000])
-D = np.logspace(np.log10(70), np.log10(1000), num=lev)
-dD = np.linspace(0.2, 0.6, num=lev)
-
-alpha = np.linspace(0.75e-4, 1.5e-4, num=lev)  # Check this for deltas
-beta = np.linspace(6e-4, 12e-4, num=lev)  # Check this for deltas
-gamma = 5e-2  # FIXED will be corrected based on thickness.
-
-# beta = 8e-4 #in rads! For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
-# alpha = 1e-4 #in rads! For nile roughly: np.arctan(15/150000)
-
-phi = np.linspace(0.125, 0.5, num=lev) * np.pi
-
-clay_conf = np.linspace(0.2, 1.0, num=lev)
-n_clay = np.linspace(0, 3, num=lev, dtype=int)
-#SM = 0.3  # FIXED FOR NOW ELSE np.linspace(0.1, 0.6, num=4)
-SM = np.linspace(0.1, 0.4, num=lev)
-
-# Hydrogeological parameters
-kh = np.logspace(0, 2, num=lev)
-kh_conf = np.logspace(-3, 0, num=lev)
-kh_mar = np.logspace(-4, -2, num=lev)
-ani = np.logspace(0, 1.5, num=lev)
-
-#Solute transport parameters
-por = np.linspace(0.1, 0.35, num=lev)
-al =  np.logspace(-0.6, 1, num=lev) #Maybe lower bound too low to get convergence
-
-# Transgression
-tra = np.linspace(0.25, 1, num=lev)
-t_end = 0
-t_start = 14
-t_max = 7
-
-# Model discretization
-dx, dy = 1000, 1000
-#dx, dy = 500, 500
-nz = 100
-
+# Time discretization
 ts = (
     np.array(
         [
@@ -125,45 +91,7 @@ ts = (
     / 1000
 )
 
-#%%For testing
-pars = {}
 
-# Domain geometry
-pars["a"] = a[1]
-pars["b"] = b[1]
-pars["D"] = D[1]
-pars["dD"] = dD[1]
-pars["alpha"] = alpha[2]
-pars["beta"] = beta[2]
-pars["gamma"] = gamma
-pars["phi"] = phi[2]
-pars["L"] = L
-
-# Internal geometry
-pars["SM"] = SM[2]
-pars["clay_conf"] = clay_conf[3]
-pars["n_clay"] = n_clay[1]
-
-# Hydrogeological parameters
-pars["kh"] = kh[1]
-pars["kh_conf"] = kh_conf[1]
-pars["kh_mar"] = kh_mar[1]
-#pars["ani"] = ani[2]
-pars["ani"] = 10.
-pars["bc-res"] = 100
-
-#Solute transport
-pars["por"] = por[-1]
-pars["al"] = al[-2]
-
-# Transgression
-pars["tra"] = tra[2]
-pars["t_end"] = t_end 
-pars["t_start"] = t_start
-pars["t_max"] = t_max 
-
-# Discretization
-pars["dx"], pars["dy"], pars["nz"] = dx, dy, nz
 #%%Solver settings
 hclose = 1e-4
 rclose = pars["dx"] * pars["dy"] * hclose * 10.
@@ -244,12 +172,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
 #    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
 #    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
     kh = geo["Kh"].isel(time=0).drop("time")
-    
-    #Remove empty layers to reduce amount of .idfs written
-#    river_stage = bcs_mod["river_stage"].dropna(dim="layer", how="all")
-#    sea = bcs_mod["sea"].dropna(dim="layer", how="all")
 
-    mname_sub = mname + str(mod_nr)
+#    mname_sub = mname + str(mod_nr)
+    mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
     m = imod.wq.SeawatModel(mname_sub)
     
@@ -264,7 +189,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
     #Does not work for IBOUND?
-    m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=dx, dy=-dy), 
+    m["bas"] = imod.wq.BasicFlow(ibound=geo["IBOUND"].assign_coords(dx=pars["dx"], dy=-pars["dy"]), 
                                  top=topbot[0], 
                                  bottom=xr.DataArray(topbot[1:], {"layer": geo.layer}, ("layer")), 
                                  starting_head=starting_head)
