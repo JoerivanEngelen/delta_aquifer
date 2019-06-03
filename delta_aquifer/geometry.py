@@ -194,8 +194,11 @@ def get_edges(ibound, bot, top, z_shelf):
     
     edges_z = edges.where(edges==1) * edges.z
     edges_x = edges.where(edges==1) * edges.x
+    edges_x_2d = np.isfinite(top) * edges.x
     
     edges = xr.where((edges.x == edges_x.max(dim="x")) | (edges.z == edges_z.max(dim="z")), edges, 0)
+    edges = xr.where((edges.x == edges_x_2d.max(dim="x")), ibound, edges)
+    
     edges = edges.transpose("z", "y", "x")
     
     return(edges)
