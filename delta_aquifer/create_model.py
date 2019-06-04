@@ -45,8 +45,8 @@ sim_nr = 23
 
 mname = "SD_i{:03d}".format(sim_nr)
 
-figfol = os.path.join(model_fol, "input", "figures")
-ncfol  = os.path.join(model_fol, "input", "data")
+figfol = os.path.join(model_fol, mname, "input", "figures")
+ncfol  = os.path.join(model_fol, mname, "input", "data")
 
 os.makedirs(figfol, exist_ok=True)
 os.makedirs(ncfol,  exist_ok=True)
@@ -251,7 +251,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   n_timesteps_p1=n_timesteps_p1,
                                   timestep_multiplier=7.)
     
-    m.write(directory = os.path.join(r"c:\Users\engelen\test_imodpython\synth_delta_test", mname))
+    m.write(directory = os.path.join(model_fol, mname))
 
 #    #%non_conv_analyser
 #    if mod_nr == crashed_model:
