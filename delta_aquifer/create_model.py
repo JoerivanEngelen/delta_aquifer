@@ -38,6 +38,7 @@ from pkg_resources import resource_filename
 #%%Path management
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 sim_nr = 23
+#sim_nr = 86
 
 #model_fol = sys.argv[1]
 #sim_nr = sys.argv[2]
@@ -55,10 +56,8 @@ datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "
 spratt = os.path.join(datafol, "spratt2016.txt")
 
 #%%Parameters
-dtypes = {"nz" : np.int64, "n_clay" : np.int64}
-
-fixpars = pd.read_csv(os.path.join(datafol, "fixed_pars.csv"), index_col=0, dtype=dtypes).iloc[[0]]
-varpars = pd.read_csv(os.path.join(datafol, "traj_real.csv" ), index_col=0, dtype=dtypes).iloc[[sim_nr]]
+fixpars = pd.read_csv(os.path.join(datafol, "fixed_pars.csv"), index_col=0).iloc[[0]]
+varpars = pd.read_csv(os.path.join(datafol, "traj_real.csv" ), index_col=0).iloc[[sim_nr]]
 pars = pd.concat([fixpars.reset_index(), varpars.reset_index()], axis=1)
 pars = dict([(key, pars[key].values[0]) for key in pars.columns])
 
