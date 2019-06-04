@@ -52,7 +52,7 @@ mod_nr = int(sys.argv[2])
 globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
 run_path=os.path.join(modelfol, "*{}.run".format(mod_nr))
 
-r = re.compile("([a-zA-Z_]+)([0-9]+)")
+r = re.compile("([a-zA-Z]+_i[0-9]+_nr)([0-9]+)")
 mname =  r.match(os.path.basename(modelfol)).group(1)
 
 #%%Get z values from runfile
@@ -113,8 +113,8 @@ ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)
 #since dask has to load all individual idfs into memory seperately.
 ds_ini = ds_tot.swap_dims({"z" : "layer"}).isel(time=-1)[["conc", "head"]].load()
 
-idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "bas", "head"), ds_ini["head"])
-idf.save(os.path.join(modelfol, "..", mname+str(mod_nr+1), "btn", "conc"), ds_ini["conc"])
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), ds_ini["head"])
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), ds_ini["conc"])
 
 #%%Plot subdomains
 
