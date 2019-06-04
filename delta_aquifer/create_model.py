@@ -37,8 +37,8 @@ from pkg_resources import resource_filename
 
 #%%Path management
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-sim_nr = 23
-#sim_nr = 86
+#sim_nr = 23
+sim_nr = 86
 
 #model_fol = sys.argv[1]
 #sim_nr = sys.argv[2]
@@ -121,7 +121,8 @@ bcs = bcs.sel(y=slice(0, geo.y.max()))
 #Cut off unused x and y cells 
 #otherwise writing the initial conditions for the next model run is 
 #problematic due to the RCB algorithms completely leaving out usused rows and columns
-geo = geo.dropna("x", how="all", subset=["tops"]).dropna("y", how="all", subset=["tops"])
+geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
+geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
 bcs = bcs.dropna("x", how="all", subset=["sea", "river_stage"]).dropna("y", how="all", subset=["sea", "river_stage"])
 #%%Create initial conditions
 approx_init = True
@@ -133,10 +134,10 @@ shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
 start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
 t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
 max_perlen = 8000
-sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear, max_perlen)
+sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear[-(len(bcs.time)+1):], max_perlen)
 
 #%%Save ncs
-time_util.num2date_ds(t_kyear[1:], bcs, geo)
+time_util.num2date_ds(t_kyear[-len(bcs.time):], bcs, geo)
 
 bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
 geo.to_netcdf(os.path.join(ncfol, "geo.nc"))
