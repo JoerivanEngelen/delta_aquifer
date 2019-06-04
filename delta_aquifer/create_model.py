@@ -41,7 +41,7 @@ from pkg_resources import resource_filename
 #sim_nr = 86
 
 model_fol = sys.argv[1]
-sim_nr = sys.argv[2]
+sim_nr = int(sys.argv[2])
 
 mname = "SD_i{:03d}".format(sim_nr)
 
