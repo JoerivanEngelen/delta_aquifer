@@ -123,10 +123,11 @@ def calc_weighted_mean(df, ts, qt):
 def coastlines(geo, sea_level, phi=None, L = None, a = None, 
                   figfol=None, t_start=None, t_max=None, t_end=None, 
                   tra=None, **kwargs):
+    dx = geo.x[-1]-geo.x[-2]
     # top_coast
-    top_coast = _isclose(geo["tops"], sea_level, atol=0.5, rtol=2e-1) & geo[
-        "edges"
-    ].sel(
+    top_coast = (
+            _isclose(geo["tops"], sea_level, atol=0.5, rtol=2e-1) | (geo.x >= (L-dx))
+            ) & geo["edges"].sel(
         z=sea_level, method="pad"
     )  # Get sea cells in upper layer
 
@@ -185,7 +186,7 @@ def sea_3d(geo, sea_level, coastline_loc):
     coastline_loc["x_loc"] = coastline_loc["x_loc"].fillna(coastline_loc["x_loc"].min(dim="y"))
     
     sea_z = geo.sel(z= sea_level, method="pad").z
-    
+
     sea_edge = xr.where(sea_z > geo["edges"].z, geo["edges"], 0)
     sea_trans = ((geo.x >= coastline_loc["x_loc"]) & (geo.z == sea_z)) * geo["IBOUND"]
     
@@ -210,13 +211,19 @@ def river_3d(
     assert type(geo) == xr.core.dataarray.Dataset
     
     h_grid = xr.Dataset({"h_grid" : river_grid(geo, sea_level, rho_onshore, phi, L, figfol, **kwargs)})
-    
     z_bins = _mid_to_binedges(geo["z"].values)
 
     h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.layer).apply(_dumb).rename({"h_grid_bins" : "h_l"})
+
+    top_active_layer = xr.where(geo["IBOUND"]==1, geo.layer, np.nan).min(dim="z")
+
+    #Ensure river layer does not exceed IBOUND.
+    h_grid["h_l"] = xr.where(h_grid["h_l"] < top_active_layer, top_active_layer, h_grid["h_l"]) 
+
     #Displace h_grid_bins 1 down, except the maximum which should not go lower than the sea
-    #This to avoid h_l from going outside the model domain
-    h_grid["h_l"] = xr.where(h_grid["h_l"] == h_grid["h_l"].max(dim=["x", "y"]), h_grid["h_l"], h_grid["h_l"]+1)
+    #This to avoid h_l from going outside the model domain    
+    ismax_hl = (h_grid["h_l"] == h_grid["h_l"].max(dim=["x", "y"]))
+    h_grid["h_l"] = xr.where(ismax_hl, h_grid["h_l"], h_grid["h_l"]+1)
     
     riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.layer == h_grid["h_l"]))
     
@@ -227,6 +234,13 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, conc_noise = 0.
                         qt = "50%", figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
+    
+    #Start from first timestep where sea level exceeds aquifer bottom again.
+    ts_inactive = np.argwhere((sea_level<geo.z.isel(z=0)).values)
+    if len(ts_inactive)>0:
+        clip_nr=ts_inactive[-1][0]+1
+        print("Clipped off everything before timestep nr {} as sea_level lower than aquifer bottom".format(clip_nr))
+        sea_level = sea_level.isel(time=slice(clip_nr, None))
     
     # Find active sea cells where GHB's should be assigned.
     coastline, coastline_loc, rho_onshore = coastlines(
@@ -239,7 +253,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, conc_noise = 0.
     
     #Combine to dataset
     bcs = xr.Dataset({"sea": sea_cells, "river_stage" : rivers["h_grid"], "sea_level" : sea_level})
-    bcs["sea"] = xr.where(np.isnan(bcs["river_stage"].max(dim="z")), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
+    bcs["sea"] = xr.where(np.isnan(bcs["river_stage"]), sea_cells, 0) #Make sure there are no river cells overlapping sea cells
     bcs["sea_conc"] = perturb_sea_conc(bcs["sea"], conc_sea, noise_frac=conc_noise, conc_fresh=conc_fresh)
     
     bcs = bcs.transpose("time", "z", "y", "x")
