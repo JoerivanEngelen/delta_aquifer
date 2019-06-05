@@ -31,7 +31,7 @@ def ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s):
     z_interface = sea_level + rho_f/(rho_s-rho_f) * (sea_level - river_stage_2d)
     below_interface = (bcs.z <= z_interface)
     
-    sconc = xr.where( below_interface | (~np.isnan(sea_loc_xy) | (np.abs(sea_loc_xy.y) >= ysea_max) ), c_s, c_f)
+    sconc = xr.where( below_interface | (~np.isnan(sea_loc_xy) | ((np.abs(sea_loc_xy.y) >= ysea_max) & (sea_loc_xy.x >= xsea_min))), c_s, c_f)
     return(shd, sconc)
 
 def get_ic(bcs, geo, c_f, c_s, approx_init=False):
