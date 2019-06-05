@@ -8,6 +8,7 @@ Created on Mon Feb 25 16:31:17 2019
 import xarray as xr
 from scipy.ndimage.filters import convolve as convolvend
 from scipy import interpolate
+from scipy.ndimage.morphology import binary_opening
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -217,6 +218,11 @@ def calc_clay_thicknesses(d2_grid, n_clay):
 def create_3d_grid(d2_grid, d1, nz):
     d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
     d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
+    #Brush away small isolated cells.
+    d3["IBOUND"] = xr.full_like(d3["IBOUND"],
+      #Maybe first allocate larger array to imitate mode="mirror" of convolvend
+      binary_opening(d3["IBOUND"], structure=np.ones((2,2,2))).astype(np.int)
+      )
     return(d3)
 
 def create_lith(d3, d2_grid, n_clay):
