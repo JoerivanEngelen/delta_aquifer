@@ -140,8 +140,9 @@ sub_ts, sub_ends, sub_splits = time_util.subdivide_time(t_kyear[-(len(bcs.time)+
 #%%Save ncs
 time_util.num2date_ds(t_kyear[-len(bcs.time):], bcs, geo)
 
+bcs["lith"] = geo["lith"].astype(np.float64)
 bcs.to_netcdf(os.path.join(ncfol, "bcs.nc"))
-geo.to_netcdf(os.path.join(ncfol, "geo.nc"))
+bcs = bcs.drop(["lith"])
 
 #%%Some extra processing to make iMOD-python accept these DataArrays
 geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
@@ -245,7 +246,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                                  debug=False,
                                                  )
     
-    m["oc"] = imod.wq.OutputControl(save_head_idf=True, save_concentration_idf=True, save_budget_idf=True)
+    m["oc"] = imod.wq.OutputControl(save_head_idf=True, 
+                                    save_concentration_idf=True, 
+                                    save_budget_idf=True)
     
     n_timesteps_p1 = 10
     time_util.time_discretization(m, 1000., 
