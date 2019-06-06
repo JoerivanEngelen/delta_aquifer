@@ -10,7 +10,10 @@ from scipy.ndimage.filters import convolve as convolvend
 from scipy import interpolate
 from scipy.ndimage.morphology import binary_opening
 import numpy as np
+import matplotlib 
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
+plt.ioff()
 import os
 from mpl_toolkits.mplot3d import Axes3D #We have to import this to allow 3d plotting, otherwise projection = "3d" not recognized
 
