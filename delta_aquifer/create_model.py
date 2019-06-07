@@ -37,9 +37,7 @@ from pkg_resources import resource_filename
 
 #%%Path management
 #model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-#sim_nr = 23
-#sim_nr = 86
-#sim_nr = 44
+#sim_nr = 132
 
 model_fol = sys.argv[1]
 sim_nr = int(sys.argv[2])
