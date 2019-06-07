@@ -8,11 +8,14 @@ Created on Mon Mar 25 10:04:19 2019
 import numpy as np
 import pandas as pd
 import xarray as xr
-import matplotlib 
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-plt.ioff()
 import os
+if os.name == "posix":
+    import matplotlib 
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    plt.ioff()
+else:
+    import matplotlib.pyplot as plt
 from delta_aquifer import geometry
 
 #%%Override buggy xarray function with this hack. This hack probably only works within this context.
