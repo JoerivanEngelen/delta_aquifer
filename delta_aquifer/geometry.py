@@ -10,11 +10,14 @@ from scipy.ndimage.filters import convolve as convolvend
 from scipy import interpolate
 from scipy.ndimage.morphology import binary_opening
 import numpy as np
-import matplotlib 
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-plt.ioff()
 import os
+if os.name == "posix":
+    import matplotlib 
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
+    plt.ioff()
+else:
+    import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D #We have to import this to allow 3d plotting, otherwise projection = "3d" not recognized
 
 #%%Helper functions
@@ -281,8 +284,8 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     #Create clay layers
     fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
     
-    rho_min = {}
-    rho_max = {}
+    rho_min, rho_max = {}, {}
+    
     
     for i in range(n_clay):
         d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
@@ -295,6 +298,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
         #Create bottom at the side edges
         d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
+        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
@@ -309,11 +313,11 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     
     for i in range(n_clay):
         #Make sure empty corners of clay layers are filled
-        corner_top = ((d2_grid["rho"] < rho_max['ct0']) & (d2_grid["rho"] > rho_min['ct0']) & np.isnan(d2_grid["ct0"]))
-        corner_bot = ((d2_grid["rho"] < rho_max['cb0']) & (d2_grid["rho"] > rho_min['ct0']) & np.isnan(d2_grid["cb0"]))
+        corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
+        corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
         
         d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
-        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["bots"], d2_grid["cb%d"%i])
+        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
     
     if figfol is not None:
         top_bot_grid_plot(d2_grid,figfol)
