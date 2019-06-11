@@ -30,6 +30,10 @@ fixed_pars_path = os.path.abspath(resource_filename("delta_aquifer", "../data/fi
 lev = 4
 grid_jump = 2
 
+seed = 230
+
+np.random.seed(seed=seed)
+
 #%%Initial distribution
 pars = OrderedDict()
 
