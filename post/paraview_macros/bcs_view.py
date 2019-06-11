@@ -4,7 +4,8 @@ from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'NetCDF Reader'\bcs.nc
-path=r"c:\Users\engelen\test_imodpython\synth_delta_test\SD_i023\input\data\bcs.nc"
+path=r"g:\synthdelta\test_output\SD_i202\synth_SD_i202_m24_6378797\input\data\bcs.nc"
+#path=r"g:\synthdelta\test_output\SD_i132\synth_SD_i132_m24_6365610\input\data\bcs.nc"
 bcsnc = NetCDFReader(FileName=[path])
 bcsnc.Dimensions = '(z, y, x)'
 
@@ -108,7 +109,8 @@ transform2.Transform = 'Transform'
 Hide3DWidgets(proxy=transform2.Transform)
 
 # Properties modified on transform2.Transform
-transform2.Transform.Translate = [0.0, 150000.0, 0.0]
+#transform2.Transform.Translate = [0.0, 150000.0, 0.0]
+transform2.Transform.Translate = [100.0, -1000.0, 1.0]
 transform2.Transform.Scale = [1.0, 1.0, 100.0]
 
 # show data in view
@@ -186,6 +188,9 @@ threshold2Display.RescaleTransferFunctionToDataRange(True, False)
 # show color bar/color legend
 threshold2Display.SetScalarBarVisibility(renderView1, True)
 
+# hide data in view
+Hide(threshold2, renderView1)
+
 # get color transfer function/color map for 'river_stage'
 river_stageLUT = GetColorTransferFunction('river_stage')
 
@@ -226,10 +231,15 @@ threshold3Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 
 threshold3Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-threshold3Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
+threshold3Display.OpacityTransferFunction.Points = [0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0]
 
-# change solid color
-threshold3Display.DiffuseColor = [0.6666666666666666, 0.0, 0.0]
+ColorBy(threshold3Display, ('CELLS', 'sea'))
+
+seaLUT = GetColorTransferFunction('sea')
+seaLUT.RGBPoints = [0.0, 0.06, 0.06, 0.06, 2.0, 0.06, 0.06, 0.06]
+seaLUT.ScalarRangeInitialized = 1.0
+seaLUT.EnableOpacityMapping = 1
+seaLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0])
 
 threshold4 = Threshold(Input=transform2)
 threshold4.Scalars = ['CELLS', 'lith']
@@ -263,10 +273,15 @@ threshold4Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 
 threshold4Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-threshold4Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
+threshold4Display.OpacityTransferFunction.Points = [0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0]
 
-# change solid color
-threshold4Display.DiffuseColor = [1.0, 1.0, 1.0]
+ColorBy(threshold4Display, ('CELLS', 'lith'))
+
+lithLUT = GetColorTransferFunction('lith')
+lithLUT.RGBPoints = [0.0, 0.6, 0.6, 0.6, 6.0, 0.6, 0.6, 0.6]
+lithLUT.ScalarRangeInitialized = 1.0
+lithLUT.EnableOpacityMapping = 1
+lithLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0])
 
 
 #### saving camera placements for all active views
