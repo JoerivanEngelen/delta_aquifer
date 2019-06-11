@@ -64,6 +64,11 @@ pars["bc-res"]      = 100.
 #Solute transport
 pars["por"]         = np.linspace(0.1, 0.35, num=lev)
 pars["al"]          = np.logspace(-0.6, 1, num=lev)
+pars["trpt"]        = 0.1
+pars["trpv"]        = 0.01
+pars["diff"]        = 8.64e-5
+pars["c_f"]         = 0.
+pars["c_s"]         = 35.
 
 # Transgression
 pars["tra"]         = np.linspace(0.25, 1, num=lev)

@@ -37,7 +37,7 @@ from pkg_resources import resource_filename
 
 #%%Path management
 #model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-#sim_nr = 132
+#sim_nr = 86
 
 model_fol = sys.argv[1]
 sim_nr = int(sys.argv[2])
@@ -101,8 +101,8 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
 # Path management
-c_f = 0.0
-c_s = 35.
+c_f = pars["c_f"]
+c_s = pars["c_s"]
 
 bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
                              conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
@@ -208,9 +208,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
     m["dsp"] = imod.wq.Dispersion(
             longitudinal=pars["al"], 
-            ratio_horizontal=0.1,
-            ratio_vertical=0.01,
-            diffusion_coefficient=8.64e-5
+            ratio_horizontal=pars["trpt"],
+            ratio_vertical=pars["trpv"],
+            diffusion_coefficient=pars["diff"]
     )
     
     m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
