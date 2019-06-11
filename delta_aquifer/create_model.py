@@ -6,7 +6,7 @@ Created on Thu Mar 21 17:15:21 2019
 """
 import numpy as np
 import pandas as pd
-from delta_aquifer import geometry, time_util
+from delta_aquifer import geometry, time_util, hydro_util
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
@@ -129,6 +129,14 @@ approx_init = True
 rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
 shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
 
+#%%Calc dimensionless numbers
+dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
+                rho_f, rho_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
+                ) for kh_lab in ["kh", "kh_conf", "kh_mar"]]),
+                index=["Ra", "Ra_conf", "Ra_mar"], columns=["value"])
+    
+dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
+
 #%%Time management
 start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
 t_kyear = -1 * (ts * 1000 - ts[0] * 1000)
@@ -173,7 +181,6 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
 #    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
     kh = geo["Kh"].isel(time=0).drop("time")
 
-#    mname_sub = mname + str(mod_nr)
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
     m = imod.wq.SeawatModel(mname_sub)
