@@ -6,7 +6,7 @@ Created on Thu Mar 21 17:15:21 2019
 """
 import numpy as np
 import pandas as pd
-from delta_aquifer import geometry, defaults, time_util
+from delta_aquifer import geometry, time_util
 from delta_aquifer import boundary_conditions as bc
 from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
