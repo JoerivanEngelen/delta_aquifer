@@ -34,7 +34,7 @@ def add_timesteps(max_perlen, times, nper_extra):
 
 def time_discretization(model, max_perlen, endtime, starttime=None, n_timesteps_p1=1, **kwargs):
     """
-    Collect all unique times and subdivde. Adapted from the function in imod/wq/model.py
+    Collect all unique times and subdivide. Adapted from the function in imod/wq/model.py
     """
     
     model.use_cftime = model._use_cftime()
