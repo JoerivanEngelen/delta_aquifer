@@ -5,7 +5,6 @@ Created on Wed Jun 12 09:27:13 2019
 @author: engelen
 """
 
-import seaborn as sns
 import os, sys
 from glob import glob
 import xarray as xr
@@ -18,6 +17,8 @@ if os.name == "posix":
     plt.ioff()
 else:
     import matplotlib.pyplot as plt
+
+import seaborn as sns
 
 #%%Path management
 fol = sys.argv[1]
