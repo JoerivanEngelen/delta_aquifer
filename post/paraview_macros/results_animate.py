@@ -8,6 +8,7 @@ import os, sys
 # create a new 'NetCDF Reader'
 fol=sys.argv[1]
 nc_paths = glob.glob(os.path.join(fol, "*[0-9][0-9][0-9].nc"))
+nc_paths.sort()
 print(nc_paths)
 
 netCDFReader1 = NetCDFReader(FileName=nc_paths)
@@ -34,11 +35,6 @@ calculator1.Function = ''
 # Properties modified on calculator1
 calculator1.ResultArrayName = 'v'
 calculator1.Function = '(-1*vx)*iHat+(1*vy)*jHat+(1*vz)*kHat'
-
-# get active view
-renderView1 = GetActiveViewOrCreate('RenderView')
-# uncomment following to set a specific view size
-# renderView1.ViewSize = [1418, 857]
 
 # show data in view
 calculator1Display = Show(calculator1, renderView1)
