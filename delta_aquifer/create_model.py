@@ -35,6 +35,15 @@ from pkg_resources import resource_filename
 #-Conductiviteit preferente stroombaan door mariene klei (confining layer ook)
 #-Breedte preferente stroombaan
 
+#%%Implementatie Processen
+##Preferente stroombanen
+#i = np.arange(0, 3)
+#kh_i = np.logspace(np.log10(kh_mar), np.log10(kh), num=lev)[i]
+#
+#N: aantal gaten
+#x: breedte gaten
+#f: fractie displacement gaten van maximale afstand
+
 #%%Path management
 #model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 #sim_nr = 86
