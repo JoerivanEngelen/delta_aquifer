@@ -95,7 +95,7 @@ programmableFilter1.PythonPath = ''
 
 # Properties modified on programmableFilter1
 programmableFilter1.Script = 'dims = inputs[0].GetDimensions()\next = inputs[0].GetExtent()\noutput.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noutput.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\ninputPd = inputs[0].PointData\noutputCd = output.CellData\nfor array in inputPd:\n   outputCd.append(array, array.GetName())\n'
-programmableFilter1.RequestInformationScript = ''
+programmableFilter1.RequestInformationScript = 'from paraview import util\n\next = inputs[0].GetExtent()\n\nutil.SetOutputWholeExtent(self, [ext[0], ext[1], ext[2], ext[3], ext[4], ext[5]])'
 programmableFilter1.RequestUpdateExtentScript = ''
 programmableFilter1.PythonPath = ''
 
