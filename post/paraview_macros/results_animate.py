@@ -9,7 +9,7 @@ import os, sys
 fol=sys.argv[1]
 nc_paths = glob.glob(os.path.join(fol, "*[0-9][0-9][0-9].nc"))
 nc_paths.sort()
-print(nc_paths)
+#print(nc_paths)
 
 netCDFReader1 = NetCDFReader(FileName=nc_paths)
 netCDFReader1.Dimensions = '(z, y, x)'
@@ -88,14 +88,10 @@ renderView1.Update()
 
 # create a new 'Programmable Filter'
 programmableFilter1 = ProgrammableFilter(Input=calculator1)
-programmableFilter1.Script = ''
-programmableFilter1.RequestInformationScript = ''
-programmableFilter1.RequestUpdateExtentScript = ''
-programmableFilter1.PythonPath = ''
 
 # Properties modified on programmableFilter1
-programmableFilter1.Script = 'dims = inputs[0].GetDimensions()\next = inputs[0].GetExtent()\noutput.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noutput.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\ninputPd = inputs[0].PointData\noutputCd = output.CellData\nfor array in inputPd:\n   outputCd.append(array, array.GetName())\n'
-programmableFilter1.RequestInformationScript = 'from paraview import util\n\next = inputs[0].GetExtent()\n\nutil.SetOutputWholeExtent(self, [ext[0], ext[1], ext[2], ext[3], ext[4], ext[5]])'
+programmableFilter1.Script='inp = self.GetInput()\ndims = inp.GetDimensions()\next = inp.GetExtent()\n\noup = self.GetOutput()\noup.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noup.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\n\nN=inp.GetPointData().GetNumberOfArrays()\n\nfor i in range(N):\n    data = inp.GetPointData().GetAbstractArray(i)\n    oup.GetCellData().AddArray(data)\n\n'
+programmableFilter1.RequestInformationScript = ''
 programmableFilter1.RequestUpdateExtentScript = ''
 programmableFilter1.PythonPath = ''
 
@@ -172,9 +168,6 @@ renderView1.Update()
 # create a new 'Threshold'
 threshold1 = Threshold(Input=transform1)
 threshold1.Scalars = ['CELLS', 'conc']
-threshold1.ThresholdRange = [-9999.0, 36.02853775024414]
-
-# Properties modified on threshold1
 threshold1.ThresholdRange = [-1.0, 36.02853775024414]
 
 # show data in view
@@ -224,66 +217,63 @@ concLUT = GetColorTransferFunction('conc')
 concLUT.RGBPoints = [-0.018854578956961632, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.421875, 0.09765625, 0.109375, 36.02853775024414, 0.421875, 0.09765625, 0.109375]
 concLUT.ScalarRangeInitialized = 1.0
 
-# create a new 'Glyph'
-glyph1 = Glyph(Input=threshold1,
-    GlyphType='Arrow')
-glyph1.Scalars = ['POINTS', 'None']
-glyph1.Vectors = ['POINTS', 'None']
-glyph1.ScaleFactor = 19500.0
-glyph1.GlyphTransform = 'Transform2'
+## create a new 'Glyph'
+#glyph1 = Glyph(Input=threshold1,
+#    GlyphType='Arrow')
+#glyph1.Scalars = ['POINTS', 'None']
+#glyph1.Vectors = ['POINTS', 'None']
+#glyph1.ScaleFactor = 19500.0
+#glyph1.GlyphTransform = 'Transform2'
+#
+## Properties modified on glyph1
+#glyph1.Vectors = ['CELLS', 'v']
+#glyph1.ScaleFactor = 19500.0
+#glyph1.GlyphMode = 'Every Nth Point'
+#glyph1.Stride = 500
+#
+## show data in view
+#glyph1Display = Show(glyph1, renderView1)
+## trace defaults for the display properties.
+#glyph1Display.Representation = 'Surface'
+#glyph1Display.ColorArrayName = [None, '']
+#glyph1Display.OSPRayScaleArray = 'GlyphVector'
+#glyph1Display.OSPRayScaleFunction = 'PiecewiseFunction'
+#glyph1Display.SelectOrientationVectors = 'GlyphVector'
+#glyph1Display.ScaleFactor = 20444.671289062502
+#glyph1Display.SelectScaleArray = 'GlyphVector'
+#glyph1Display.GlyphType = 'Arrow'
+#glyph1Display.GlyphTableIndexArray = 'GlyphVector'
+#glyph1Display.DataAxesGrid = 'GridAxesRepresentation'
+#glyph1Display.PolarAxes = 'PolarAxesRepresentation'
+#glyph1Display.GaussianRadius = 10222.335644531251
+#glyph1Display.SetScaleArray = ['POINTS', 'conc']
+#glyph1Display.ScaleTransferFunction = 'PiecewiseFunction'
+#glyph1Display.OpacityArray = ['POINTS', 'conc']
+#glyph1Display.OpacityTransferFunction = 'PiecewiseFunction'
+#
+## init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
+#glyph1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
+#
+## init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
+#glyph1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
+#
+## init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
+#glyph1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
-# Properties modified on glyph1
-glyph1.Vectors = ['CELLS', 'v']
-glyph1.ScaleFactor = 19500.0
-glyph1.GlyphMode = 'Every Nth Point'
-glyph1.Stride = 500
-
-# show data in view
-glyph1Display = Show(glyph1, renderView1)
-# trace defaults for the display properties.
-glyph1Display.Representation = 'Surface'
-glyph1Display.ColorArrayName = [None, '']
-glyph1Display.OSPRayScaleArray = 'GlyphVector'
-glyph1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-glyph1Display.SelectOrientationVectors = 'GlyphVector'
-glyph1Display.ScaleFactor = 20444.671289062502
-glyph1Display.SelectScaleArray = 'GlyphVector'
-glyph1Display.GlyphType = 'Arrow'
-glyph1Display.GlyphTableIndexArray = 'GlyphVector'
-glyph1Display.DataAxesGrid = 'GridAxesRepresentation'
-glyph1Display.PolarAxes = 'PolarAxesRepresentation'
-glyph1Display.GaussianRadius = 10222.335644531251
-glyph1Display.SetScaleArray = ['POINTS', 'conc']
-glyph1Display.ScaleTransferFunction = 'PiecewiseFunction'
-glyph1Display.OpacityArray = ['POINTS', 'conc']
-glyph1Display.OpacityTransferFunction = 'PiecewiseFunction'
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-glyph1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-glyph1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-glyph1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
+## hide data in view
+##Hide(threshold1, renderView1)
+#
+## set scalar coloring
+#ColorBy(glyph1Display, ('POINTS', 'conc'))
+#
+## rescale color and/or opacity maps used to include current data range
+#glyph1Display.RescaleTransferFunctionToDataRange(True, False)
+#
+## show color bar/color legend
+#glyph1Display.SetScalarBarVisibility(renderView1, True)
 
 # update the view to ensure updated data information
 renderView1.Update()
-
-# hide data in view
-#Hide(glyph2, renderView1)
-
-# hide data in view
-#Hide(threshold1, renderView1)
-
-# set scalar coloring
-ColorBy(glyph1Display, ('POINTS', 'conc'))
-
-# rescale color and/or opacity maps used to include current data range
-glyph1Display.RescaleTransferFunctionToDataRange(True, False)
-
-# show color bar/color legend
-glyph1Display.SetScalarBarVisibility(renderView1, True)
 
 #### saving camera placements for all active views
 
