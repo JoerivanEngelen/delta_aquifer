@@ -281,7 +281,7 @@ def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
     start, end = int(ts[0]), int(ts[-1])
     plt.plot(sea_level["time"], sea_level, drawstyle="steps-mid")
     plt.scatter(sea_level["time"], sea_level)
-    plt.plot(df.index[end:start], df[qt][end:start])
+    plt.plot(df.index[end:start].values, df[qt][end:start].values)   
     ax = plt.gca()
     ax.invert_xaxis()
     plt.savefig(os.path.join(figfol, "sea_level_curve.png"))
