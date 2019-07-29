@@ -20,20 +20,36 @@ from pkg_resources import resource_filename
 
 #%%TODO Tests
 #-Wat gebeurt er als zand boven de shelf legt?
+#-Grid convergence test base case
 
 #%%TODO Processen
-#-Brijn onderin?
+#Concept verbeteringen
+#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken en kijken of het uitspoelt
+#-Transgressielengte laten afhangen van de de helling van het Pleistoceen 
+#    (checken met literatuur, zo ja dan kunnen we dat als parameter gebruiken ipv transgressielengte)
+#-Timing regressie redelijk vast, misschien loslaten?
+#-Recharge, hoe topsysteem goed toe te voegen?
+#-Lokale doorlatendheden: oude stroomgeulen. 
+#-Factor om lokale doorlatendheden te veranderen.
+#-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
+#-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
+#      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
+
+#Ideeen
+#-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
+#-Syvitski papers gebruiken om topsysteem te vatten in een paar parameters?
+#-Grondwaterleeftijd???? Combinatie misschien te maken met wat Marc heeft geschreven?
 #
-#-Recharge
+#Overwegingen
+#-Transgressie door forcering nu redelijk onafhankelijk van helling coastal shelf, klopt dat wel? Is dat niet jammer?
+#-Wel tot >300m diep gaan?
+#
 #-Conductance waar grote rivier. 1 cel dik.
 #->Recharge + conductance combinatie? 
-#-Drain? Om te helpen (zoute) rivieren te laten infiltreren
-#
-#-Zoute rivieren (Savenije methode) -> Overal in waaier
-#-Aantal riviertakken.
-#
-#-Conductiviteit preferente stroombaan door mariene klei (confining layer ook)
-#-Breedte preferente stroombaan
+
+#Done
+#-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
+#-Zoute rivieren (lineair profiel maar 1 parameter, Savenije zou 3 parameters introduceren) -> Overal in waaier
 
 #%%Implementatie Processen
 ##Preferente stroombanen
@@ -98,7 +114,6 @@ ts = (
     / 1000
 )
 
-
 #%%Solver settings
 hclose = 1e-4
 rclose = pars["dx"] * pars["dy"] * hclose * 10.
@@ -113,7 +128,7 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 c_f = pars["c_f"]
 c_s = pars["c_s"]
 
-bcs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
+bcs, concs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
                              conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
@@ -131,7 +146,7 @@ bcs = bcs.sel(y=slice(0, geo.y.max()))
 #problematic due to the RCB algorithms completely leaving out usused rows and columns
 geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
 geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
-bcs = bcs.dropna("x", how="all", subset=["sea", "river_stage"]).dropna("y", how="all", subset=["sea", "river_stage"])
+bcs = bcs.dropna("x", how="all", subset=["sea", "riv_stage"]).dropna("y", how="all", subset=["sea", "riv_stage"])
 #%%Create initial conditions
 approx_init = True
 
@@ -166,8 +181,9 @@ sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", a
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
 #%%
-bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["river_stage"])
-bcs["conc"] = xr.where(np.isfinite(bcs["river_stage"]), 0., bcs["sea"] * bcs["sea_conc"])
+bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["riv_stage"])
+bcs["conc"]  = xr.where(bcs["sea"]==1, bcs["sea_conc"] , bcs["riv_conc"])
+#bcs["conc"] = xr.where(np.isfinite(bcs["riv_stage"]), 0., bcs["sea_conc"])
 #%%Non convergence
 crashed_model = 4
 cell1 = (25,31,152)

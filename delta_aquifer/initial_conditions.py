@@ -20,7 +20,7 @@ def correct_head(sconc, shd, bcs, c_f, c_s):
     shd = rho_f/srho*shd + (srho-rho_f)/srho * bcs.z
     return(shd)
 
-def ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s):
+def ghyb_herz(riv_stage_2d, bcs, shd, c_f, c_s):
     sea_level = bcs["sea_level"].isel(time=0, drop=True)
     sea_loc_xy = bcs["sea"].isel(time=0, drop=True).max(dim="z")
     
@@ -28,7 +28,7 @@ def ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s):
     ysea_max = xr.where(sea_loc_xy.sel(x=xsea_min)==1., sea_loc_xy.y, np.nan).max()
     
     rho_f, rho_s = c2rho(c_f), c2rho(c_s)
-    z_interface = sea_level + rho_f/(rho_s-rho_f) * (sea_level - river_stage_2d)
+    z_interface = sea_level + rho_f/(rho_s-rho_f) * (sea_level - riv_stage_2d)
     below_interface = (bcs.z <= z_interface)
     
     sconc = xr.where( below_interface | (~np.isnan(sea_loc_xy) | ((np.abs(sea_loc_xy.y) >= ysea_max) & (sea_loc_xy.x >= xsea_min))), c_s, c_f)
@@ -39,11 +39,11 @@ def get_ic(bcs, geo, c_f, c_s, approx_init=False):
     If approx_init = True, approximate initial salinities with a ghyben herzberg relationship, sharp interface.
     Consequently correct heads for these initial salinities.
     """
-    river_stage_2d = bcs["river_stage"].max(dim="z").isel(time=0, drop=True)
-    shd = river_stage_2d.fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]
+    riv_stage_2d = bcs["riv_stage"].max(dim="z").isel(time=0, drop=True)
+    shd = riv_stage_2d.fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]
     
     if approx_init == True:
-        shd, sconc = ghyb_herz(river_stage_2d, bcs, shd, c_f, c_s)
+        shd, sconc = ghyb_herz(riv_stage_2d, bcs, shd, c_f, c_s)
         shd = correct_head(sconc, shd, bcs, c_f, c_s)
     else:
         sconc = c_f
