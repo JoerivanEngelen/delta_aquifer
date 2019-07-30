@@ -80,7 +80,7 @@ def _get_pizza_slice(d1, length, phis):
 
 def _cake_cuts(N, phi, rhos, f_offset = 0.):
     """Create N equally spaced lines through the delta.
-    Similar how you would subdivide a slice of cake.
+    Similar to how you would subdivide a slice of cake.
     
     Parameters
     ----------
@@ -102,13 +102,13 @@ def _cake_cuts(N, phi, rhos, f_offset = 0.):
     assert(0. <= f_offset <= 1.0)
     
     phi_cuts = np.linspace(-phi/2, phi/2, num=N+2)[1:-1]
-    offset = phi/(N+1) * f_offset
+    offset = phi/(N+1)/2 * f_offset
     phi_cuts += offset
     
-    #CHECK: If this leads to broad enough diagonal lines.
+    #CHECK: If this leads to wide enough diagonal lines.
     x_cuts, y_cuts = _pol2cart(*np.meshgrid(rhos, phi_cuts))
-    return(x_cuts, y_cuts, phi_cuts)
-    
+    return(x_cuts, y_cuts)
+
 def _rho_min_max(interface, rho):
     rho_ct = np.where(~np.isnan(interface), rho, 0)
     rho_max = np.max(rho_ct)
@@ -225,6 +225,26 @@ def create_clayers(fracs, d1, d2, phis, phi, a, n_clay):
     
     return(rho_min, rho_max, d2)
 
+def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi, rhos): #Perhaps also include w_pal
+    
+    pal_masks = {}
+    
+    offset = np.zeros(N_pal)
+    offset[::2] = s_pal
+    
+    for i in range(n_clay):
+        pal = _cake_cuts(N_pal, phi, rhos, f_offset = offset[i])
+        pal = [p.flatten() for p in pal]
+
+        da = d2_ds.sel(x=xr.DataArray(pal[0], dims="foo"),
+                       y=xr.DataArray(pal[1], dims="foo"), 
+                       method="nearest")
+        
+        pal_masks[i] = ((d2_ds.x == da.x) & (d2_ds.y == da.y)).max(dim="foo")
+#    pal = xr.where(pal_mask, 1, lith) 
+    
+    return(pal_masks)
+
 def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
     """Final touch to erase errors caused by the interpolation to a grid
     """
@@ -292,7 +312,7 @@ def create_3d_grid(d2_grid, d1, nz):
       )
     return(d3)
 
-def create_lith(d3, d2_grid, n_clay):
+def create_lith(d3, d2_grid, n_clay, pal_mask):
     d3["lith"] = d3["IBOUND"]
     
     #Confining clayer gets nr 2 as nr
@@ -302,7 +322,7 @@ def create_lith(d3, d2_grid, n_clay):
     for i in range(n_clay):
         #The other clay layer are assigned a number exceeding conf_nr
         clay_nr = 1 + conf_nr + i
-        d3["lith"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i]), clay_nr , d3["lith"])
+        d3["lith"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])&(~pal_mask[i]), clay_nr , d3["lith"])
     return(d3)
 
 def dynamic_confining_layer(d3, sea, t_max):
@@ -320,10 +340,9 @@ def create_Kh(d3, kh=0., kh_conf=0., kh_mar=0., **kwargs):
     return(d3)
 
 #%%Master function
-def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L=None, 
-                 D=None,  dD=None,    phi=None,     SM=None,     n_clay=None,  clay_conf=None,
-#                 kh=None, ani=None,   kh_conf=None, kh_mar = None, 
-                 dx=None, dy=None,    nz=None,      figfol=None, ncfol=None, **kwargs):
+def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=None, 
+                 D=None,  dD=None,    phi=None, SM=None,     n_clay=None,  clay_conf=None,
+                 dx=None, dy=None,    nz=None,  figfol=None, ncfol=None, **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
@@ -340,7 +359,8 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     frac_sand = (1-SM) / (n_clay + 1)
     frac_clay = SM/(n_clay+1)
     
-    d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, phis, L, a, frac_clay, n_inp)
+    d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
+                                              phis, L, a, frac_clay, n_inp)
     
     #Create clay layers
     fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
@@ -353,7 +373,8 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     #Convert to Cartesian regular grid
     d2_grid = {}
     
-    d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, np.max(d2["x"][~nan_idx]), phi/2)
+    d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, 
+           np.max(d2["x"][~nan_idx]), phi/2)
     d2_grid["rho"], d2_grid["phi"] = _cart2pol(d2_grid["x"], d2_grid["y"])
     d2_grid = pol2griddata(d2, nan_idx, d2_grid)
     d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
@@ -367,10 +388,14 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     d2_grid = ds_d2_grid(d2_grid)
     d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
 
+    N_pal = 2
+    s_pal = 1.0
+    pal_mask = create_paleo_channels(d2_grid, n_clay, N_pal, s_pal, phi, d1["rho"])
+
     #Create topsystem
     d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
                np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
-                                                      (d2_grid["tops"] >= 0)).astype(np.int8)
+               (d2_grid["tops"] >= 0)).astype(np.int8)
 
     if figfol is not None:
         _plot_imshow(d2_grid["topsys"], os.path.join(figfol, "topsystem_grid.png"))
@@ -380,11 +405,11 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
 
     #Create 3D 
     d3 = create_3d_grid(d2_grid, d1, nz)
-    d3 = create_lith(d3, d2_grid, n_clay)
+    d3 = create_lith(d3, d2_grid, n_clay, pal_mask)
     
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
-    d3["edges"] = get_edges(d3["IBOUND"], d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
-    
+    d3["edges"] = get_edges(d3["IBOUND"], 
+      d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
     d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]    
     
     #Save as netcdf
@@ -395,7 +420,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
     d3 = d3.assign_coords(layer = layers)
     
-    return(d3)
+    return(d3, pal_mask)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
