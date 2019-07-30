@@ -390,7 +390,8 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
 
     N_pal = 2
     s_pal = 1.0
-    pal_mask = create_paleo_channels(d2_grid, n_clay, N_pal, s_pal, phi, d1["rho"])
+    pal_mask = create_paleo_channels(d2_grid, n_clay, 
+                                     N_pal, s_pal, phi, d1["rho"])
 
     #Create topsystem
     d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
@@ -420,7 +421,7 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
     layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
     d3 = d3.assign_coords(layer = layers)
     
-    return(d3, pal_mask)
+    return(d3)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
