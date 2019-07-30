@@ -18,7 +18,9 @@ if os.name == "posix":
     plt.ioff()
 else:
     import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D #We have to import this to allow 3d plotting, otherwise projection = "3d" not recognized
+#We have to import this to allow 3d plotting, otherwise 
+#projection = "3d" not recognized
+from mpl_toolkits.mplot3d import Axes3D 
 
 #%%Helper functions
 def _griddata(ip, val, targgrid):
@@ -75,6 +77,37 @@ def _calc_bot(apex, a, D, dD, L, x):
 def _get_pizza_slice(d1, length, phis):
     idx_slice = d1["rho"] <= length
     return(_pol2cart(*np.meshgrid(d1["rho"][idx_slice], phis)))
+
+def _cake_cuts(N, phi, rhos, f_offset = 0.):
+    """Create N equally spaced lines through the delta.
+    Similar how you would subdivide a slice of cake.
+    
+    Parameters
+    ----------
+    N : int
+        number of cuts
+    
+    phi : float
+        phi
+    
+    rhos : array
+        array with all the values of rho used in the polar discretization
+    
+    f_offset : float
+        factor from zero to unity that is multiplied with the spacing to get an
+        offset
+    
+    """
+    
+    assert(0. <= f_offset <= 1.0)
+    
+    phi_cuts = np.linspace(-phi/2, phi/2, num=N+2)[1:-1]
+    offset = phi/(N+1) * f_offset
+    phi_cuts += offset
+    
+    #CHECK: If this leads to broad enough diagonal lines.
+    x_cuts, y_cuts = _pol2cart(*np.meshgrid(rhos, phi_cuts))
+    return(x_cuts, y_cuts, phi_cuts)
     
 def _rho_min_max(interface, rho):
     rho_ct = np.where(~np.isnan(interface), rho, 0)
@@ -174,7 +207,38 @@ def create_clayer(frac, d1, d2, phis, phi, a, bot_offset=0):
     clayer[~in_prism] = np.nan
     return(clayer)
 
-def pol2griddata(poldata, nan_idx, griddata, key_prep = None):
+def create_clayers(fracs, d1, d2, phis, phi, a, n_clay):
+    rho_min, rho_max = {}, {}
+    
+    for i in range(n_clay):
+        d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+        d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
+        
+        rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
+        rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
+        
+        #Create edges at shoreline, so they extent fully to the sea
+        d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
+        #Create bottom at the side edges
+        d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
+        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
+    
+    return(rho_min, rho_max, d2)
+
+def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
+    """Final touch to erase errors caused by the interpolation to a grid
+    """
+
+    for i in range(n_clay):
+        #Make sure empty corners of clay layers are filled
+        corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
+        corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
+        
+        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
+        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
+    return(d2_grid)
+
+def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
     #Remove nans,which broadcasts to 1 dimensional array.
     for key, arr in poldata.items():
         poldata[key] = arr[~nan_idx]
@@ -183,10 +247,7 @@ def pol2griddata(poldata, nan_idx, griddata, key_prep = None):
     #Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
     ip = interpolate.LinearNDInterpolator(np.vstack((poldata["x"],poldata["y"])).T, poldata[vrbls[0]])
     for vrbl in vrbls:
-        if key_prep is not None:
-            key = key_prep+vrbl
-        else:
-            key = vrbl
+        key = key_prep+vrbl
         griddata[key] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
     return(griddata)
 
@@ -284,21 +345,7 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     #Create clay layers
     fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
     
-    rho_min, rho_max = {}, {}
-    
-    
-    for i in range(n_clay):
-        d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
-        d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
-        
-        rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
-        rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
-        
-        #Create edges at shoreline, so they extent fully to the sea
-        d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
-        #Create bottom at the side edges
-        d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
-        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
+    rho_min, rho_max, d2 = create_clayers(fracs, d1, d2, phis, phi, a, n_clay)
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
@@ -311,17 +358,12 @@ def get_geometry(a=None,  alpha=None, b=None,       beta=None,   gamma=None,   L
     d2_grid = pol2griddata(d2, nan_idx, d2_grid)
     d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
     
-    for i in range(n_clay):
-        #Make sure empty corners of clay layers are filled
-        corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
-        corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
-        
-        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
-        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
+    d2_grid = finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max)
     
     if figfol is not None:
         top_bot_grid_plot(d2_grid,figfol)
     
+    #Convert to xarray
     d2_grid = ds_d2_grid(d2_grid)
     d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
 
