@@ -21,6 +21,8 @@ from pkg_resources import resource_filename
 #%%TODO Tests
 #-Wat gebeurt er als zand boven de shelf legt?
 #-Grid convergence test base case
+#%%TODO parameters toevoegen aan sensitivity analysis
+#-Intrusion length surface water: sal_L
 
 #%%TODO Processen
 #Concept verbeteringen
@@ -28,12 +30,11 @@ from pkg_resources import resource_filename
 #-Transgressielengte laten afhangen van de de helling van het Pleistoceen 
 #    (checken met literatuur, zo ja dan kunnen we dat als parameter gebruiken ipv transgressielengte)
 #-Timing regressie redelijk vast, misschien loslaten?
-#-Recharge, hoe topsysteem goed toe te voegen?
-#-Lokale doorlatendheden: oude stroomgeulen. 
-#-Factor om lokale doorlatendheden te veranderen.
+#-Recharge, hoe topsysteem goed toe te voegen? 
 #-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
 #-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
 #      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
+#-Conductance waar grote rivier. 1 cel dik.
 
 #Ideeen
 #-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
@@ -43,13 +44,13 @@ from pkg_resources import resource_filename
 #Overwegingen
 #-Transgressie door forcering nu redelijk onafhankelijk van helling coastal shelf, klopt dat wel? Is dat niet jammer?
 #-Wel tot >300m diep gaan?
-#
-#-Conductance waar grote rivier. 1 cel dik.
 #->Recharge + conductance combinatie? 
 
 #Done
 #-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
 #-Zoute rivieren (lineair profiel maar 1 parameter, Savenije zou 3 parameters introduceren) -> Overal in waaier
+#-Lokale doorlatendheden: oude stroomgeulen.
+#-Factor om lokale doorlatendheden te veranderen.
 
 #%%Implementatie Processen
 ##Preferente stroombanen
