@@ -56,13 +56,20 @@ pars["L"]           = 200000
 pars["SM"]          = np.linspace(0.1, 0.4, num=lev)
 pars["clay_conf"]   = np.linspace(0.2, 1.0, num=lev)
 pars["n_clay"]      = np.linspace(0, 3, num=lev, dtype=int)
+pars["N_pal"]       = np.linspace(1, 4, num=lev, dtype=int)
+pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
 pars["kh"]          = np.logspace(0, 2, num=lev)
 pars["kh_conf"]     = np.logspace(-3, 0, num=lev)
 pars["kh_mar"]      = np.logspace(-4, -2, num=lev)
-#pars["ani"]         = np.logspace(0, 1.5, num=lev)
+pars["f_kh_pal"]    = np.linspace(0, 1, num=lev)
 pars["ani"]         = 10.
+
+#River system
+pars["N_chan"]      = np.linspace(1, 4, num=lev, dtype=int)
+pars["f_cond_chan"] = np.linspace(0, 1, num=lev)
+pars["intrusion_L"] = np.linspace(0, 0.5, num=lev)
 pars["bc-res"]      = 100.
 
 #Solute transport
