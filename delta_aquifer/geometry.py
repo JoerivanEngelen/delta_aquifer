@@ -116,7 +116,7 @@ def _rho_min_max(interface, rho):
     rho_min = np.nanmin(np.where(np.max(rho_ct, axis=1) > cutoff, np.max(rho_ct, axis=1), np.nan))
     return(rho_min, rho_max)
 
-#%%Main functions
+#%%Main functions: Geometry
 def create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp):
     d1 = {}
 
@@ -159,33 +159,6 @@ def create_top_bot(phi, d1, n_inp):
             arr[nan_idx] = np.nan
     return(d2, nan_idx, phis)
 
-def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac, n_inp):
-    d2_clay = {}
-    x_ons, y_ons = _get_pizza_slice(d1, L*a, phis)
-    
-    x_offset=L * a * (1-clay_conf)
-    rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
-    rhos_clay = np.linspace(0, rho_clay, num=n_inp)
-    phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
-  
-    topf = interpolate.interp1d(d1["rho"], d1["top"])
-    botf = interpolate.interp1d(d1["rho"], d1["bot"])
-    d_clay_coast = (botf(rhos_clay[-1]+x_offset) * frac)
-    
-    depth_conf =  np.linspace(0, d_clay_coast, num=n_inp)
-
-    d2_clay["tops"] = np.zeros((n_inp-20, n_inp)) + topf(rhos_clay+x_offset) #Hack to get 2D tops of clay layer
-    d2_clay["bots"] = d2_clay["tops"] - _ellipse(phi_clay, depth_conf, phis_clay).T
-    
-    d2_clay["x"], d2_clay["y"] = _pol2cart(*np.meshgrid(rhos_clay, phis_clay))
-    d2_clay["x"] += x_offset
-    
-    #deactivate clay_layer past coastline
-    nan_clay = np.greater(d2_clay["x"].T, np.nanmax(x_ons, axis = 1)).T
-    for key, arr in d2_clay.items():
-        arr[nan_clay] = np.nan
-    return(d2_clay, nan_clay)
-
 def get_targgrid(dx, dy, L, phi_max):
     x_edge, y_edge = _pol2cart(L, phi_max)
 
@@ -194,69 +167,6 @@ def get_targgrid(dx, dy, L, phi_max):
     y_max = np.round(y_edge, -3) + 0.5*dy
     y_out = np.arange(-y_max, y_max+1, dy)
     return(np.meshgrid(x_out, y_out))
-
-def create_clayer(frac, d1, d2, phis, phi, a, bot_offset=0):
-    idx = int(d1["top"].shape[0] * a)
-    base_slope = interpolate.interp1d(np.arange(idx), d1["top"][:idx], fill_value="extrapolate")
-    base_slope = base_slope(np.arange(d1["top"].shape[0]))
-    
-    depth_clay = base_slope  - (base_slope-d1["bot"])*(frac)
-
-    clayer = (_ellipse(phi/2, depth_clay, phis).T + depth_clay)/2.
-    in_prism=(clayer<(d2["tops"]+bot_offset)) & (clayer>d2["bots"])
-    clayer[~in_prism] = np.nan
-    return(clayer)
-
-def create_clayers(fracs, d1, d2, phis, phi, a, n_clay):
-    rho_min, rho_max = {}, {}
-    
-    for i in range(n_clay):
-        d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
-        d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
-        
-        rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
-        rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
-        
-        #Create edges at shoreline, so they extent fully to the sea
-        d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
-        #Create bottom at the side edges
-        d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
-        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
-    
-    return(rho_min, rho_max, d2)
-
-def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi, rhos): #Perhaps also include w_pal
-    
-    pal_masks = {}
-    
-    offset = np.zeros(N_pal)
-    offset[::2] = s_pal
-    
-    for i in range(n_clay):
-        pal = _cake_cuts(N_pal, phi, rhos, f_offset = offset[i])
-        pal = [p.flatten() for p in pal]
-
-        da = d2_ds.sel(x=xr.DataArray(pal[0], dims="foo"),
-                       y=xr.DataArray(pal[1], dims="foo"), 
-                       method="nearest")
-        
-        pal_masks[i] = ((d2_ds.x == da.x) & (d2_ds.y == da.y)).max(dim="foo")
-#    pal = xr.where(pal_mask, 1, lith) 
-    
-    return(pal_masks)
-
-def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
-    """Final touch to erase errors caused by the interpolation to a grid
-    """
-
-    for i in range(n_clay):
-        #Make sure empty corners of clay layers are filled
-        corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
-        corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
-        
-        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
-        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
-    return(d2_grid)
 
 def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
     #Remove nans,which broadcasts to 1 dimensional array.
@@ -296,12 +206,6 @@ def ds_d2_grid(d2_grid):
                      coords = {"x" : d2_grid["x"][0, :],
                                "y" : d2_grid["y"][:, 0]}))
 
-def calc_clay_thicknesses(d2_grid, n_clay):
-    d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
-    for i in range(n_clay):
-        d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
-    return(d2_grid)
-
 def create_3d_grid(d2_grid, d1, nz):
     d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
     d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
@@ -312,6 +216,95 @@ def create_3d_grid(d2_grid, d1, nz):
       )
     return(d3)
 
+#%%Main functions: Geology
+def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac, n_inp):
+    d2_clay = {}
+    x_ons, y_ons = _get_pizza_slice(d1, L*a, phis)
+    
+    x_offset=L * a * (1-clay_conf)
+    rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
+    rhos_clay = np.linspace(0, rho_clay, num=n_inp)
+    phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
+  
+    topf = interpolate.interp1d(d1["rho"], d1["top"])
+    botf = interpolate.interp1d(d1["rho"], d1["bot"])
+    d_clay_coast = (botf(rhos_clay[-1]+x_offset) * frac)
+    
+    depth_conf =  np.linspace(0, d_clay_coast, num=n_inp)
+
+    d2_clay["tops"] = np.zeros((n_inp-20, n_inp)) + topf(rhos_clay+x_offset) #Hack to get 2D tops of clay layer
+    d2_clay["bots"] = d2_clay["tops"] - _ellipse(phi_clay, depth_conf, phis_clay).T
+    
+    d2_clay["x"], d2_clay["y"] = _pol2cart(*np.meshgrid(rhos_clay, phis_clay))
+    d2_clay["x"] += x_offset
+    
+    #deactivate clay_layer past coastline
+    nan_clay = np.greater(d2_clay["x"].T, np.nanmax(x_ons, axis = 1)).T
+    for key, arr in d2_clay.items():
+        arr[nan_clay] = np.nan
+    return(d2_clay, nan_clay)
+
+def create_clayer(frac, d1, d2, phis, phi, a, bot_offset=0):
+    idx = int(d1["top"].shape[0] * a)
+    base_slope = interpolate.interp1d(np.arange(idx), d1["top"][:idx], fill_value="extrapolate")
+    base_slope = base_slope(np.arange(d1["top"].shape[0]))
+    
+    depth_clay = base_slope  - (base_slope-d1["bot"])*(frac)
+
+    clayer = (_ellipse(phi/2, depth_clay, phis).T + depth_clay)/2.
+    in_prism=(clayer<(d2["tops"]+bot_offset)) & (clayer>d2["bots"])
+    clayer[~in_prism] = np.nan
+    return(clayer)
+
+def create_clayers(fracs, d1, d2, phis, phi, a, n_clay):
+    rho_min, rho_max = {}, {}
+    
+    for i in range(n_clay):
+        d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi, a)
+        d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi, a)
+        
+        rho_min["ct%d"%i], rho_max["ct%d"%i]  = _rho_min_max(d2["ct%d"%i], d2["rho"])
+        rho_min["cb%d"%i], rho_max["cb%d"%i]  = _rho_min_max(d2["cb%d"%i], d2["rho"])
+        
+        #Create edges at shoreline, so they extent fully to the sea
+        d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
+        #Create bottom at the side edges
+        d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
+        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
+    
+    return(rho_min, rho_max, d2)
+
+def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
+    """Final touch to erase errors caused by the interpolation to a grid
+    """
+
+    for i in range(n_clay):
+        #Make sure empty corners of clay layers are filled
+        corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
+        corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
+        
+        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
+        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
+    return(d2_grid)
+
+def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi, rhos): #Perhaps also include w_pal
+    pal_masks = {}
+    
+    offset = np.zeros(N_pal)
+    offset[::2] = s_pal
+    
+    for i in range(n_clay):
+        pal = _cake_cuts(N_pal, phi, rhos, f_offset = offset[i])
+        pal = [p.flatten() for p in pal]
+
+        da = d2_ds.sel(x=xr.DataArray(pal[0], dims="foo"),
+                       y=xr.DataArray(pal[1], dims="foo"), 
+                       method="nearest")
+        
+        pal_masks[i] = ((d2_ds.x == da.x) & (d2_ds.y == da.y)).max(dim="foo")
+
+    return(pal_masks)
+    
 def create_lith(d3, d2_grid, n_clay, pal_mask):
     d3["lith"] = d3["IBOUND"]
     
@@ -319,10 +312,13 @@ def create_lith(d3, d2_grid, n_clay, pal_mask):
     conf_nr = 2
     d3["lith"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), conf_nr, d3["lith"])
     
+    pal_nr = 3
     for i in range(n_clay):
         #The other clay layer are assigned a number exceeding conf_nr
-        clay_nr = 1 + conf_nr + i
-        d3["lith"] = xr.where((d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])&(~pal_mask[i]), clay_nr , d3["lith"])
+        clay_nr = 1 + pal_nr + i
+        in_clayer = (d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])
+        d3["lith"] = xr.where(in_clayer & (~pal_mask[i]), clay_nr, d3["lith"])
+        d3["lith"] = xr.where(in_clayer & (pal_mask[i]),  pal_nr , d3["lith"])
     return(d3)
 
 def dynamic_confining_layer(d3, sea, t_max):
@@ -332,16 +328,29 @@ def dynamic_confining_layer(d3, sea, t_max):
     d3 = d3.transpose("time", "z", "y", "x")
     return(d3)
 
-def create_Kh(d3, kh=0., kh_conf=0., kh_mar=0., **kwargs):
+def calc_clay_thicknesses(d2_grid, n_clay):
+    d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
+    for i in range(n_clay):
+        d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
+    return(d2_grid)
+
+def create_Kh(d3, kh=0., kh_conf=0., kh_mar=0., f_kh_pal=0., **kwargs):
+    b = np.log10(kh_mar)
+    a = np.log10(kh) - np.log10(kh_mar)
+    
+    kh_pal = 10**(a*f_kh_pal + b)
+    
     d3["Kh"] = xr.zeros_like(d3["lith"])
-    d3["Kh"] = xr.where(d3["lith"]==1, kh, d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]==1, kh,      d3["Kh"])
     d3["Kh"] = xr.where(d3["lith"]==2, kh_conf, d3["Kh"])
-    d3["Kh"] = xr.where(d3["lith"]>2, kh_mar, d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]==3, kh_pal,  d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]>3,  kh_mar,  d3["Kh"])
     return(d3)
 
 #%%Master function
 def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=None, 
-                 D=None,  dD=None,    phi=None, SM=None,     n_clay=None,  clay_conf=None,
+                 D=None,  dD=None,    phi=None, 
+                 SM=None, n_clay=None,clay_conf=None, N_pal=None, s_pal=None,
                  dx=None, dy=None,    nz=None,  figfol=None, ncfol=None, **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
@@ -388,8 +397,8 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
     d2_grid = ds_d2_grid(d2_grid)
     d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
 
-    N_pal = 2
-    s_pal = 1.0
+#    N_pal = 2
+#    s_pal = 1.0
     pal_mask = create_paleo_channels(d2_grid, n_clay, 
                                      N_pal, s_pal, phi, d1["rho"])
 
