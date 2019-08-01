@@ -236,7 +236,7 @@ def river_3d(
     
     return(riv, z_bins, dhdx)
 
-def create_channel_mask(d2_ds, N_chan, phi=None, L = None):
+def create_channel_mask(d2_ds, N_chan, phi=None, L = None, **kwargs):
     n_inp=200
     rhos = np.linspace(0, L, num=n_inp)
     channel = geometry._cake_cuts(N_chan, phi, rhos, f_offset = 0.)
@@ -353,7 +353,8 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     
     #Calculate river conductance
     riv_conductance, base_cond = calc_riv_conductance(coastline_loc, 
-                    f_cond_chan=f_cond_chan, N_chan=N_chan, **kwargs)
+                    f_cond_chan=f_cond_chan, N_chan=N_chan, 
+                    bc_res=bc_res, **kwargs)
     
     #Combine to dataset
     bcs = xr.Dataset({"sea": sea_cells, 
