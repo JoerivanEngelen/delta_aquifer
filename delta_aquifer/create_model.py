@@ -56,11 +56,11 @@ from pkg_resources import resource_filename
 
 
 #%%Path management
-model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-sim_nr = 103
+#model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
+#sim_nr = 103
 
-#model_fol = sys.argv[1]
-#sim_nr = int(sys.argv[2])
+model_fol = sys.argv[1]
+sim_nr = int(sys.argv[2])
 
 mname = "SD_i{:03d}".format(sim_nr)
 
