@@ -44,6 +44,7 @@ from pkg_resources import resource_filename
 #-Timing regressie redelijk vast, misschien loslaten?
 #-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
 #      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
+#
 
 #Done
 #-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
@@ -52,17 +53,11 @@ from pkg_resources import resource_filename
 #-Factor om lokale doorlatendheden te veranderen.
 #-Conductance waar grote rivier. 1 cel dik.
 #%%Implementatie Processen
-##Preferente stroombanen
-#i = np.arange(0, 3)
-#kh_i = np.logspace(np.log10(kh_mar), np.log10(kh), num=lev)[i]
-#
-#N: aantal gaten
-#x: breedte gaten
-#f: fractie displacement gaten van maximale afstand
+
 
 #%%Path management
 model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-sim_nr = 86
+sim_nr = 103
 
 #model_fol = sys.argv[1]
 #sim_nr = int(sys.argv[2])
@@ -128,7 +123,7 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 c_f = pars["c_f"]
 c_s = pars["c_s"]
 
-bcs, concs = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
+bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
                              conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
 
@@ -150,12 +145,13 @@ bcs = bcs.dropna("x", how="all", subset=["sea", "riv_stage"]).dropna("y", how="a
 #%%Create initial conditions
 approx_init = True
 
-rho_f, rho_s = ic.c2rho(c_f), ic.c2rho(c_s)
-shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, approx_init=approx_init)
+dens_f, dens_s = ic.c2dens(c_f), ic.c2dens(c_s)
+shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, 
+                       approx_init=approx_init, deep_salt=min_sea_level)
 
 #%%Calc dimensionless numbers
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
-                rho_f, rho_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
+                dens_f, dens_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
                 ) for kh_lab in ["kh", "kh_conf", "kh_mar"]]),
                 index=["Ra", "Ra_conf", "Ra_mar"], columns=["value"])
     
@@ -251,7 +247,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["ghb"] = imod.wq.GeneralHeadBoundary(head = bcs_mod["heads"],
                                            conductance=bcs_mod["cond"],
-                                           density=ic.c2rho(bcs_mod["conc"]), 
+                                           density=ic.c2dens(bcs_mod["conc"]), 
                                            concentration=bcs_mod["conc"])
         
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
