@@ -21,20 +21,16 @@ from pkg_resources import resource_filename
 #%%TODO Tests
 #-Wat gebeurt er als zand boven de shelf legt?
 #-Grid convergence test base case
-#%%TODO parameters toevoegen aan sensitivity analysis
-#-Intrusion length surface water: sal_L
 
 #%%TODO Processen
 #Concept verbeteringen
-#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken en kijken of het uitspoelt
+#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken 
+#   en kijken of het uitspoelt
 #-Transgressielengte laten afhangen van de de helling van het Pleistoceen 
-#    (checken met literatuur, zo ja dan kunnen we dat als parameter gebruiken ipv transgressielengte)
-#-Timing regressie redelijk vast, misschien loslaten?
+#    (checken met literatuur, zo ja dan kunnen we dat als parameter 
+#    gebruiken ipv transgressielengte)
 #-Recharge, hoe topsysteem goed toe te voegen? 
 #-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
-#-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
-#      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
-#-Conductance waar grote rivier. 1 cel dik.
 
 #Ideeen
 #-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
@@ -45,13 +41,16 @@ from pkg_resources import resource_filename
 #-Transgressie door forcering nu redelijk onafhankelijk van helling coastal shelf, klopt dat wel? Is dat niet jammer?
 #-Wel tot >300m diep gaan?
 #->Recharge + conductance combinatie? 
+#-Timing regressie redelijk vast, misschien loslaten?
+#-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
+#      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
 
 #Done
 #-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
 #-Zoute rivieren (lineair profiel maar 1 parameter, Savenije zou 3 parameters introduceren) -> Overal in waaier
 #-Lokale doorlatendheden: oude stroomgeulen.
 #-Factor om lokale doorlatendheden te veranderen.
-
+#-Conductance waar grote rivier. 1 cel dik.
 #%%Implementatie Processen
 ##Preferente stroombanen
 #i = np.arange(0, 3)
@@ -185,6 +184,8 @@ shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascen
 bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["riv_stage"])
 bcs["conc"]  = xr.where(bcs["sea"]==1, bcs["sea_conc"] , bcs["riv_conc"])
 #bcs["conc"] = xr.where(np.isfinite(bcs["riv_stage"]), 0., bcs["sea_conc"])
+bcs["cond"]  = xr.where(bcs["sea"]==1, bcs["sea_cond"] , bcs["riv_cond"])
+
 #%%Non convergence
 crashed_model = 4
 cell1 = (25,31,152)
@@ -249,7 +250,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)
     
     m["ghb"] = imod.wq.GeneralHeadBoundary(head = bcs_mod["heads"],
-                                           conductance=pars["dx"] * pars["dy"] / pars["bc-res"],
+                                           conductance=bcs_mod["cond"],
                                            density=ic.c2rho(bcs_mod["conc"]), 
                                            concentration=bcs_mod["conc"])
         

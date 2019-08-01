@@ -18,7 +18,8 @@ else:
     import matplotlib.pyplot as plt
 from delta_aquifer import geometry
 
-#%%Override buggy xarray function with this hack. This hack probably only works within this context.
+#%%Override xarray function with this hack that does not work with NaNs 
+#This hack probably only works within this context.
 
 def _unique_value_groups(ar, sort=True):
     """Group an array by its unique values.
@@ -248,12 +249,21 @@ def create_channel_mask(d2_ds, N_chan, phi=None, L = None):
     channel_mask = ((d2_ds.x == da.x) & (d2_ds.y == da.y)).max(dim="foo")
     return(channel_mask)
 
+#%%Hydrogeology
+def calc_riv_conductance(coastline_loc, f_cond_chan=None, N_chan=None, 
+                     dx=None, dy=None, bc_res=None, **kwargs):
+    #Create channels
+    base_cond = dx*dy/bc_res
+    channel_mask = create_channel_mask(coastline_loc, N_chan, **kwargs)
+    conductance = xr.where(channel_mask, base_cond * f_cond_chan, base_cond)
+    return(conductance, base_cond)
+
 #%%Salinity surface water   
 def perturb_sea_conc(sea, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.):
     flat_conc=sea.max(dim=["z", "time"])*conc_sea
     return(perturb_conc(flat_conc, conc_sea, seed, noise_frac, conc_fresh))
 
-def perturb_riv_conc(riv_conc, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.):
+def perturb_riv_conc(riv_conc, conc_sea, seed=100, noise_frac=0.01, conc_fresh=0.):
     riv_perturbed = perturb_conc(riv_conc,  
                         conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.)
     
@@ -312,9 +322,8 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, conc_sea, conc_fresh
 
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, 
-#                        intrusion_L = 0.4, N_channel = 0, f_channel=1.0,
-                        base_cond = None, N_chan = None, f_cond_chan=None,
-                        intrusion_L = None, conc_noise = 0.01, qt = "50%", 
+                        bc_res=None, N_chan=None, f_cond_chan=None,
+                        intrusion_L=None, conc_noise=0.01, qt="50%", 
                         figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
@@ -342,9 +351,9 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
     estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, coastline_rho, conc_sea, conc_fresh) 
     
-    #Create channels
-    channel_mask = create_channel_mask(coastline_loc, N_chan, **kwargs)
-    conductance = xr.where(channel_mask, base_cond * f_cond_chan, base_cond)
+    #Calculate river conductance
+    riv_conductance, base_cond = calc_riv_conductance(coastline_loc, 
+                    f_cond_chan=f_cond_chan, N_chan=N_chan, **kwargs)
     
     #Combine to dataset
     bcs = xr.Dataset({"sea": sea_cells, 
@@ -364,7 +373,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     estuary_salinity = perturb_riv_conc(estuary_salinity, conc_sea,
         noise_frac=conc_noise, conc_fresh=conc_fresh)
     bcs["riv_conc"] = xr.where(riv_mask, estuary_salinity, np.nan)
-    bcs["riv_cond"] = xr.where(riv_mask, conductance, 0.)
+    bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
     
     bcs = bcs.transpose("time", "z", "y", "x")
     

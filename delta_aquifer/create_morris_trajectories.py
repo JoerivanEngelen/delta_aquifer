@@ -68,9 +68,9 @@ pars["ani"]         = 10.
 
 #River system
 pars["N_chan"]      = np.linspace(1, 4, num=lev, dtype=int)
-pars["f_cond_chan"] = np.linspace(0, 1, num=lev)
+pars["f_cond_chan"] = np.logspace(0, 2, num=lev)
 pars["intrusion_L"] = np.linspace(0, 0.5, num=lev)
-pars["bc-res"]      = 100.
+pars["bc_res"]      = 100.
 
 #Solute transport
 pars["por"]         = np.linspace(0.1, 0.35, num=lev)
