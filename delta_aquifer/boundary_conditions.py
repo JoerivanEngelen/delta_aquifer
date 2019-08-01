@@ -327,6 +327,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
                         figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
+    min_sea_level = np.min(sea_level) #Can be used for initial conditions
     
     #Start from first timestep where sea level exceeds aquifer bottom again.
     ts_inactive = np.argwhere((sea_level<geo.z.isel(z=0)).values)
@@ -357,7 +358,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
                     bc_res=bc_res, **kwargs)
     
     #Combine to dataset
-    bcs = xr.Dataset({"sea": sea_cells, 
+    bcs = xr.Dataset({"sea" : sea_cells, 
                       "riv_stage" : rivers["h_grid"], 
                       "sea_level" : sea_level})
     
@@ -388,7 +389,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
         #Switch back to time in ka again
         bcs["time"] = time
     
-    return(bcs, estuary_salinity)
+    return(bcs, min_sea_level)
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
