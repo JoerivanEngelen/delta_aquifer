@@ -4,6 +4,7 @@ from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 import glob
 import os, sys
+import math
 
 # create a new 'NetCDF Reader'
 fol=sys.argv[1]
@@ -30,9 +31,6 @@ renderView1.Background = [0.43137254901960786, 0.43137254901960786, 0.4313725490
 
 # create a new 'Calculator'
 calculator1 = Calculator(Input=netCDFReader1)
-calculator1.Function = ''
-
-# Properties modified on calculator1
 calculator1.ResultArrayName = 'v'
 calculator1.Function = '(-1*vx)*iHat+(1*vy)*jHat+(1*vz)*kHat'
 
@@ -67,21 +65,6 @@ calculator1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 
 
 # hide data in view
 Hide(netCDFReader1, renderView1)
-
-# find source
-programmableFilter2 = FindSource('ProgrammableFilter2')
-
-# find source
-calculator2 = FindSource('Calculator2')
-
-# find source
-transform2 = FindSource('Transform2')
-
-# find source
-threshold2 = FindSource('Threshold2')
-
-# find source
-glyph2 = FindSource('Glyph2')
 
 # update the view to ensure updated data information
 renderView1.Update()
@@ -130,15 +113,18 @@ Hide(calculator1, renderView1)
 # update the view to ensure updated data information
 renderView1.Update()
 
+#Get z
+z_min, z_max = calculator1.GetDataInformation().GetBounds()[4:]
+dz = z_max - z_min
+
+zscale = 4000. / math.sqrt(dz)
+
 # create a new 'Transform'
 transform1 = Transform(Input=programmableFilter1)
 transform1.Transform = 'Transform'
 
 # Properties modified on transform1.Transform
-transform1.Transform.Scale = [1.0, 1.0, 100.0]
-
-# Properties modified on transform1.Transform
-transform1.Transform.Scale = [1.0, 1.0, 100.0]
+transform1.Transform.Scale = [1.0, 1.0, zscale]
 
 # show data in view
 transform1Display = Show(transform1, renderView1)
@@ -211,6 +197,18 @@ threshold1Display.RescaleTransferFunctionToDataRange(True, False)
 
 # show color bar/color legend
 threshold1Display.SetScalarBarVisibility(renderView1, True)
+
+# create a new 'Annotate Time Filter'
+annotateTimeFilter1 = AnnotateTimeFilter(Input=threshold1)
+
+last_t = animationScene1.TimeKeeper.TimestepValues[-1]
+scale = 1./365.
+
+annotateTimeFilter1.Format = 'Time: %.0f BP'
+annotateTimeFilter1.Shift = last_t*scale
+annotateTimeFilter1.Scale = -scale
+
+annotateTimeFilter1Display = Show(annotateTimeFilter1, renderView1)
 
 # get color transfer function/color map for 'conc'
 concLUT = GetColorTransferFunction('conc')
