@@ -320,10 +320,16 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, conc_sea, conc_fresh
     estuary_salinity = xr.where((rhos_2d > coastline_rho), conc_sea, estuary_salinity)
     return(estuary_salinity.drop(labels=["z", "layer"]))
 
+#%%Recharge
+def recharge(riv_mask, rch_rate):
+    onshore_mask = riv_mask.max(dim="z")
+    return(onshore_mask * rch_rate)
+
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, 
                         bc_res=None, N_chan=None, f_cond_chan=None,
-                        intrusion_L=None, conc_noise=0.01, qt="50%", 
+                        intrusion_L=None, rch_rate=None, 
+                        conc_noise=0.01, qt="50%", 
                         figfol=None, ncfol=None, **kwargs):
     # Get sea level
     sea_level = get_sea_level(sl_curve, ts, qt=qt, figfol=figfol)
@@ -377,6 +383,10 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     bcs["riv_conc"] = xr.where(riv_mask, estuary_salinity, np.nan)
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
     
+    #Recharge
+    bcs["rch"] = recharge(riv_mask, rch_rate)
+    
+    #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")
     
     if ncfol is not None:

@@ -72,6 +72,9 @@ pars["f_cond_chan"] = np.logspace(0, 2, num=lev)
 pars["intrusion_L"] = np.linspace(0, 0.5, num=lev)
 pars["bc_res"]      = 100.
 
+#Recharge
+pars["rch_rate"]    = np.linspace(0.0, 0.4, num=lev) #Deze nog checken met Perry/Joost
+
 #Solute transport
 pars["por"]         = np.linspace(0.1, 0.35, num=lev)
 pars["al"]          = np.logspace(-0.6, 1, num=lev)

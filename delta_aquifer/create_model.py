@@ -24,13 +24,7 @@ from pkg_resources import resource_filename
 
 #%%TODO Processen
 #Concept verbeteringen
-#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken 
-#   en kijken of het uitspoelt
-#-Transgressielengte laten afhangen van de de helling van het Pleistoceen 
-#    (checken met literatuur, zo ja dan kunnen we dat als parameter 
-#    gebruiken ipv transgressielengte)
 #-Recharge, hoe topsysteem goed toe te voegen? 
-#-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
 
 #Ideeen
 #-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
@@ -39,14 +33,18 @@ from pkg_resources import resource_filename
 #
 #Overwegingen
 #-Transgressie door forcering nu redelijk onafhankelijk van helling coastal shelf, klopt dat wel? Is dat niet jammer?
+#    (checken met literatuur, zo ja dan kunnen we dat als parameter 
+#    gebruiken ipv transgressielengte)
 #-Wel tot >300m diep gaan?
 #->Recharge + conductance combinatie? 
 #-Timing regressie redelijk vast, misschien loslaten?
 #-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
 #      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
-#
+#-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
 
 #Done
+#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken 
+#   en kijken of het uitspoelt
 #-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
 #-Zoute rivieren (lineair profiel maar 1 parameter, Savenije zou 3 parameters introduceren) -> Overal in waaier
 #-Lokale doorlatendheden: oude stroomgeulen.
@@ -56,11 +54,11 @@ from pkg_resources import resource_filename
 
 
 #%%Path management
-#model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-#sim_nr = 103
+model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
+sim_nr = 103
 
-model_fol = sys.argv[1]
-sim_nr = int(sys.argv[2])
+#model_fol = sys.argv[1]
+#sim_nr = int(sys.argv[2])
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -125,7 +123,7 @@ c_s = pars["c_s"]
 
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
                              conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
-bcs["sea"] = bcs["sea"].where(bcs["sea"]==1)
+bcs["sea"] = bcs["sea"].where(bcs["sea"]==1) #Shouldn't this already be done in boundary_conditions()?
 
 #%%Dynamic geology
 geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
@@ -249,7 +247,10 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                            conductance=bcs_mod["cond"],
                                            density=ic.c2dens(bcs_mod["conc"]), 
                                            concentration=bcs_mod["conc"])
-        
+    
+    m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
+                                             concentration=c_f)
+    
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                  max_iter=1000, 
                                                  inner_iter=100, 
