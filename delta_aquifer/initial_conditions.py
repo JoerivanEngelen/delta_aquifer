@@ -38,7 +38,8 @@ def ghyb_herz(riv_stage_2d, bcs, shd, c_f, c_s):
         ), c_s, c_f)
     return(shd, sconc)
 
-def get_ic(bcs, geo, c_f, c_s, approx_init=False, deep_salt=None):
+def get_ic(bcs, geo, c_f=None, c_s=None, approx_init=False, deep_salt=None, 
+           **kwargs):
     """Get initial conditions. Defaults to point water and salinities of zero. 
     
     Parameters
