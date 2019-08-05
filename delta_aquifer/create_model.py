@@ -55,7 +55,7 @@ from pkg_resources import resource_filename
 
 #%%Path management
 #model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-#sim_nr = 103
+#sim_nr = 123
 
 model_fol = sys.argv[1]
 sim_nr = int(sys.argv[2])
@@ -117,7 +117,9 @@ geo = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
-# Path management
+#Test influence of bc_res, default value is 100.
+pars["bc_res"] = 10.
+
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             figfol=figfol, ncfol=None, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1) #Shouldn't this already be done in boundary_conditions()?
