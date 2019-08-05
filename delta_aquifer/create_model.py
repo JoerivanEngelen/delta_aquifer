@@ -118,11 +118,8 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
 # Path management
-c_f = pars["c_f"]
-c_s = pars["c_s"]
-
-bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, c_s, c_f, 
-                             conc_noise = 0.05, figfol=figfol, ncfol=None, **pars)
+bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
+                                            figfol=figfol, ncfol=None, **pars)
 bcs["sea"] = bcs["sea"].where(bcs["sea"]==1) #Shouldn't this already be done in boundary_conditions()?
 
 #%%Dynamic geology
@@ -143,11 +140,12 @@ bcs = bcs.dropna("x", how="all", subset=["sea", "riv_stage"]).dropna("y", how="a
 #%%Create initial conditions
 approx_init = True
 
-dens_f, dens_s = ic.c2dens(c_f), ic.c2dens(c_s)
-shd, sconc = ic.get_ic(bcs, geo, c_f, c_s, 
-                       approx_init=approx_init, deep_salt=min_sea_level)
+shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init, 
+                       deep_salt=min_sea_level, **pars)
 
 #%%Calc dimensionless numbers
+
+dens_f, dens_s = ic.c2dens(pars["c_f"]), ic.c2dens(pars["c_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
                 dens_f, dens_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
                 ) for kh_lab in ["kh", "kh_conf", "kh_mar"]]),
@@ -174,7 +172,7 @@ bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascen
 sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
-#%%
+#%%Combine river and sea, as in the end we put both in the GHB anyway.
 bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["riv_stage"])
 bcs["conc"]  = xr.where(bcs["sea"]==1, bcs["sea_conc"] , bcs["riv_conc"])
 #bcs["conc"] = xr.where(np.isfinite(bcs["riv_stage"]), 0., bcs["sea_conc"])
@@ -249,7 +247,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                            concentration=bcs_mod["conc"])
     
     m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
-                                             concentration=c_f)
+                                             concentration=pars["c_f"])
     
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                  max_iter=1000, 

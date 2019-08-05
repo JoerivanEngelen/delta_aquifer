@@ -259,17 +259,17 @@ def calc_riv_conductance(coastline_loc, f_cond_chan=None, N_chan=None,
     return(conductance, base_cond)
 
 #%%Salinity surface water   
-def perturb_sea_conc(sea, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.):
-    flat_conc=sea.max(dim=["z", "time"])*conc_sea
-    return(perturb_conc(flat_conc, conc_sea, seed, noise_frac, conc_fresh))
+def perturb_sea_conc(sea, c_s, seed=100, noise_frac=0.01, c_f = 0.):
+    flat_conc=sea.max(dim=["z", "time"])*c_s
+    return(perturb_conc(flat_conc, c_s, seed, noise_frac, c_f))
 
-def perturb_riv_conc(riv_conc, conc_sea, seed=100, noise_frac=0.01, conc_fresh=0.):
+def perturb_riv_conc(riv_conc, c_s, seed=100, noise_frac=0.01, c_f=0.):
     riv_perturbed = perturb_conc(riv_conc,  
-                        conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.)
+                        c_s, seed=100, noise_frac=0.01, c_f = 0.)
     
     return(xr.where(riv_conc > 0., riv_perturbed, riv_conc))
 
-def perturb_conc(flat_conc, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.):
+def perturb_conc(flat_conc, c_s, seed=100, noise_frac=0.01, c_f = 0.):
     """Mathematical formula taken from:
         Simmons et al. [1999]
         On a test case for density-dependent 
@@ -278,7 +278,7 @@ def perturb_conc(flat_conc, conc_sea, seed=100, noise_frac=0.01, conc_fresh = 0.
     """
     np.random.seed(seed)
     noise = np.random.rand(*flat_conc.shape)
-    return(flat_conc + noise_frac * (conc_sea-conc_fresh) * (noise - 0.5))
+    return(flat_conc + noise_frac * (c_s-c_f) * (noise - 0.5))
     
 def correct_salinity_intrusion(intrusion_length, dhdx):
     """Correct salinity intrusion in surface water for the changing gradient
@@ -297,27 +297,27 @@ def correct_salinity_intrusion(intrusion_length, dhdx):
 
     return(f_L * intrusion_length)
 
-def estuary_profile_slope(intrusion_rho, coastline_rho, conc_sea, conc_fresh):
+def estuary_profile_slope(intrusion_rho, coastline_rho, c_s, c_f):
     """Create linear salinity profile for the estuary,
     
     dumbing down the Savenije equation from 3 parameters to 1 parameter
     
     """
-    return((conc_sea - conc_fresh)/(coastline_rho - intrusion_rho))
+    return((c_s - c_f)/(coastline_rho - intrusion_rho))
     
-def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, conc_sea, conc_fresh):
+def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, c_s, c_f):
     """
     """
 
     est_slope = estuary_profile_slope(intrusion_rho, 
                                  coastline_rho,
-                                 conc_sea, conc_fresh)
+                                 c_s, c_f)
 
     concs_rho =  est_slope * (rhos_2d-intrusion_rho)
 
     estuary_salinity = xr.where((rhos_2d > (intrusion_rho)) & (rhos_2d < coastline_rho), 
-                         concs_rho, conc_fresh)
-    estuary_salinity = xr.where((rhos_2d > coastline_rho), conc_sea, estuary_salinity)
+                         concs_rho, c_f)
+    estuary_salinity = xr.where((rhos_2d > coastline_rho), c_s, estuary_salinity)
     return(estuary_salinity.drop(labels=["z", "layer"]))
 
 #%%Recharge
@@ -326,7 +326,7 @@ def recharge(riv_mask, rch_rate):
     return(onshore_mask * rch_rate)
 
 #%%Master function
-def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh, 
+def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None, 
                         bc_res=None, N_chan=None, f_cond_chan=None,
                         intrusion_L=None, rch_rate=None, 
                         conc_noise=0.01, qt="50%", 
@@ -356,7 +356,7 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * kwargs["L"] * kwargs["a"], dhdx)
     coords = {} #Should add these somewhere in geometry.py as dependent coordinates
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
-    estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, coastline_rho, conc_sea, conc_fresh) 
+    estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, coastline_rho, c_s, c_f) 
     
     #Calculate river conductance
     riv_conductance, base_cond = calc_riv_conductance(coastline_loc, 
@@ -373,13 +373,13 @@ def boundary_conditions(sl_curve, ts, geo, conc_sea, conc_fresh,
     bcs["sea"] = xr.where(~riv_mask, sea_cells, 0) 
     
     #Peturb concentrations (above 0.)
-    sea_salinity = perturb_sea_conc(bcs["sea"], conc_sea, 
-        noise_frac=conc_noise, conc_fresh=conc_fresh)
+    sea_salinity = perturb_sea_conc(bcs["sea"], c_s, 
+        noise_frac=conc_noise, c_f=c_f)
     bcs["sea_conc"]  = xr.where(bcs["sea"], sea_salinity, np.nan)
     bcs["sea_cond"]  = xr.where(bcs["sea"], base_cond, 0.)
     
-    estuary_salinity = perturb_riv_conc(estuary_salinity, conc_sea,
-        noise_frac=conc_noise, conc_fresh=conc_fresh)
+    estuary_salinity = perturb_riv_conc(estuary_salinity, c_s,
+        noise_frac=conc_noise, c_f=c_f)
     bcs["riv_conc"] = xr.where(riv_mask, estuary_salinity, np.nan)
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
     
