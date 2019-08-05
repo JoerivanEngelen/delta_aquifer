@@ -1,0 +1,37 @@
+#!/bin/bash
+module load cmake
+
+export PATH=$PATH:$HOME/visualization/llvm/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/visualization/llvm/lib
+
+MESA_VERSION=mesa-17.2.8
+
+#Download
+wget https://mesa.freedesktop.org/archive/older-versions/17.x/${MESA_VERSION}.tar.xz
+
+#Extract
+tar -xvf ${MESA_VERSION}.tar.xz
+
+#Create build directory
+mkdir -m 755 ${MESA_VERSION}.bld
+
+#Go to source folder
+cd ${MESA_VERSION}
+
+./configure                                         \
+  --prefix=${HOME}/visualization/mesa               \
+  --enable-opengl --disable-gles1 --disable-gles2   \
+  --disable-va --disable-xvmc --disable-vdpau       \
+  --enable-shared-glapi                             \
+  --disable-texture-float                           \
+  --enable-gallium-llvm --enable-llvm-shared-libs   \
+  --with-gallium-drivers=swrast,swr                 \
+  --disable-dri --with-dri-drivers=                 \
+  --disable-egl --with-egl-platforms= --disable-gbm \
+  --disable-glx                                     \
+  --disable-osmesa --enable-gallium-osmesa
+
+make -j8   # Or however many "j" you want to parallelize the build with
+make install
+
+

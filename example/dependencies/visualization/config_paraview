@@ -1,0 +1,53 @@
+#!/bin/bash
+
+module load cmake
+
+#Download
+wget https://www.paraview.org/files/v5.4/ParaView-v5.4.1.tar.gz
+
+#Extract
+tar -xvf ParaView-v5.4.1.tar.gz
+
+#Create build directory
+mkdir paraview.bld
+cd paraview.bld
+
+#We assume there is a python 2.7 installation with anaconda in an environment called "py27"
+PATH=$HOME/anaconda3/bin:$PATH
+source activate py27
+export PYTHONPATH=$PYTHONPATH:$HOME/anaconda3/envs/py27/lib/python2.7/site-packages
+
+echo $PYTHONPATH
+
+MESA_INSTALL_PREFIX=$HOME/visualization/mesa
+LLVM_INSTALL_PREFIX=$HOME/visualization/llvm
+
+export PATH=$PATH:$HOME/visualization/llvm/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MESA_INSTALL_PREFIX}/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LLVM_INSTALL_PREFIX}/lib
+
+cmake \
+  -DPARAVIEW_ENABLE_PYTHON=ON                                  \
+  -DCMAKE_INSTALL_PREFIX=$HOME/visualization/paraview \
+  -DPYTHON_EXECUTABLE=$HOME/anaconda3/envs/py27/bin/python2.7  \
+  -DPYTHON_INCLUDE_DIR=$HOME/anaconda3/envs/py27/include/python2.7  \
+  -DPYTHON_LIBRARY=$HOME/anaconda3/envs/py27/lib/libpython2.7.so.1.0 \
+  -DPARAVIEW_BUILD_QT_GUI=OFF                                  \
+  -DVTK_USE_X=OFF                                              \
+  -DOPENGL_INCLUDE_DIR=IGNORE                                  \
+  -DOPENGL_xmesa_INCLUDE_DIR=IGNORE                            \
+  -DOPENGL_gl_LIBRARY=IGNORE                                   \
+  -DOSMESA_INCLUDE_DIR=${MESA_INSTALL_PREFIX}/include          \
+  -DOSMESA_LIBRARY=${MESA_INSTALL_PREFIX}/lib/libOSMesa.so \
+  -DVTK_OPENGL_HAS_OSMESA=ON                                   \
+  -DVTK_USE_OFFSCREEN=OFF                                      \
+  ../ParaView-v5.4.1
+
+make -j32
+make -j32 install
+
+##Change these lines to use python3.6. Paraview v5.4.1 does not support this though
+#  -DPYTHON_EXECUTABLE=$HOME/anaconda3/bin/python3.6            \
+#  -DPYTHON_INCLUDE_DIR=$HOME/anaconda3/include/python3.6m      \
+#  -DPYTHON_LIBRARY=$HOME/anaconda3/lib/libpython3.6m.so.1.0    \
+

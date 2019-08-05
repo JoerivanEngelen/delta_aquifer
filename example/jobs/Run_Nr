@@ -1,0 +1,88 @@
+#!/bin/bash
+#SBATCH -t 5-00:00:00
+#SBATCH --output=../stds/synth_%j.out
+#SBATCH --error=../stds/synth_%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=joeri.vanengelen@deltares.nl
+#SBATCH -p normal
+#SBATCH -N 1
+#SBATCH -n 24
+
+set -x
+echo $TMPDIR
+
+module load gnu-parallel/2015.01.22
+
+export PATH=/home/jengelen/anaconda3/bin:$PATH
+export PYTHONPATH=/home/jengelen/anaconda3/lib/python3.6/site-packages:$PYTHONPATH
+
+#model id should be provided as an integer argument to this jobscript
+id=$1
+id_s=$(printf "%03d" $id)
+
+modname=SD_i${id_s}
+
+runname=synth_${modname}_m${SLURM_NTASKS}_${SLURM_JOB_ID}
+outfol=$HOME/synthdelta/results/${runname}
+
+mkdir -m 755 ${outfol}
+
+python $HOME/synthdelta/delta_aquifer/delta_aquifer/create_model.py $TMPDIR $id
+wait $!
+
+cd $TMPDIR/${modname}
+begintime=$(date +%s%N)
+
+max_mod=$(\ls *[0-9] | sort -V | egrep -o [0-9]+ | tail -1)
+
+lastp=`expr ${SLURM_NTASKS} - 1`
+
+srunexc="srun --exclusive -N1 -n1"
+parallelov="parallel --delay .2 -j $SLURM_NTASKS"
+
+for m in $( seq 0 $max_mod ); do
+   n=$(printf "%02d" $m)
+   modfol=$TMPDIR/${modname}/${modname}_nr${n}
+   cd $modfol 
+   starttime=$(date +%s%N)
+   
+   #Run simulation
+   srun -u $HOME/seawat/bin/seawat_svn317 ${modname}_nr${n}.run
+   wait $!
+   calctime=$(date +%s%N)
+   echo "calctime: $(echo "scale=3;(${calctime} - ${starttime})/(1*10^09)" | bc) seconds" >> $HOME/synthdelta/stds/synth_${SLURM_JOB_ID}.log
+
+   #Creating some shortcuts as the next part is otherwise completely unreadable
+   script=$HOME/synthdelta/delta_aquifer/process/idf2nc.py 
+   x=$(printf "%03d" $m)
+   
+   #Convert idfs to netcdf for each subdomain in parallel
+   $parallelov '$srunexc python '"${script} ${modfol} ${m} {}" ::: $(seq 0 $lastp)
+   wait $!
+   converttime=$(date +%s%N)
+   echo "converttime: $(echo "scale=3;(${converttime} - ${calctime})/(1*10^09)" | bc) seconds" >> $HOME/synthdelta/stds/synth_${SLURM_JOB_ID}.log
+ 
+   #Combine these netcdfs to one big netcdf
+   python $HOME/synthdelta/delta_aquifer/process/combine_ncs.py ${modfol} ${m}
+   wait $!
+   combinetime=$(date +%s%N)
+   echo "combinetime: $(echo "scale=3;(${combinetime} - ${converttime})/(1*10^09)" | bc) seconds" >> $HOME/synthdelta/stds/synth_${SLURM_JOB_ID}.log
+   
+   #Remove files in parallel
+   $parallelov 'p=$(printf "%03d" {}) ; $srunexc rm -rf '"${modfol}/results"'/*/*_p${p}*' ::: $(seq 0 $lastp)
+   wait $!
+   removetime=$(date +%s%N)
+   echo "removetime: $(echo "scale=3;(${removetime} - ${combinetime})/(1*10^09)" | bc) seconds" >> $HOME/synthdelta/stds/synth_${SLURM_JOB_ID}.log
+   wait $!
+done
+
+python $HOME/synthdelta/delta_aquifer/process/update_timesteps.py $TMPDIR/${modname} ${outfol}
+cp -r $TMPDIR/${modname}/input ${outfol}
+
+python $HOME/synthdelta/delta_aquifer/post/fw_volumes.py ${outfol}
+
+endtime=$(date +%s%N)
+echo "total: $(echo "scale=3;(${endtime} - ${begintime})/(1*10^09)" | bc) seconds" >> $HOME/synthdelta/stds/synth_${SLURM_JOB_ID}.log
+
+sbatch --dependency=afterok:$SLURM_JOB_ID $HOME"/synthdelta/jobs/Animate" ${outfol}
+

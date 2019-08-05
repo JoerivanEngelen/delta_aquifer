@@ -1,0 +1,29 @@
+#!/bin/bash
+
+module load cmake
+
+VERSION=5.0.0
+name=llvm-${VERSION}
+
+# Download
+wget http://releases.llvm.org/${VERSION}/${name}.src.tar.xz
+
+# Extract
+tar -xvf ${name}.src.tar.xz
+
+# Configure
+mkdir ${name}.bld
+cd ${name}.bld
+
+cmake                                           \
+  -DCMAKE_BUILD_TYPE=Release                    \
+  -DCMAKE_INSTALL_PREFIX=$HOME/visualization/llvm \
+  -DLLVM_BUILD_LLVM_DYLIB=ON                    \
+  -DLLVM_ENABLE_RTTI=ON                         \
+  -DLLVM_INSTALL_UTILS=ON                       \
+  -DLLVM_TARGETS_TO_BUILD:STRING=X86            \
+  ../${name}.src
+
+# Build and install
+make -j8
+make install
