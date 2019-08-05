@@ -290,7 +290,7 @@ def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
 def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi, rhos): #Perhaps also include w_pal
     pal_masks = {}
     
-    offset = np.zeros(N_pal)
+    offset = np.zeros(n_clay)
     offset[::2] = s_pal
     
     for i in range(n_clay):
