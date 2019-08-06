@@ -43,7 +43,7 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
 
 #%%Path management
 #For Testing
-#modelfol = r"g:\synthdelta\test_output\test_conc_peturb_no_conf2"
+#modelfol = r"g:\synthdelta\test_output\test_stuck_combine\SD_i123_nr00"
 #mod_nr = 1
 
 modelfol = sys.argv[1]
@@ -79,6 +79,8 @@ ds_list = [xr.broadcast(xr.open_dataset(
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
+ds_tot = ds_tot.compute()
+
 subdomain = ds_tot["subdomain"]
 ds_tot = ds_tot.drop(["subdomain"])
 
@@ -106,6 +108,8 @@ ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
 ds_tot["subdomain"] = subdomain
 
 ds_tot = ds_tot.swap_dims({"layer" : "z"})
+
+ds_tot = ds_tot.compute()
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
 
 #%%Create initial heads and concentrations for next run.
