@@ -58,7 +58,7 @@ from pkg_resources import resource_filename
 #model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
 #sim_nr = 123
 
-model_fol = sys.argv[1]
+model_fol  = sys.argv[1]
 sim_nr = int(sys.argv[2])
 
 mname = "SD_i{:03d}".format(sim_nr)
@@ -207,8 +207,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m = imod.wq.SeawatModel(mname_sub)
     
     if mod_nr == 0:
-        starting_head = xr.where(geo["active"],  shd,   -9999.0)
-        starting_conc = xr.where(geo["active"], sconc, -9999.0)
+        active=(geo_mod["active"]==1)
+        starting_head = xr.where(active,  shd,   -9999.0)
+        starting_conc = xr.where(active, sconc, -9999.0)
     else:
         year_str = cftime.DatetimeProlepticGregorian(
                 sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
