@@ -321,8 +321,7 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, c_s, c_f):
     return(estuary_salinity.drop(labels=["z", "layer"]))
 
 #%%Recharge
-def recharge(riv_mask, rch_rate):
-    onshore_mask = riv_mask.max(dim="z")
+def recharge(onshore_mask, rch_rate):
     return(onshore_mask * rch_rate)
 
 #%%Master function
@@ -368,10 +367,10 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
                       "riv_stage" : rivers["h_grid"], 
                       "sea_level" : sea_level})
     
-    #Ensure that there are no river cells overlapping sea cells
+    #Ensure that there are no river cells overlapping or overlying sea cells
     riv_mask = np.isfinite(bcs["riv_stage"])
-    bcs["sea"] = xr.where(~riv_mask, sea_cells, 0) 
-    
+    bcs["sea"] = xr.where((~riv_mask.sum(dim="z"))&(bcs["sea"]==1), sea_cells, np.nan) 
+
     #Peturb concentrations (above 0.)
     sea_salinity = perturb_sea_conc(bcs["sea"], c_s, 
         noise_frac=conc_noise, c_f=c_f)
@@ -384,7 +383,7 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
     
     #Recharge
-    bcs["rch"] = recharge(riv_mask, rch_rate)
+    bcs["rch"] = recharge(riv_mask.sum(dim="z"), rch_rate)
     
     #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")

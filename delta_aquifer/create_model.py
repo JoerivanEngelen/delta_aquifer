@@ -24,7 +24,7 @@ from pkg_resources import resource_filename
 
 #%%TODO Processen
 #Concept verbeteringen
-#-Recharge, hoe topsysteem goed toe te voegen? 
+#-Species / tracers
 
 #Ideeen
 #-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
@@ -50,6 +50,7 @@ from pkg_resources import resource_filename
 #-Lokale doorlatendheden: oude stroomgeulen.
 #-Factor om lokale doorlatendheden te veranderen.
 #-Conductance waar grote rivier. 1 cel dik.
+#-Recharge, hoe topsysteem goed toe te voegen? 
 #%%Implementatie Processen
 
 
@@ -122,7 +123,6 @@ pars["bc_res"] = 10.
 
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             figfol=figfol, ncfol=None, **pars)
-bcs["sea"] = bcs["sea"].where(bcs["sea"]==1) #Shouldn't this already be done in boundary_conditions()?
 
 #%%Dynamic geology
 geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
@@ -175,10 +175,10 @@ sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", a
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
 #%%Combine river and sea, as in the end we put both in the GHB anyway.
-bcs["heads"] = xr.where(bcs["sea"]==1, bcs["sea_level"], bcs["riv_stage"])
-bcs["conc"]  = xr.where(bcs["sea"]==1, bcs["sea_conc"] , bcs["riv_conc"])
-#bcs["conc"] = xr.where(np.isfinite(bcs["riv_stage"]), 0., bcs["sea_conc"])
-bcs["cond"]  = xr.where(bcs["sea"]==1, bcs["sea_cond"] , bcs["riv_cond"])
+sea = (bcs["sea"]==1)
+bcs["heads"] = xr.where(sea, bcs["sea_level"], bcs["riv_stage"])
+bcs["conc"]  = xr.where(sea, bcs["sea_conc"] , bcs["riv_conc"])
+bcs["cond"]  = xr.where(sea, bcs["sea_cond"] , bcs["riv_cond"])
 
 #%%Non convergence
 crashed_model = 4
@@ -207,8 +207,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     m = imod.wq.SeawatModel(mname_sub)
     
     if mod_nr == 0:
-        starting_head = xr.where(geo["IBOUND"]==1,  shd,   -9999.0)
-        starting_conc = xr.where(geo["IBOUND"]==1., sconc, -9999.0)
+        starting_head = xr.where(geo["active"],  shd,   -9999.0)
+        starting_conc = xr.where(geo["active"], sconc, -9999.0)
     else:
         year_str = cftime.DatetimeProlepticGregorian(
                 sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
