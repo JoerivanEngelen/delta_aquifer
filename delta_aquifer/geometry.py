@@ -201,11 +201,26 @@ def get_edges(ibound, bot, top, z_shelf):
     
     return(edges)
 
-def ds_d2_grid(d2_grid):
-    return(xr.Dataset(dict([(key, (["y", "x"], value)) for key, value in d2_grid.items() if key not in ["x", "y"]]),
-                     coords = {"x" : d2_grid["x"][0, :],
-                               "y" : d2_grid["y"][:, 0]}))
+def pol_to_d2_grid(dx, dy, phi, d2, nan_idx, d2_conf, nan_conf):
+    d2_grid = {}
+    
+    d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, 
+           np.max(d2["x"][~nan_idx]), phi/2)
+    d2_grid["rho"], d2_grid["phi"] = _cart2pol(d2_grid["x"], d2_grid["y"])
+    d2_grid = pol2griddata(d2, nan_idx, d2_grid)
+    d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
+    return(d2_grid)
 
+def ds_d2_grid(d2_grid):
+    ds = xr.Dataset(
+            dict([(key, (["y", "x"], value)) for key, value in d2_grid.items()\
+                  if key not in ["x", "y"]]),
+            coords = {"x" : d2_grid["x"][0, :],
+                      "y" : d2_grid["y"][:, 0]})
+    ds = ds.dropna("y", "all")
+    #For some reason this also clips off the first row where y["all"]!=np.nan??
+    return(ds)
+    
 def create_3d_grid(d2_grid, d1, nz):
     d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
     d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
@@ -217,6 +232,13 @@ def create_3d_grid(d2_grid, d1, nz):
     return(d3)
 
 #%%Main functions: Geology
+def get_relative_clay_depths(SM, n_clay):
+    frac_sand = (1-SM) / (n_clay+1) #+1 because there also is a confining layer
+    frac_clay = SM/(n_clay+1)
+    
+    rel_clay_depths = np.cumsum([frac_clay, frac_sand]*(n_clay+1))
+    return(rel_clay_depths)
+
 def create_confining_layer(clay_conf, d2, d1, phis, L, a, frac, n_inp):
     d2_clay = {}
     x_ons, y_ons = _get_pizza_slice(d1, L*a, phis)
@@ -347,6 +369,13 @@ def create_Kh(d3, kh=0., kh_conf=0., kh_mar=0., f_kh_pal=0., **kwargs):
     d3["Kh"] = xr.where(d3["lith"]>3,  kh_mar,  d3["Kh"])
     return(d3)
 
+#%%Extra information
+def add_topsystem(d2_grid):
+    d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
+               np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
+               (d2_grid["tops"] >= 0)).astype(np.int8)
+    return(d2_grid)
+
 #%%Master function
 def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=None, 
                  D=None,  dD=None,    phi=None, 
@@ -365,29 +394,22 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
         top_bot_3D_plot(d2, figfol)
     
     #Create confining layer
-    frac_sand = (1-SM) / (n_clay + 1)
-    frac_clay = SM/(n_clay+1)
-    
+    frac_clay = SM/(n_clay+1)    
     d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
                                               phis, L, a, frac_clay, n_inp)
     
     #Create clay layers
-    fracs = np.cumsum([frac_clay, frac_sand] + [frac_clay, frac_sand]*n_clay)
-    
-    rho_min, rho_max, d2 = create_clayers(fracs, d1, d2, phis, phi, a, n_clay)
+    rel_clay_depths = get_relative_clay_depths(SM, n_clay)
+    rho_min, rho_max, d2 = create_clayers(rel_clay_depths, 
+                                          d1, d2, phis, phi, a, n_clay)
     
     if figfol is not None:
         clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol)
     
     #Convert to Cartesian regular grid
-    d2_grid = {}
+    d2_grid = pol_to_d2_grid(dx, dy, phi, d2, nan_idx, d2_conf, nan_conf)
     
-    d2_grid["x"], d2_grid["y"] = get_targgrid(dx, dy, 
-           np.max(d2["x"][~nan_idx]), phi/2)
-    d2_grid["rho"], d2_grid["phi"] = _cart2pol(d2_grid["x"], d2_grid["y"])
-    d2_grid = pol2griddata(d2, nan_idx, d2_grid)
-    d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
-    
+    #Fill up last gaps in clayers
     d2_grid = finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max)
     
     if figfol is not None:
@@ -395,18 +417,13 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
     
     #Convert to xarray
     d2_grid = ds_d2_grid(d2_grid)
-    d2_grid = d2_grid.dropna("y", "all") #For some reason this also clips off the first row where y["all"]!=np.nan??
 
-#    N_pal = 2
-#    s_pal = 1.0
+    #Mask paleo channels
     pal_mask = create_paleo_channels(d2_grid, n_clay, 
                                      N_pal, s_pal, phi, d1["rho"])
 
-    #Create topsystem
-    d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
-               np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
-               (d2_grid["tops"] >= 0)).astype(np.int8)
-
+    #Add topsystem
+    d2_grid = add_topsystem(d2_grid)
     if figfol is not None:
         _plot_imshow(d2_grid["topsys"], os.path.join(figfol, "topsystem_grid.png"))
     
@@ -433,7 +450,7 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
     return(d3)
 
 #%%Plot functions
-def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
+def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol, ext=".png"):
     id_x = int(d2["bots"].shape[1] * a / 2)
     
     slcs = [np.s_[:, id_x],np.s_[90, :]]
@@ -471,7 +488,7 @@ def clayer_plot(d2, d2_conf, n_clay, a, b, L, figfol):
         
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(figfol, "clayers.png"))
+    plt.savefig(os.path.join(figfol, "clayers%s" % ext))
     plt.close()
 
 def top_bot_3D_plot(d2, figfol):
