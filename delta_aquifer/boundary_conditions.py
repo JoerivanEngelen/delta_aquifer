@@ -75,7 +75,7 @@ def _dumb(x):
     return(x)
 
 #%%Get sea level
-def get_sea_level(sl_curve, ts, qt="50%", figfol=None):
+def get_sea_level(sl_curve, ts, qt="50%", figfol=None, ext=".png"):
     df = pd.read_csv(sl_curve, sep=" ", header=9).rename(
         columns={"Age(ka)": "time"}
     ).set_index("time")
@@ -85,7 +85,7 @@ def get_sea_level(sl_curve, ts, qt="50%", figfol=None):
     sea_level = calc_weighted_mean(df, ts, qt)
 
     if figfol is not None:
-        plot_sea_level_curve(sea_level, df, ts, qt, figfol)
+        plot_sea_level_curve(sea_level, df, ts, qt, figfol, ext=ext)
 
     return sea_level
 
@@ -401,12 +401,12 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     return(bcs, min_sea_level)
 
 #%%Plotting functions
-def plot_sea_level_curve(sea_level, df, ts, qt, figfol):
+def plot_sea_level_curve(sea_level, df, ts, qt, figfol, ext=".png"):
     start, end = int(ts[0]), int(ts[-1])
     plt.plot(sea_level["time"], sea_level, drawstyle="steps-mid")
     plt.scatter(sea_level["time"], sea_level)
     plt.plot(df.index[end:start].values, df[qt][end:start].values)   
     ax = plt.gca()
     ax.invert_xaxis()
-    plt.savefig(os.path.join(figfol, "sea_level_curve.png"))
+    plt.savefig(os.path.join(figfol, "sea_level_curve%s"%ext))
     plt.close()
