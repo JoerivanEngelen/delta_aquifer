@@ -1,4 +1,4 @@
-ext# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Thu Mar 21 17:15:21 2019
 
@@ -55,11 +55,11 @@ from pkg_resources import resource_filename
 
 
 #%%Path management
-#model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-#sim_nr = 123
+model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
+sim_nr = 123
 
-model_fol  = sys.argv[1]
-sim_nr = int(sys.argv[2])
+#model_fol  = sys.argv[1]
+#sim_nr = int(sys.argv[2])
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -177,9 +177,16 @@ bcs["heads"] = xr.where(sea, bcs["sea_level"], bcs["riv_stage"])
 bcs["conc"]  = xr.where(sea, bcs["sea_conc"] , bcs["riv_conc"])
 bcs["cond"]  = xr.where(sea, bcs["sea_cond"] , bcs["riv_cond"])
 
+#%%Add species dimension for multispecies simulation
+species = [1,2]
+bcs["conc"] = bcs["conc"].expand_dims(species=[1,2])
+bcs["conc"] = xr.where((bcs["conc"].species == 2) & (np.isfinite(bcs["conc"].sel(species=2))), 0., bcs["conc"])
+
+
+
 #%%Non convergence
-crashed_model = 4
-cell1 = (25,31,152)
+#crashed_model = 4
+#cell1 = (25,31,152)
 
 #%%
 for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
@@ -205,13 +212,16 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     if mod_nr == 0:
         active=(geo_mod["active"]==1)
-        starting_head = xr.where(active,  shd,   -9999.0)
+        starting_head = xr.where(active,   shd, -9999.0)
         starting_conc = xr.where(active, sconc, -9999.0)
+        starting_conc = [starting_conc, xr.where(sconc>1.0, 1.0, starting_conc)]
+        
     else:
         year_str = cftime.DatetimeProlepticGregorian(
                 sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
         starting_head = "bas/head_{}_l?.idf".format(year_str)
-        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
+#        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
+        starting_conc = ["btn/conc_c{}_{}_l?.idf".format(specie, year_str) for specie in species]
     
     #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
     #Does not work for IBOUND?
@@ -226,6 +236,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     )
     
     m["btn"] = imod.wq.BasicTransport(
+        n_species=2,
         icbund=geo["IBOUND"], 
         starting_concentration=starting_conc, 
         porosity=pars["por"]
