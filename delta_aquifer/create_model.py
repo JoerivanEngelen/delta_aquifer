@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ext# -*- coding: utf-8 -*-
 """
 Created on Thu Mar 21 17:15:21 2019
 
@@ -118,9 +118,6 @@ geo = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
-#Test influence of bc_res, default value is 100.
-pars["bc_res"] = 10.
-
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             figfol=figfol, ncfol=None, **pars)
 
