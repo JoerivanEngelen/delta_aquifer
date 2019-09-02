@@ -257,7 +257,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     m["ghb"] = imod.wq.GeneralHeadBoundary(head = bcs_mod["heads"],
                                            conductance=bcs_mod["cond"],
-                                           density=ic.c2dens(bcs_mod["conc"]), 
+                                           density=ic.c2dens(bcs_mod["conc"].sel(species=1)), 
                                            concentration=bcs_mod["conc"])
     
     m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
