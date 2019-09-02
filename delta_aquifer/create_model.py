@@ -179,10 +179,11 @@ bcs["cond"]  = xr.where(sea, bcs["sea_cond"] , bcs["riv_cond"])
 
 #%%Add species dimension for multispecies simulation
 species = [1,2]
-bcs["conc"] = bcs["conc"].expand_dims(species=[1,2])
-bcs["conc"] = xr.where((bcs["conc"].species == 2) & (np.isfinite(bcs["conc"].sel(species=2))), 0., bcs["conc"])
+bcs["conc"] = bcs["conc"].expand_dims(species=species)
+bcs["conc"] = xr.where(((bcs["conc"].species == 2) & (np.isfinite(bcs["conc"].sel(species=2)))), 0., bcs["conc"])
 
-
+sconc = sconc.expand_dims(species=species)
+sconc = xr.where(((sconc.species == 2) & (sconc.sel(species=2)>1.0)), 1.0, sconc)
 
 #%%Non convergence
 #crashed_model = 4
@@ -208,13 +209,13 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
 
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
-    m = imod.wq.SeawatModel(mname_sub)
+    m = imod.wq.SeawatModel(mname_sub, check=None)
     
     if mod_nr == 0:
         active=(geo_mod["active"]==1)
         starting_head = xr.where(active,   shd, -9999.0)
         starting_conc = xr.where(active, sconc, -9999.0)
-        starting_conc = [starting_conc, xr.where(sconc>1.0, 1.0, starting_conc)]
+#        starting_conc = [starting_conc, xr.where(sconc>1.0, 1.0, starting_conc)]
         
     else:
         year_str = cftime.DatetimeProlepticGregorian(
@@ -222,6 +223,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         starting_head = "bas/head_{}_l?.idf".format(year_str)
 #        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
         starting_conc = ["btn/conc_c{}_{}_l?.idf".format(specie, year_str) for specie in species]
+        starting_conc = xr.DataArray(data=starting_conc, coords=dict(species=species), dims=["species"])
     
     #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
     #Does not work for IBOUND?
@@ -239,7 +241,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         n_species=2,
         icbund=geo["IBOUND"], 
         starting_concentration=starting_conc, 
-        porosity=pars["por"]
+        porosity=pars["por"],
+        inactive_concentration = -9999.0
     )
     
     m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
