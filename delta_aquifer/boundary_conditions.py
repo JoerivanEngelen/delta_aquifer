@@ -378,9 +378,10 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     bcs["sea_cond"]  = xr.where(bcs["sea"], base_cond, 0.)
     
     estuary_salinity = perturb_riv_conc(estuary_salinity, c_s,
-        noise_frac=conc_noise, c_f=c_f)
+        noise_frac=conc_noise, c_f=c_f).clip(min=0.0)
     bcs["riv_conc"] = xr.where(riv_mask, estuary_salinity, np.nan)
-    bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
+#    bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, 0.)
+    bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, np.nan)
     
     #Recharge
     bcs["rch"] = recharge(riv_mask.sum(dim="z"), rch_rate)
