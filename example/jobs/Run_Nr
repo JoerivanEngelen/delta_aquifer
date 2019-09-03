@@ -14,7 +14,7 @@ echo $TMPDIR
 module load gnu-parallel/2015.01.22
 
 export PATH=/home/jengelen/anaconda3/bin:$PATH
-export PYTHONPATH=/home/jengelen/anaconda3/lib/python3.6/site-packages:$PYTHONPATH
+export PYTHONPATH=/home/jengelen/anaconda3/lib/python3.7/site-packages:$PYTHONPATH
 
 #model id should be provided as an integer argument to this jobscript
 id=$1
