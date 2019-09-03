@@ -79,6 +79,7 @@ spratt = os.path.join(datafol, "spratt2016.txt")
 fixpars = pd.read_csv(os.path.join(datafol, "fixed_pars.csv"), index_col=0).iloc[[0]]
 varpars = pd.read_csv(os.path.join(datafol, "traj_real.csv" ), index_col=0).iloc[[sim_nr]]
 pars = pd.concat([fixpars.reset_index(), varpars.reset_index()], axis=1)
+pars.T.to_csv(os.path.join(ncfol, "parameters.csv"), sep="\t")
 pars = dict([(key, pars[key].values[0]) for key in pars.columns])
 
 # Time discretization
