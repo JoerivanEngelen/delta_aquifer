@@ -188,6 +188,9 @@ bcs["conc"] = xr.where(((bcs["conc"].species == 2) & (np.isfinite(bcs["conc"].se
 sconc = sconc.expand_dims(species=species)
 sconc = xr.where(((sconc.species == 2) & (sconc.sel(species=2)>1.0)), 1.0, sconc)
 
+rch_conc = xr.DataArray(data=[pars["c_f"]]*len(species), 
+                         coords=dict(species=species), dims=["species"])
+
 #%%Non convergence
 #crashed_model = 4
 #cell1 = (25,31,152)
@@ -226,7 +229,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         starting_head = "bas/head_{}_l?.idf".format(year_str)
 #        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
         starting_conc = ["btn/conc_c{}_{}_l?.idf".format(specie, year_str) for specie in species]
-        starting_conc = xr.DataArray(data=starting_conc, coords=dict(species=species), dims=["species"])
+        starting_conc = xr.DataArray(data=starting_conc, 
+                                     coords=dict(species=species), dims=["species"])
     
     #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
     #Does not work for IBOUND?
@@ -241,7 +245,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     )
     
     m["btn"] = imod.wq.BasicTransport(
-        n_species=2,
+        n_species=len(species),
         icbund=geo["IBOUND"], 
         starting_concentration=starting_conc, 
         porosity=pars["por"],
@@ -264,7 +268,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                            concentration=bcs_mod["conc"])
     
     m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
-                                             concentration=pars["c_f"])
+                                             concentration=rch_conc)
     
     m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                  max_iter=1000, 
