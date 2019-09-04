@@ -221,13 +221,11 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         active=(geo_mod["active"]==1)
         starting_head = xr.where(active,   shd, -9999.0)
         starting_conc = xr.where(active, sconc, -9999.0)
-#        starting_conc = [starting_conc, xr.where(sconc>1.0, 1.0, starting_conc)]
         
     else:
         year_str = cftime.DatetimeProlepticGregorian(
                 sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
         starting_head = "bas/head_{}_l?.idf".format(year_str)
-#        starting_conc = "btn/conc_{}_l?.idf".format(year_str)
         starting_conc = ["btn/conc_c{}_{}_l?.idf".format(specie, year_str) for specie in species]
         starting_conc = xr.DataArray(data=starting_conc, 
                                      coords=dict(species=species), dims=["species"])
