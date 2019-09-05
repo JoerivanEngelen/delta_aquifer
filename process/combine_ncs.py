@@ -42,11 +42,11 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
     return(rho_i/dense_ref * head - (rho_i - dense_ref)/dense_ref * head.z)
 
 #%%Path management
-##For Testing
 if len(sys.argv) > 1:
     model_fol  = sys.argv[1]
     sim_nr = int(sys.argv[2])  
 else:
+    ##For Testing
     modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
     mod_nr = 0
 
