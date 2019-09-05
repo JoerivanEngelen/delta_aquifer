@@ -49,7 +49,7 @@ for i, year_arr in enumerate(years):
     ds_ls[i]["time"] = year_arr
     ds_ls[i]["time"].encoding["units"] = units
     ds_ls[i]["time"].encoding["calendar"] = calendar
-    ds_ls[i].transpose("time", "z", "y", "x")
+    ds_ls[i].transpose("species", "time", "z", "y", "x")
 
 for i, nc_path in enumerate(nc_paths):
     fname = os.path.basename(nc_path)
