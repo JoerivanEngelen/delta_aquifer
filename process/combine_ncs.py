@@ -75,7 +75,7 @@ ds_list = [xr.broadcast(xr.open_dataset(
         nc, use_cftime=True, chunks = {"x" : -1, "y": -1, "layer": -1, "time": 1},
         drop_variables=["bdgsto", "bdgbnd"],
         ).assign(subdomain=i), 
-                        exclude=["time", "layer"])[0] for i, nc in enumerate(nc_paths)]
+                        exclude=["species", "time", "layer"])[0] for i, nc in enumerate(nc_paths)]
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
 ds_tot = combine_all(ds_list).transpose("species", "time", "layer", "y", "x")
