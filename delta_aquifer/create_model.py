@@ -226,7 +226,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         year_str = cftime.DatetimeProlepticGregorian(
                 sub_ends[mod_nr-1]+start_year, 1, 1).strftime("%Y%m%d%H%M%S")
         starting_head = "bas/head_{}_l?.idf".format(year_str)
-        starting_conc = ["btn/conc_c{}_{}_l?.idf".format(specie, year_str) for specie in species]
+        starting_conc = ["btn/conc_{}_c{}_l?.idf".format(year_str, specie) for specie in species]
         starting_conc = xr.DataArray(data=starting_conc, 
                                      coords=dict(species=species), dims=["species"])
     
