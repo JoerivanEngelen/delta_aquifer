@@ -43,11 +43,12 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
 
 #%%Path management
 ##For Testing
-#modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
-#mod_nr = 0
-
-modelfol = sys.argv[1]
-mod_nr = int(sys.argv[2])
+if len(sys.argv) > 1:
+    model_fol  = sys.argv[1]
+    sim_nr = int(sys.argv[2])  
+else:
+    modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
+    mod_nr = 0
 
 globpath=os.path.join(modelfol, "results", "results_{:03d}_*.nc".format(mod_nr))
 run_path=os.path.join(modelfol, "*{}.run".format(mod_nr))
@@ -110,7 +111,8 @@ ds_tot = ds_tot.compute()
 ds_ini = ds_tot.isel(time=-1)[["conc", "head"]].load()
 
 idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), ds_ini["head"])
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), ds_ini["conc"])
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), ds_ini["conc"], 
+         pattern = r"{name}_{time:%Y%m%d%H%M%S}_c{species}_l{layer}{extension}")
 
 #%%Split species into seperate variables
 species = ds_tot.species.values
