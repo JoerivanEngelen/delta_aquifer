@@ -43,8 +43,8 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
 
 #%%Path management
 #For Testing
-#modelfol = r"g:\synthdelta\test_output\test_stuck_combine\SD_i123_nr00"
-#mod_nr = 1
+#modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
+#mod_nr = 0
 
 modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
@@ -78,7 +78,7 @@ ds_list = [xr.broadcast(xr.open_dataset(
                         exclude=["time", "layer"])[0] for i, nc in enumerate(nc_paths)]
 mids = [[np.mean(ds.x).values, np.mean(ds.y).values] for ds in ds_list]
 
-ds_tot = combine_all(ds_list).transpose("time", "layer", "y", "x")
+ds_tot = combine_all(ds_list).transpose("species", "time", "layer", "y", "x")
 ds_tot = ds_tot.compute()
 
 subdomain = ds_tot["subdomain"]

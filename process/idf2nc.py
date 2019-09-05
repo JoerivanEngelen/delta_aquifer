@@ -14,7 +14,7 @@ modelfol = sys.argv[1]
 mod_nr = int(sys.argv[2])
 s_nr = int(sys.argv[3])
 ##For testing
-#modelfol = r"g:\synthdelta\test_output\test_nspecies"
+#modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
 #mod_nr = 0
 #s_nr = 12
 
