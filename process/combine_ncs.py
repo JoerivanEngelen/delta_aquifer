@@ -42,7 +42,7 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
     return(rho_i/dense_ref * head - (rho_i - dense_ref)/dense_ref * head.z)
 
 #%%Path management
-#For Testing
+##For Testing
 #modelfol = r"g:\synthdelta\test_output\test_nspecies\SD_i123_nr00"
 #mod_nr = 0
 
@@ -84,7 +84,7 @@ ds_tot = ds_tot.compute()
 subdomain = ds_tot["subdomain"]
 ds_tot = ds_tot.drop(["subdomain"])
 
-ds_tot = ds_tot.where(ds_tot["conc"] < 1e20)
+ds_tot = ds_tot.where(ds_tot["conc"].sel(species=1) < 1e20)
 
 #%%Add z
 ds_tot = ds_tot.assign_coords(z=xr.ones_like(ds_tot.layer) * z)
@@ -101,24 +101,32 @@ ds_tot["vy"] = ds_tot["vy"] /(ds_tot["dx"] * ds_tot["dz"])
 ds_tot["vx"] = ds_tot["vx"] /(ds_tot["dy"] * ds_tot["dz"]* -1) #*-1 because dy is negative
 
 #%%Calc fresh water head
-ds_tot["fhead"] = calc_fresh_water_head(ds_tot["head"], ds_tot["conc"])
+ds_tot["fhead"] = calc_fresh_water_head(ds_tot["head"], ds_tot["conc"].sel(species=1))
+ds_tot = ds_tot.compute()
+
+#%%Create initial heads and concentrations for next run.
+#Load into memory as otherwise saving is really slow 
+#since dask has to load all individual idfs into memory seperately.
+ds_ini = ds_tot.isel(time=-1)[["conc", "head"]].load()
+
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), ds_ini["head"])
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), ds_ini["conc"])
+
+#%%Split species into seperate variables
+species = ds_tot.species.values
+for s in species:
+    ds_tot["conc{}".format(s)] = ds_tot["conc"].sel(species=s)
+
+ds_tot = ds_tot.drop("conc").drop("species")
 
 #%%Save to netcdf
-ds_tot = xr.where(np.isfinite(ds_tot["conc"]), ds_tot, -9999.)
+ds_tot = xr.where(np.isfinite(ds_tot["conc1"]), ds_tot, -9999.)
 ds_tot["subdomain"] = subdomain
 
 ds_tot = ds_tot.swap_dims({"layer" : "z"})
 
 ds_tot = ds_tot.compute()
 ds_tot.to_netcdf(os.path.join(globpath, "..", "results_{:03d}.nc".format(mod_nr)))
-
-#%%Create initial heads and concentrations for next run.
-#Load into memory as otherwise saving is really slow 
-#since dask has to load all individual idfs into memory seperately.
-ds_ini = ds_tot.swap_dims({"z" : "layer"}).isel(time=-1)[["conc", "head"]].load()
-
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), ds_ini["head"])
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), ds_ini["conc"])
 
 #%%Plot subdomains
 
