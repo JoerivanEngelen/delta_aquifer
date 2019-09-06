@@ -48,7 +48,7 @@ calculator1Display = Show(calculator1, renderView1)
 # trace defaults for the display properties.
 calculator1Display.Representation = 'Outline'
 calculator1Display.ColorArrayName = [None, '']
-calculator1Display.OSPRayScaleArray = 'conc'
+calculator1Display.OSPRayScaleArray = 'conc1'
 calculator1Display.OSPRayScaleFunction = 'PiecewiseFunction'
 calculator1Display.SelectOrientationVectors = 'v'
 calculator1Display.ScaleFactor = 19800.0
@@ -58,9 +58,9 @@ calculator1Display.GlyphTableIndexArray = 'None'
 calculator1Display.DataAxesGrid = 'GridAxesRepresentation'
 calculator1Display.PolarAxes = 'PolarAxesRepresentation'
 calculator1Display.GaussianRadius = 9900.0
-calculator1Display.SetScaleArray = ['POINTS', 'conc']
+calculator1Display.SetScaleArray = ['POINTS', 'conc1']
 calculator1Display.ScaleTransferFunction = 'PiecewiseFunction'
-calculator1Display.OpacityArray = ['POINTS', 'conc']
+calculator1Display.OpacityArray = ['POINTS', 'conc1']
 calculator1Display.OpacityTransferFunction = 'PiecewiseFunction'
 
 # init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
@@ -111,7 +111,7 @@ programmableFilter1Display = Show(programmableFilter1, renderView1)
 # trace defaults for the display properties.
 programmableFilter1Display.Representation = 'Outline'
 programmableFilter1Display.ColorArrayName = [None, '']
-programmableFilter1Display.OSPRayScaleArray = 'conc'
+programmableFilter1Display.OSPRayScaleArray = 'conc1'
 programmableFilter1Display.OSPRayScaleFunction = 'PiecewiseFunction'
 programmableFilter1Display.SelectOrientationVectors = 'None'
 programmableFilter1Display.ScaleFactor = 19800.0
@@ -156,7 +156,7 @@ transform1Display = Show(transform1, renderView1)
 # trace defaults for the display properties.
 transform1Display.Representation = 'Outline'
 transform1Display.ColorArrayName = [None, '']
-transform1Display.OSPRayScaleArray = 'conc'
+transform1Display.OSPRayScaleArray = 'conc1'
 transform1Display.OSPRayScaleFunction = 'PiecewiseFunction'
 transform1Display.SelectOrientationVectors = 'None'
 transform1Display.ScaleFactor = 19800.0
@@ -178,7 +178,7 @@ renderView1.Update()
 
 # create a new 'Threshold'
 threshold1 = Threshold(Input=transform1)
-threshold1.Scalars = ['CELLS', 'conc']
+threshold1.Scalars = ['CELLS', 'conc1']
 threshold1.ThresholdRange = [-9999.0, 36.02853775024414]
 
 # Properties modified on threshold1
@@ -189,7 +189,7 @@ threshold1Display = Show(threshold1, renderView1)
 # trace defaults for the display properties.
 threshold1Display.Representation = 'Surface'
 threshold1Display.ColorArrayName = [None, '']
-threshold1Display.OSPRayScaleArray = 'conc'
+threshold1Display.OSPRayScaleArray = 'conc1'
 threshold1Display.OSPRayScaleFunction = 'PiecewiseFunction'
 threshold1Display.SelectOrientationVectors = 'None'
 threshold1Display.ScaleFactor = 19500.0
@@ -218,7 +218,7 @@ threshold1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1
 renderView1.Update()
 
 # set scalar coloring
-ColorBy(threshold1Display, ('CELLS', 'conc'))
+ColorBy(threshold1Display, ('CELLS', 'conc1'))
 
 # rescale color and/or opacity maps used to include current data range
 threshold1Display.RescaleTransferFunctionToDataRange(True, False)
@@ -226,10 +226,10 @@ threshold1Display.RescaleTransferFunctionToDataRange(True, False)
 # show color bar/color legend
 threshold1Display.SetScalarBarVisibility(renderView1, True)
 
-# get color transfer function/color map for 'conc'
-concLUT = GetColorTransferFunction('conc')
-concLUT.RGBPoints = [-0.018854578956961632, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.421875, 0.09765625, 0.109375, 36.02853775024414, 0.421875, 0.09765625, 0.109375]
-concLUT.ScalarRangeInitialized = 1.0
+# get color transfer function/color map for 'conc1'
+conc1LUT = GetColorTransferFunction('conc1')
+conc1LUT.RGBPoints = [-0.018854578956961632, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.171875, 0.48046875, 0.7109375, 0.9965649232740552, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.5703125, 0.7734375, 0.87109375, 5.058242932198123, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.8671875, 0.9375, 0.8125, 10.135340443353208, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.99609375, 0.87109375, 0.6015625, 15.212437954508292, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.9609375, 0.5625, 0.32421875, 20.289535465663377, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.83984375, 0.09765625, 0.109375, 25.36663297681846, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.62890625, 0.09765625, 0.109375, 30.443730487973546, 0.421875, 0.09765625, 0.109375, 36.02853775024414, 0.421875, 0.09765625, 0.109375]
+conc1LUT.ScalarRangeInitialized = 1.0
 
 # create a new 'Glyph'
 glyph1 = Glyph(Input=threshold1,
@@ -260,9 +260,9 @@ glyph1Display.GlyphTableIndexArray = 'GlyphVector'
 glyph1Display.DataAxesGrid = 'GridAxesRepresentation'
 glyph1Display.PolarAxes = 'PolarAxesRepresentation'
 glyph1Display.GaussianRadius = 10222.335644531251
-glyph1Display.SetScaleArray = ['POINTS', 'conc']
+glyph1Display.SetScaleArray = ['POINTS', 'conc1']
 glyph1Display.ScaleTransferFunction = 'PiecewiseFunction'
-glyph1Display.OpacityArray = ['POINTS', 'conc']
+glyph1Display.OpacityArray = ['POINTS', 'conc1']
 glyph1Display.OpacityTransferFunction = 'PiecewiseFunction'
 
 # init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
@@ -284,7 +284,7 @@ renderView1.Update()
 #Hide(threshold1, renderView1)
 
 # set scalar coloring
-ColorBy(glyph1Display, ('POINTS', 'conc'))
+ColorBy(glyph1Display, ('POINTS', 'conc1'))
 
 # rescale color and/or opacity maps used to include current data range
 glyph1Display.RescaleTransferFunctionToDataRange(True, False)
