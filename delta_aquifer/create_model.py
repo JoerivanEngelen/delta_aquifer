@@ -209,9 +209,9 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
             time = timesteps_mod)
 
     #Select for each timestep 
-#    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
-#    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
-    kh = geo["Kh"].isel(time=0).drop("time")
+    time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
+    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
+#    kh = geo["Kh"].isel(time=0).drop("time")
 
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
