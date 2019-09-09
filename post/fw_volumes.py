@@ -22,7 +22,7 @@ import seaborn as sns
 
 #%%Path management
 fol = sys.argv[1]
-#fol = r"g:\synthdelta\test_output\SD_i202\synth_SD_i202_m24_6378797"
+#fol = r"g:\synthdelta\test_output\SD_i123\synth_SD_i123_m24_6804553"
 
 nc_paths = glob(os.path.join(fol, "results_*.nc"))
 nc_paths.sort()
@@ -37,10 +37,10 @@ years = (years - years[-1])/1000 * -1
 ds = ds.assign_coords(time=years)
 
 #%%Calculate fw_vols
-fw_vol  = xr.where((ds["conc"] > -1.) & (ds["conc"] < 1.),  ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("fw")
-br_vol  = xr.where((ds["conc"] > 1.)  & (ds["conc"] < 30.), ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("bw")
-sal_vol = xr.where(ds["conc"] > 30., ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("sw")
-tot_vol = xr.where(ds["conc"] > -1., ds["vol"], 0).sum(dim=["x", "y", "z"])
+fw_vol  = xr.where((ds["conc1"] > -1.) & (ds["conc1"] < 1.),  ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("fw")
+br_vol  = xr.where((ds["conc1"] > 1.)  & (ds["conc1"] < 30.), ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("bw")
+sal_vol = xr.where(ds["conc1"] > 30., ds["vol"], 0).sum(dim=["x", "y", "z"]).rename("sw")
+tot_vol = xr.where(ds["conc1"] > -1., ds["vol"], 0).sum(dim=["x", "y", "z"])
 
 frac_vols = xr.merge([fw_vol, br_vol, sal_vol])/tot_vol
 
@@ -71,4 +71,4 @@ plt.ylim((0, 1))
 plt.xlabel("time (ka)")
 plt.legend()
 
-plt.savefig(os.path.join(fol, "fw_volume.png"))
+plt.savefig(os.path.join(fol, "fw_volume.png"), dpi=300)
