@@ -70,7 +70,7 @@ pars["ani"]         = 10.
 pars["N_chan"]      = np.linspace(1, 4, num=lev, dtype=int)
 pars["f_cond_chan"] = np.logspace(0, 2, num=lev)
 pars["intrusion_L"] = np.linspace(0, 0.5, num=lev)
-pars["bc_res"]      = 100.
+pars["bc_res"]      = 10.
 
 #Recharge
 pars["rch_rate"]    = np.linspace(0.0, 0.4, num=lev)/365.25 #Deze nog checken met Perry/Joost
