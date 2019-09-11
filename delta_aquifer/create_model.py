@@ -24,35 +24,10 @@ from pkg_resources import resource_filename
 
 #%%TODO Processen
 #Concept verbeteringen
-#-Species / tracers
-
-#Ideeen
-#-Tracer initieel, dan kunnen we oudzout, nieuw zout en zoet ontwarren
-#-Syvitski papers gebruiken om topsysteem te vatten in een paar parameters?
-#-Grondwaterleeftijd???? Combinatie misschien te maken met wat Marc heeft geschreven?
 #
 #Overwegingen
-#-Transgressie door forcering nu redelijk onafhankelijk van helling coastal shelf, klopt dat wel? Is dat niet jammer?
-#    (checken met literatuur, zo ja dan kunnen we dat als parameter 
-#    gebruiken ipv transgressielengte)
-#-Wel tot >300m diep gaan?
-#->Recharge + conductance combinatie? 
 #-Timing regressie redelijk vast, misschien loslaten?
-#-Brijn onderin? -> Als we alles onderin zout (zee) maken initieel, 
-#      vangen we dit deels af. Dit water wordt dan bovendien ouder dan 40k, dus ouder dan met C14 metingen bepaald kan worden.
 #-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
-
-#Done
-#-Initieel alles onder minimaal zeeniveau (-130m?) initieel zout maken 
-#   en kijken of het uitspoelt
-#-phi vastzetten (vergelijken met literatuur) -> Niet echt mogelijk
-#-Zoute rivieren (lineair profiel maar 1 parameter, Savenije zou 3 parameters introduceren) -> Overal in waaier
-#-Lokale doorlatendheden: oude stroomgeulen.
-#-Factor om lokale doorlatendheden te veranderen.
-#-Conductance waar grote rivier. 1 cel dik.
-#-Recharge, hoe topsysteem goed toe te voegen? 
-#%%Implementatie Processen
-
 
 #%%Path management
 if len(sys.argv) > 1:
