@@ -254,8 +254,9 @@ def calc_riv_conductance(coastline_loc, f_cond_chan=None, N_chan=None,
                      dx=None, dy=None, bc_res=None, **kwargs):
     #Create channels
     base_cond = dx*dy/bc_res
+    chan_cond = base_cond * f_cond_chan
     channel_mask = create_channel_mask(coastline_loc, N_chan, **kwargs)
-    conductance = xr.where(channel_mask, base_cond * f_cond_chan, base_cond)
+    conductance = xr.where(channel_mask, chan_cond, base_cond)
     return(conductance, base_cond)
 
 #%%Salinity surface water   
