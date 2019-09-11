@@ -61,7 +61,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 123
+    sim_nr = 0
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -133,6 +133,12 @@ geo = geometry.create_Kh(geo, **pars)
 geo = geo.sel(y=slice(0, geo.y.max()))
 bcs = bcs.sel(y=slice(0, geo.y.max()))
 
+#Since we cut the model in half, the middle channel (if existing) should half the conductance ~ y=0
+if (pars["N_chan"] % 2) == 1:
+    y_loc = bcs.y.isel(y=0)
+    bcs["riv_cond"].loc[dict(y = y_loc)] = bcs["riv_cond"].loc[dict(y = y_loc)]/2
+
+#%%
 #Cut off unused x and y cells 
 #otherwise writing the initial conditions for the next model run is 
 #problematic due to the RCB algorithms completely leaving out usused rows and columns
