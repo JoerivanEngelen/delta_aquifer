@@ -21,10 +21,9 @@ from pkg_resources import resource_filename
 #%%TODO Tests
 #-Wat gebeurt er als zand boven de shelf legt?
 #-Grid convergence test base case
+#-Testen: Heads boven maaiveld in case met lage K en hoge recharge?
 
-#%%TODO Processen
-#Concept verbeteringen
-#
+#%%TODO Processen#
 #Overwegingen
 #-Timing regressie redelijk vast, misschien loslaten?
 #-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
