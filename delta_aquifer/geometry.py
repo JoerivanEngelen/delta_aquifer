@@ -402,7 +402,7 @@ def add_topsystem(d2_grid):
     return(d2_grid)
 
 #%%Master function
-def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=None, 
+def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None, 
                  D=None,  dD=None,    phi=None, 
                  SM=None, n_clay=None,clay_conf=None, N_pal=None, s_pal=None,
                  dx=None, dy=None,    nz=None,  figfol=None, ncfol=None, **kwargs):
@@ -410,7 +410,7 @@ def get_geometry(a=None,  alpha=None, b=None,   beta=None,   gamma=None,   L=Non
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
     #Process central crosssection
-    d1, L_a = create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp)
+    d1, L_a = create_crosssection(a, alpha, beta, gamma, dD, D, L, n_inp)
     
     #Create 3D top & bottom    
     d2, nan_idx, phis = create_2D_top_bot(phi, d1, n_inp)
