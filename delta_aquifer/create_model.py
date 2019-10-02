@@ -26,7 +26,6 @@ from pkg_resources import resource_filename
 #%%TODO Processen#
 #Overwegingen
 #-Timing regressie redelijk vast, misschien loslaten?
-#-a en b een ratio maken ipv aparte a en b. Scheelt 1 parameter.
 
 #%%Path management
 if len(sys.argv) > 1:
@@ -90,13 +89,14 @@ hclose = 1e-4
 rclose = pars["dx"] * pars["dy"] * hclose * 10.
 
 #%%Get geometry
-geo = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
+geo, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
 #%%Create boundary conditions
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
-                                            figfol=figfol, ncfol=None, **pars)
+                                            L_a=L_a, figfol=figfol, ncfol=None, 
+                                            **pars)
 
 #%%Dynamic geology
 geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])

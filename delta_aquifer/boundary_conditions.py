@@ -127,7 +127,7 @@ def calc_weighted_mean(df, ts, qt):
     return means
 
 #%%Boundary condition location
-def coastlines(geo, sea_level, phi=None, L = None, a = None, 
+def coastlines(geo, sea_level, phi=None, L = None, L_a = None, 
                   figfol=None, t_start=None, t_max=None, t_end=None, 
                   tra=None, **kwargs):
     dx = geo.x[-1]-geo.x[-2]
@@ -147,7 +147,7 @@ def coastlines(geo, sea_level, phi=None, L = None, a = None,
     weights_reg = np.clip((sea_level.time - t_max)/(t_end - t_max), 0, 1)
     weights = weights_trans - weights_reg
     
-    coastline_rho = L * a * (1-tra) * weights + (1-weights) * coastline_rho
+    coastline_rho = L_a * (1-tra) * weights + (1-weights) * coastline_rho
     phis = np.linspace(-phi/2, phi/2, num=top_coast["y"].shape[0])
     phis = xr.DataArray(phis, coords={"phi": phis}, dims=["phi"])
      
@@ -328,7 +328,7 @@ def recharge(onshore_mask, rch_rate):
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None, 
                         bc_res=None, N_chan=None, f_cond_chan=None,
-                        intrusion_L=None, rch_rate=None, 
+                        L_a=None, intrusion_L=None, rch_rate=None, 
                         conc_noise=0.01, qt="50%", 
                         figfol=None, ncfol=None, **kwargs):
     # Get sea level
@@ -344,7 +344,7 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     
     # Find active sea cells where GHB's should be assigned.
     coastline, coastline_loc, coastline_rho = coastlines(
-        geo, sea_level, figfol=figfol, **kwargs
+        geo, sea_level, figfol=figfol, L_a=L_a, **kwargs
     )
     
     sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)
@@ -353,7 +353,7 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     rivers, z_bins, dhdx = river_3d(geo, sea_level, coastline_rho, figfol=figfol, **kwargs)
     
     #Salinity intrusion in surface water
-    intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * kwargs["L"] * kwargs["a"], dhdx)
+    intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * L_a, dhdx)
     coords = {} #Should add these somewhere in geometry.py as dependent coordinates
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
     estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, coastline_rho, c_s, c_f) 
