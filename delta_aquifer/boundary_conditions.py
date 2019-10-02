@@ -375,8 +375,8 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     #Peturb concentrations (above 0.)
     sea_salinity = perturb_sea_conc(bcs["sea"], c_s, 
         noise_frac=conc_noise, c_f=c_f)
-    bcs["sea_conc"]  = xr.where(bcs["sea"], sea_salinity, np.nan)
-    bcs["sea_cond"]  = xr.where(bcs["sea"], base_cond, 0.)
+    bcs["sea_conc"]  = xr.where(bcs["sea"]==1, sea_salinity, np.nan)
+    bcs["sea_cond"]  = xr.where(bcs["sea"]==1, base_cond, 0.)
     
     estuary_salinity = perturb_riv_conc(estuary_salinity, c_s,
         noise_frac=conc_noise, c_f=c_f).clip(min=0.0)
