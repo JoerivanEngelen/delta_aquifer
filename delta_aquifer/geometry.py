@@ -119,8 +119,6 @@ def _rho_min_max(interface, rho):
 #%%Main functions: Geometry
 def create_crosssection(a, alpha, b, beta, gamma, dD, D, L, n_inp):
     d1 = {}
-
-    gamma *= D/1000
     
     d1["rho"] = np.linspace(0, L, num=n_inp)
     d1["top"], d1["slope"] = _calc_top(a, alpha, b, beta, gamma, L, d1["rho"])

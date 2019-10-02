@@ -46,7 +46,7 @@ pars["dD"]          = np.linspace(0.2, 0.6, num=lev)
 pars["alpha"]       = np.linspace(0.75e-4, 1.5e-4, num=lev)
 #For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
 pars["beta"]        = np.linspace(6e-4, 12e-4, num=lev)
-pars["gamma"]       = 5e-2 # FIXED will be corrected based on thickness.
+pars["gamma"]       = 5e-2 # FIXED
 pars["phi"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
 pars["L"]           = 200000
 # FIXED Check all delta lengths, so if this value is representative. 
