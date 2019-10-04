@@ -6,7 +6,6 @@ Created on Mon Feb 25 16:31:17 2019
 """
 
 import xarray as xr
-from scipy.ndimage.filters import convolve as convolvend
 from scipy import interpolate
 from scipy.ndimage.morphology import binary_opening
 import numpy as np
@@ -206,25 +205,33 @@ def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
         griddata[key] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
     return(griddata)
 
-def get_edges(ibound, bot, top, z_shelf):
-    weights=np.array([[[0,0,0],[0,1,0],[0,0,0]], [[0,1,0],[1,1,1],[0,1,0]], [[0,0,0],[0,1,0],[0,0,0]]])
-
-    edges=convolvend(ibound, weights, mode = "mirror") * ibound
-    dz = edges.z[1] - edges.z[0]
-
-    edges = edges.where(((top >z_shelf) & (edges.z>(top-dz))) | (top <z_shelf))
-    edges = xr.where(edges<np.sum(weights), 1, 0) * ibound
+def get_edges(ibound, top, z_shelf):
+    dz = ibound.z[1] - ibound.z[0]
+    is_shelf = (top>=z_shelf)
+    edges = (
+            (
+            #Only select top layer of the shelf
+            is_shelf & (ibound.z>(top-dz))
+            ) | (
+            #Select the coastal slope + the part just underneath the shelf break (roll(x=-1))
+            ~is_shelf.roll(x=-1, roll_coords=False) | ~is_shelf
+                        #Cells need to be active
+                    )
+            ) & ibound
     
     edges_z = edges.where(edges==1) * edges.z
     edges_x = edges.where(edges==1) * edges.x
-    edges_x_2d = np.isfinite(top) * edges.x
     
-    edges = xr.where((edges.x == edges_x.max(dim="x")) | (edges.z == edges_z.max(dim="z")), edges, 0)
-    edges = xr.where((edges.x == edges_x_2d.max(dim="x")), ibound, edges)
-    
+    edges = xr.where(
+        (
+                edges.x == edges_x.max(dim="x")
+        ) | (
+                edges.z == edges_z.max(dim="z")
+                ), edges, 0)
+        
     edges = edges.transpose("z", "y", "x")
-    
     return(edges)
+
 
 def pol_to_d2_grid(dx, dy, phi, d2, nan_idx, d2_conf, nan_conf):
     d2_grid = {}
@@ -460,10 +467,9 @@ def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     d3 = create_lith(d3, d2_grid, n_clay, pal_mask)
     
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
-    d3["edges"] = get_edges(d3["IBOUND"], 
-      d2_grid["bots"], d2_grid["tops"], z_shelf_edge)
+    d3["edges"] = get_edges(d3["IBOUND"], d2_grid["tops"], z_shelf_edge)
     d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]    
-    
+
     #Save as netcdf
     if ncfol is not None:
         d3.to_netcdf(os.path.join(ncfol, "geo.nc"))
