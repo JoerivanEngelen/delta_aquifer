@@ -17,9 +17,6 @@ if os.name == "posix":
     plt.ioff()
 else:
     import matplotlib.pyplot as plt
-#We have to import this to allow 3d plotting, otherwise 
-#projection = "3d" not recognized
-from mpl_toolkits.mplot3d import Axes3D 
 
 #%%Helper functions
 def _griddata(ip, val, targgrid):
@@ -422,9 +419,6 @@ def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     #Create 3D top & bottom    
     d2, nan_idx, phis = create_2D_top_bot(phi, d1, n_inp)
     
-    if figfol is not None:
-        top_bot_3D_plot(d2, figfol)
-    
     #Create confining layer
     frac_clay = SM/(n_clay+1)    
     d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
@@ -520,14 +514,6 @@ def clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol, ext=".png"):
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(figfol, "clayers%s" % ext))
-    plt.close()
-
-def top_bot_3D_plot(d2, figfol):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(d2["x"], d2["y"], d2["bots"], zorder=1)
-    ax.plot_surface(d2["x"], d2["y"], d2["tops"], zorder=20)
-    plt.savefig(os.path.join(figfol, "3D_top_bot.png"))
     plt.close()
 
 def _plot_imshow(da, fp):
