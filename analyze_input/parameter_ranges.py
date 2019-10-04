@@ -36,7 +36,6 @@ def _get_logK(df, stat):
 df_path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\Reftable.xlsx"
 
 #%%Handle data
-
 df = pd.read_excel(df_path, sheet_name="Hydrogeology_Raw", skiprows=[1])
 
 to_keep = df["Aqt_explicit"] == 1
@@ -51,15 +50,15 @@ df_aqt = get_df_plot(df, "Kaqt")
 df_rch = get_df_plot(df, "Recharge")
 df_ani = get_df_plot(df, "Anisotropy")
 
-#%%Plot
+#%%Plot hydrogeology ranges per delta
 sns.set(style="darkgrid")
 
 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, figsize = (8, 12), sharey=True)
 
-pointplotrange(y="Delta", x="logKaqf", data=df_aqf, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax1)
-pointplotrange(y="Delta", x="logKaqt", data=df_aqt, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax2)
-pointplotrange(y="Delta", x="Recharge", data=df_rch, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax3)
-pointplotrange(y="Delta", x="logAnisotropy", data=df_ani, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax4)
+pointplotrange(y="Delta", x="logKaqf", data=df_aqf, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax1, scale=0.4)
+pointplotrange(y="Delta", x="logKaqt", data=df_aqt, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax2, scale=0.4)
+pointplotrange(y="Delta", x="Recharge", data=df_rch, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax3, scale=0.4)
+pointplotrange(y="Delta", x="logAnisotropy", data=df_ani, ci="range", hue="n_pubs", join=False, errwidth=1.5, ax=ax4, scale=0.4)
 
 ax1.get_legend().remove()
 ax3.get_legend().remove()
@@ -73,21 +72,8 @@ ax4.set(xlabel="$\log(K_h/K_v \; [-])$", ylabel="")
 plt.tight_layout()
 plt.savefig(os.path.join(df_path, "..", "logK.png"), dpi=300)
 plt.close()
-#%%cause logKrange?
-#Not enough data/too much classes right now...
-df_dig = df.loc[:, ["Source K", "Cause variability K"]]
-df_dig["logKaqfrange"] = (np.log10(df["Kaqf_max"])-np.log10(df["Kaqf_min"])).replace(0., np.nan)
 
-g1 = sns.PairGrid(df_dig, x_vars=["logKaqfrange"],
-                 y_vars=["Source K", "Cause variability K"],
-                 height=5, aspect=.5)
-
-g1.map(sns.stripplot, alpha="0.6", size=9, jitter=True)
-g1.fig.set_size_inches(4,6)
-plt.tight_layout()
-plt.savefig(os.path.join(df_path, "..", "logKrange.png"), dpi=300)
-plt.close()
-#%%
+#%%Plot hydrogeology ranges histograms
 fig, ax1 = plt.subplots(nrows=1, figsize = (8, 6))
 
 df_aqf = df_aqf.dropna(subset=["Kaqf"])
@@ -98,3 +84,46 @@ sns.distplot(_get_logK(df_aqf, "max"), hist=True, rug=False, kde=False, ax=ax1)
 plt.tight_layout()
 plt.savefig(os.path.join(df_path, "..", "histlogKaqf"), dpi=300)
 plt.close()
+
+#%%Plot histogram BCs
+df_bc = pd.read_excel(df_path, sheet_name="BC_Raw", skiprows=[1])
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, figsize = (8, 12), sharey=False)
+
+sns.distplot(df_bc['N_chan'], hist=True, rug=False, kde=False, ax=ax1)
+sns.distplot(df_bc['l_tra'].dropna(), hist=True, rug=False, kde=False, ax=ax2, bins=4)
+sns.distplot(df_bc['t_max'].dropna(), hist=True, rug=False, kde=False, ax=ax3)
+sns.distplot(df_bc['l_sal'].dropna(), hist=True, rug=False, kde=False, ax=ax4)
+
+plt.tight_layout()
+plt.savefig(os.path.join(df_path, "..", "histBC"), dpi=300)
+plt.close()
+
+#%%Plot histogram Lithology
+df_lith = pd.read_excel(df_path, sheet_name="Lithology_Raw", skiprows=[1])
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2, figsize = (8, 12), sharey=False)
+
+sns.distplot(df_lith['N_aqt'].dropna(), hist=True, rug=False, kde=False, ax=ax1)
+sns.distplot(df_lith[r'Mud/Total'].dropna(), hist=True, rug=False, kde=False, ax=ax2)
+sns.distplot(df_lith['l_conf'].dropna(), hist=True, rug=False, kde=False, ax=ax3)
+sns.distplot(df_lith['N_pal'].dropna(), hist=True, rug=False, kde=False, ax=ax4)
+
+plt.tight_layout()
+plt.savefig(os.path.join(df_path, "..", "histLith"), dpi=300)
+plt.close()
+
+#%%Plot histogram Geometry
+df_geom = pd.read_excel(df_path, sheet_name="Geometry_Raw", skiprows=[1])
+fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, figsize = (8, 12), sharey=False)
+
+sns.distplot(df_geom ['l_a'].dropna(), hist=True, rug=False, kde=False, ax=ax1)
+sns.distplot(df_geom ['L_a'].dropna(), hist=True, rug=False, kde=False, ax=ax2)
+sns.distplot(df_geom ['alpha'].dropna(), hist=True, rug=False, kde=False, ax=ax3)
+sns.distplot(df_geom ['beta'].dropna(), hist=True, rug=False, kde=False, ax=ax4)
+sns.distplot(df_geom ['H_b'].dropna(), hist=True, rug=False, kde=False, ax=ax5)
+sns.distplot(df_geom [r'H_a/H_b'].dropna(), hist=True, rug=False, kde=False, ax=ax6)
+
+plt.tight_layout()
+plt.savefig(os.path.join(df_path, "..", "histGeom"), dpi=300)
+plt.close()
+
+#%%TODO CREATE BOXPLOTS!
