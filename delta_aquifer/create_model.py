@@ -93,6 +93,13 @@ geo, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
+#%%
+#Cut off unused x and y cells 
+#otherwise writing the initial conditions for the next model run is 
+#problematic due to the RCB algorithms completely leaving out usused rows and columns
+geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
+geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
+
 #%%Create boundary conditions
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             L_a=L_a, figfol=figfol, ncfol=None, 
@@ -112,13 +119,6 @@ if (pars["N_chan"] % 2) == 1:
     y_loc = bcs.y.isel(y=0)
     bcs["riv_cond"].loc[dict(y = y_loc)] = bcs["riv_cond"].loc[dict(y = y_loc)]/2
 
-#%%
-#Cut off unused x and y cells 
-#otherwise writing the initial conditions for the next model run is 
-#problematic due to the RCB algorithms completely leaving out usused rows and columns
-geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
-geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
-bcs = bcs.dropna("x", how="all", subset=["sea", "riv_stage"]).dropna("y", how="all", subset=["sea", "riv_stage"])
 #%%Create initial conditions
 approx_init = True
 
