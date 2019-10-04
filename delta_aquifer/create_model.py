@@ -126,7 +126,6 @@ shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init,
                        deep_salt=min_sea_level, **pars)
 
 #%%Calc dimensionless numbers
-
 dens_f, dens_s = ic.c2dens(pars["c_f"]), ic.c2dens(pars["c_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
                 dens_f, dens_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
@@ -171,10 +170,6 @@ sconc = xr.where(((sconc.species == 2) & (sconc.sel(species=2)>1.0)), 1.0, sconc
 rch_conc = xr.DataArray(data=[pars["c_f"]]*len(species), 
                          coords=dict(species=species), dims=["species"])
 
-#%%Non convergence
-#crashed_model = 4
-#cell1 = (25,31,152)
-
 #%%
 for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     print(".........processing model nr. {}..........".format(mod_nr))
@@ -191,7 +186,6 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     #Select for each timestep 
     time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
     kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
-#    kh = geo["Kh"].isel(time=0).drop("time")
 
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
@@ -284,7 +278,3 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   max_n_transport_timestep=999_999)
     
     m.write(directory = os.path.join(model_fol, mname))
-
-#    #%non_conv_analyser
-#    if mod_nr == crashed_model:
-#        ncg1, xyz1 = ncg.look_around(m, cell1, n=2)
