@@ -23,10 +23,6 @@ from pkg_resources import resource_filename
 #-Grid convergence test base case
 #-Testen: Heads boven maaiveld in case met lage K en hoge recharge?
 
-#%%TODO Processen#
-#Overwegingen
-#-Timing regressie redelijk vast, misschien loslaten?
-
 #%%Path management
 if len(sys.argv) > 1:
     model_fol  = sys.argv[1]
