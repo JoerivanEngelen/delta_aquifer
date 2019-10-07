@@ -39,7 +39,7 @@ np.random.seed(seed=seed)
 pars = OrderedDict()
 
 # Domain geometry
-pars["a"]           = np.linspace(0.1, 0.8, num=lev)  # Check this for deltas
+pars["a"]           = np.linspace(0.1, 0.8, num=lev)
 pars["D"]           = np.logspace(np.log10(70), np.log10(1000), num=lev)
 pars["dD"]          = np.linspace(0.0, 0.8, num=lev)
 pars["alpha"]       = np.logspace(-5, -3, num=lev)
