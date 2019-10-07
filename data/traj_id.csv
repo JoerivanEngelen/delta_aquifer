@@ -1,4 +1,4 @@
-,a,b,D,dD,alpha,beta,phi,SM,clay_conf,n_clay,N_pal,s_pal,kh,kh_conf,kh_mar,f_kh_pal,N_chan,f_cond_chan,intrusion_L,rch_rate,por,al,tra
+,a,D,dD,alpha,beta,phi,SM,clay_conf,n_clay,N_pal,s_pal,kh,kh_mar,f_kh_pal,ani,N_chan,f_cond_chan,intrusion_L,tra,t_max,rch_rate,por,al
 0,0,3,1,3,0,0,1,2,0,2,2,2,0,2,2,2,2,2,1,1,3,1,3
 1,0,3,1,3,0,0,1,2,0,0,2,2,0,2,2,2,2,2,1,1,3,1,3
 2,0,3,1,3,0,0,1,2,0,0,2,2,0,2,2,2,2,2,1,3,3,1,3

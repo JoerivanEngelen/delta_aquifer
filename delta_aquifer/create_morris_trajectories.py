@@ -29,6 +29,7 @@ fixed_pars_path = os.path.abspath(resource_filename("delta_aquifer", "../data/fi
 #%%Morris parameters
 lev = 4
 grid_jump = 2
+n_traj = 12
 
 seed = 230
 
@@ -38,55 +39,50 @@ np.random.seed(seed=seed)
 pars = OrderedDict()
 
 # Domain geometry
-pars["a"]           = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
-pars["b"]           = np.linspace(0.3, 0.6, num=lev)  # Check this for deltas
+pars["a"]           = np.linspace(0.1, 0.8, num=lev)  # Check this for deltas
 pars["D"]           = np.logspace(np.log10(70), np.log10(1000), num=lev)
-pars["dD"]          = np.linspace(0.2, 0.6, num=lev)
-#For nile roughly: np.arctan(15/150000)
-pars["alpha"]       = np.linspace(0.75e-4, 1.5e-4, num=lev)
-#For nile roughly: np.arctan(60/75000) = 8e-4 rad * 180/np.pi = 0.046 degrees
-pars["beta"]        = np.linspace(6e-4, 12e-4, num=lev)
-pars["gamma"]       = 5e-2 # FIXED
+pars["dD"]          = np.linspace(0.0, 0.8, num=lev)
+pars["alpha"]       = np.logspace(-5, -3, num=lev)
+pars["beta"]        = np.logspace(-4, np.log10(4e-3), num=lev)
+pars["gamma"]       = 2.5e-2 # FIXED
 pars["phi"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
 pars["L"]           = 200000
-# FIXED Check all delta lengths, so if this value is representative. 
-#Also check leakage factors whether this long enough
 
 # Internal geometry
-pars["SM"]          = np.linspace(0.1, 0.4, num=lev)
-pars["clay_conf"]   = np.linspace(0.2, 1.0, num=lev)
-pars["n_clay"]      = np.linspace(0, 3, num=lev, dtype=int)
+pars["SM"]          = np.linspace(0.1, 0.8, num=lev)
+pars["clay_conf"]   = np.linspace(0.0, 1.0, num=lev)
+pars["n_clay"]      = np.linspace(0, 6, num=lev, dtype=int)
 pars["N_pal"]       = np.linspace(1, 4, num=lev, dtype=int)
 pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
-pars["kh"]          = np.logspace(0, 2, num=lev)
-pars["kh_conf"]     = np.logspace(-3, 0, num=lev)
-pars["kh_mar"]      = np.logspace(-4, -2, num=lev)
+pars["kh"]          = np.logspace(-1, np.log10(2e2), num=lev)
+pars["kh_mar"]      = np.logspace(-6, -1, num=lev)
 pars["f_kh_pal"]    = np.linspace(0, 1, num=lev)
-pars["ani"]         = 10.
+pars["ani"]         = np.logspace(0, 2, num=lev)
 
-#River system
-pars["N_chan"]      = np.linspace(1, 4, num=lev, dtype=int)
+# River system
+pars["N_chan"]      = np.linspace(1, 7, num=lev, dtype=int)
 pars["f_cond_chan"] = np.logspace(0, 2, num=lev)
-pars["intrusion_L"] = np.linspace(0, 0.5, num=lev)
+pars["intrusion_L"] = np.linspace(0, 1, num=lev)
 pars["bc_res"]      = 10.
 
-#Recharge
-pars["rch_rate"]    = np.linspace(0.0, 0.4, num=lev)/365.25 #Deze nog checken met Perry/Joost
+# Transgression
+pars["tra"]         = np.linspace(0.25, 1, num=lev)
+pars["t_max"]       = np.linspace(6, 9, num=lev)
+pars["t_start"], pars["t_end"] = 12, 0
+
+# Recharge
+pars["rch_rate"]    = np.linspace(0.0, 3e-3, num=lev)
 
 #Solute transport
-pars["por"]         = np.linspace(0.1, 0.35, num=lev)
+pars["por"]         = np.linspace(0.1, 0.4, num=lev)
 pars["al"]          = np.logspace(-0.6, 1, num=lev)
 pars["trpt"]        = 0.1
 pars["trpv"]        = 0.01
 pars["diff"]        = 8.64e-5
 pars["c_f"]         = 0.
 pars["c_s"]         = 35.
-
-# Transgression
-pars["tra"]         = np.linspace(0.25, 1, num=lev)
-pars["t_start"], pars["t_max"], pars["t_end"] = 14, 7, 0
 
 # Model discretization
 pars["dx"], pars["dy"], pars["nz"] = 1000, 1000, 100
@@ -105,7 +101,7 @@ problem = {
         "bounds" : [[0, lev-1]] * len(par_morris)
         }
 
-param_values = sample(problem, N=12, grid_jump=grid_jump, num_levels=lev,
+param_values = sample(problem, N=n_traj, grid_jump=grid_jump, num_levels=lev,
                       sample4uniformity = 1000).astype(np.int64)
 
 #%%Plot
