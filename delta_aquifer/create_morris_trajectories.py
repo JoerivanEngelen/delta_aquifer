@@ -52,7 +52,7 @@ pars["L"]           = 200000
 pars["SM"]          = np.linspace(0.1, 0.8, num=lev)
 pars["clay_conf"]   = np.linspace(0.0, 1.0, num=lev)
 pars["n_clay"]      = np.linspace(0, 6, num=lev, dtype=int)
-pars["N_pal"]       = np.linspace(1, 4, num=lev, dtype=int)
+pars["N_pal"]       = np.linspace(1, 10, num=lev, dtype=int)
 pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
