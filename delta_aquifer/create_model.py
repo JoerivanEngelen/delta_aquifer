@@ -124,8 +124,8 @@ shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init,
 dens_f, dens_s = ic.c2dens(pars["c_f"]), ic.c2dens(pars["c_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
                 dens_f, dens_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
-                ) for kh_lab in ["kh", "kh_conf", "kh_mar"]]),
-                index=["Ra", "Ra_conf", "Ra_mar"], columns=["value"])
+                ) for kh_lab in ["kh", "kh_mar"]]),
+                index=["Ra", "Ra_mar"], columns=["value"])
     
 dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
 
