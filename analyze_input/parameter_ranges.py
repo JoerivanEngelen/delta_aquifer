@@ -11,6 +11,7 @@ import numpy as np
 from analyze_input.ci_range import pointplotrange
 import os
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from functools import reduce
 from collections import OrderedDict
 
@@ -55,13 +56,24 @@ sheets = ["BC_Raw", "Lithology_Raw", "Geometry_Raw"]
 df_ls = list(pd.read_excel(df_path, sheet_name=sheets, skiprows=[1]).values())
 df_all = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_ls)
 
-#%%Plot hydrogeology ranges per delta
+#%%Plot hydrogeology ranges per delta and histograms for the rest
+#Set defaults
 sns.set(style="darkgrid")
 sns.set_context("paper")
 
-fig, ax_grid = plt.subplots(nrows=1, ncols=4, figsize = agu_half, sharey=True)
-ax_lst = ax_grid.flatten()
+#Create figure and gridspec
+fig = plt.figure(figsize = agu_whole)
 
+gs0 = gridspec.GridSpec(2, 1, figure=fig)
+gs00 = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs0[0])
+gs01 = gridspec.GridSpecFromSubplotSpec(2, 5, subplot_spec=gs0[1], hspace=0.3, wspace=0.3)
+
+hdrglgy_ax_lst = [fig.add_subplot(gs00[1])]
+hdrglgy_ax_lst += [fig.add_subplot(gs00[i], sharey=hdrglgy_ax_lst[0]) for i in range(2,5)]
+
+hist_ax_lst = [fig.add_subplot(gs01[i]) for i in range(10)]
+
+##Plot input ranges for hydrogeology
 opts = dict(ci="range", join=False, errwidth=1.5,scale=0.4)
 
 var2plot = OrderedDict(
@@ -72,35 +84,37 @@ var2plot = OrderedDict(
             )
 
 for i, var in enumerate(var2plot.keys()):
-    pointplotrange(y="Delta", x=var, data=df_hdrglgy, ax=ax_lst[i], hue="n_pubs_%s"%i, **opts)
+    pointplotrange(y="Delta", x=var, data=df_hdrglgy, ax=hdrglgy_ax_lst[i], hue="n_pubs_%s"%i, **opts)
     labels = dict(xlabel=var2plot[var])
     if i != 0:
         labels["ylabel"] = ""
-    ax_lst[i].set(**labels)
+    hdrglgy_ax_lst[i].set(**labels)
 
 for i in [0, 1, 2]:
-    ax_lst[i].get_legend().remove()
+    #Get rid of automatically added legends
+    hdrglgy_ax_lst[i].get_legend().remove()
+    #We have to remove ticklabels manually, as gridspec does not do hide this
+    plt.setp(hdrglgy_ax_lst[i+1].get_yticklabels(), visible=False)
 
-plt.tight_layout()
-plt.savefig(os.path.join(df_path, "..", "logK.png"), dpi=300)
-plt.close()
-
-
-#%%Plot histogram all
-fig, ax_grid = plt.subplots(nrows=3, ncols=4, figsize = agu_half, sharey=False)
-ax_lst = ax_grid.flatten()
-
-var2plot = ['l_a', 'beta', r'H_a/H_b', 'H_b', r'Mud/Total', 
-            'l_conf', 'N_aqt', 'N_pal', 'l_tra', 'N_chan']
+##Plot histograms for the other parameters
+var2plot = OrderedDict((("l_a",         "$l_a$"), 
+                        ("beta",        r"$\beta$"),
+                        (r"H_a/H_b",    "$f_H$"),
+                        ('H_b',         "$H_b$"),
+                        (r'Mud/Total',  "$f_{aqt}$"),
+                        ('l_conf',      "$l_{conf}$"),
+                        ('N_aqt',       "$N_{aqt}$"),
+                        ('N_pal',       "$N_{pal}$"),
+                        ('l_tra',       "$l_{tra}$"),
+                        ('N_chan',      "$N_{chan}$")
+                        ))
 
 opts = dict(hist=True, rug=False, kde=False, bins='doane')
 
-for i, var in enumerate(var2plot):
-    sns.distplot(df_all[var].dropna(), ax=ax_lst[i], **opts)
-
-ax_grid[-1, -1].axis('off')
-ax_grid[-1, -2].axis('off')
+for i, var in enumerate(var2plot.keys()):
+    sns.distplot(df_all[var].dropna(), ax=hist_ax_lst[i], axlabel=var2plot[var], **opts)
 
 plt.tight_layout()
-plt.savefig(os.path.join(df_path, "..", "hist_all.png"), dpi=300)
+plt.savefig(os.path.join(df_path, "..", "input_distributions.png"), dpi=300)
+plt.savefig(os.path.join(df_path, "..", "input_distributions.pdf"))
 plt.close()
