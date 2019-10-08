@@ -56,6 +56,10 @@ sheets = ["BC_Raw", "Lithology_Raw", "Geometry_Raw"]
 df_ls = list(pd.read_excel(df_path, sheet_name=sheets, skiprows=[1]).values())
 df_all = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_ls)
 
+#Filter out disproportionally large L_b values
+df_all['l_a'].where((df_all['L_b'] < 500.) , other=np.nan, inplace=True)
+df_all['l_a'].where((df_all['Delta'] != "Nakdong"), other=np.nan, inplace=True)
+
 #%%Plot hydrogeology ranges per delta and histograms for the rest
 #Set defaults
 sns.set(style="darkgrid")
