@@ -237,7 +237,8 @@ def pol_to_d2_grid(dx, dy, phi, d2, nan_idx, d2_conf, nan_conf):
            np.max(d2["x"][~nan_idx]), phi/2)
     d2_grid["rho"], d2_grid["phi"] = _cart2pol(d2_grid["x"], d2_grid["y"])
     d2_grid = pol2griddata(d2, nan_idx, d2_grid)
-    d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
+    if d2_conf is not None:
+        d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
     return(d2_grid)
 
 def ds_d2_grid(d2_grid):
@@ -361,7 +362,8 @@ def create_lith(d3, d2_grid, n_clay, pal_mask):
     
     #Confining clayer gets nr 2 as nr
     conf_nr = 2
-    d3["lith"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), conf_nr, d3["lith"])
+    if "conf_tops" in d2_grid.keys():
+        d3["lith"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), conf_nr, d3["lith"])
     
     pal_nr = 3
     for i in range(n_clay):
@@ -380,7 +382,8 @@ def dynamic_confining_layer(d3, sea, t_max):
     return(d3)
 
 def calc_clay_thicknesses(d2_grid, n_clay):
-    d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
+    if "conf_tops" in d2_grid.keys():
+        d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
     for i in range(n_clay):
         d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
     return(d2_grid)
@@ -401,8 +404,11 @@ def create_Kh(d3, kh=0., kh_mar=0., f_kh_pal=0., **kwargs):
 #%%Extra information
 def add_topsystem(d2_grid):
     d2_grid["topsys"] = (np.nan_to_num(d2_grid["tops"]/d2_grid["tops"]) + 
-               np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]) + 
                (d2_grid["tops"] >= 0)).astype(np.int8)
+    
+    if "conf_tops" in d2_grid.keys():
+        d2_grid["topsys"] += np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"])
+
     return(d2_grid)
 
 #%%Master function
@@ -420,9 +426,13 @@ def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     d2, nan_idx, phis = create_2D_top_bot(phi, d1, n_inp)
     
     #Create confining layer
-    frac_clay = SM/(n_clay+1)    
-    d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
-                                              phis, L_a, frac_clay, n_inp)
+    frac_clay = SM/(n_clay+1)
+    
+    if clay_conf > 0.:
+        d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
+                                                  phis, L_a, frac_clay, n_inp)
+    else:
+        d2_conf,nan_conf = None, None
     
     #Create clay layers
     rel_clay_depths = get_relative_clay_depths(SM, n_clay)
@@ -489,17 +499,16 @@ def clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol, ext=".png"):
         
         if dims[i] == "y":
             xval = d2["x"][slc][90]
-            idx = np.searchsorted(d2_conf["x"][90, :], xval)
+            idx = np.searchsorted(d2["x"][90, :], xval)
             idx = np.s_[:, idx]
         else:
-#            axes[i].axvline(x=(a+b)*L, ls=":", color=".20")
             axes[i].axvline(x=L_a, ls=":", color=".20")
             axes[i].axvline(x=L, color="k")
             idx = slc
-            
-        xconf = d2_conf[dims[i]][idx]
-    
-        axes[i].fill(np.append(xconf[::-1], xconf), np.append(d2_conf["tops"][idx][::-1], d2_conf["bots"][idx]), label="conf")
+        
+        if d2_conf is not None:        
+            xconf = d2_conf[dims[i]][idx]
+            axes[i].fill(np.append(xconf[::-1], xconf), np.append(d2_conf["tops"][idx][::-1], d2_conf["bots"][idx]), label="conf")
         
         for j in range(n_clay):
             xtop = xbot = d2[dims[i]][slc]
