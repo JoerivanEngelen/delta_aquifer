@@ -19,7 +19,6 @@ import cftime
 from pkg_resources import resource_filename
 
 #%%TODO Tests
-#-Wat gebeurt er als zand boven de shelf legt?
 #-Grid convergence test base case
 #-Testen: Heads boven maaiveld in case met lage K en hoge recharge?
 
