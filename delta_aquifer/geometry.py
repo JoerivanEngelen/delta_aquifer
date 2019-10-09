@@ -407,7 +407,7 @@ def add_topsystem(d2_grid):
                (d2_grid["tops"] >= 0)).astype(np.int8)
     
     if "conf_tops" in d2_grid.keys():
-        d2_grid["topsys"] += np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"])
+        d2_grid["topsys"] += np.nan_to_num(d2_grid["conf_tops"]/d2_grid["conf_tops"]).astype(np.int8)
 
     return(d2_grid)
 
