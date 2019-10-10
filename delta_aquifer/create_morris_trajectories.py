@@ -73,7 +73,7 @@ pars["t_max"]       = np.linspace(6, 9, num=lev)
 pars["t_start"], pars["t_end"] = 12, 0
 
 # Recharge
-pars["rch_rate"]    = np.linspace(0.0, 3e-3, num=lev)
+pars["rch_rate"]    = np.linspace(0.0, 2e-3, num=lev)
 
 #Solute transport
 pars["por"]         = np.linspace(0.1, 0.4, num=lev)

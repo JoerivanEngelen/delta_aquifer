@@ -274,3 +274,6 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   max_n_transport_timestep=999_999)
     
     m.write(directory = os.path.join(model_fol, mname))
+    
+    if (len(sys.argv) == 1) & (mod_nr == 0):
+        break
