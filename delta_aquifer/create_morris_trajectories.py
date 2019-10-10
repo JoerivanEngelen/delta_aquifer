@@ -49,7 +49,7 @@ pars["phi"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
 pars["L"]           = 200000
 
 # Internal geometry
-pars["SM"]          = np.linspace(0.1, 0.8, num=lev)
+pars["SM"]          = np.linspace(0.1, 0.7, num=lev)
 pars["clay_conf"]   = np.linspace(0.0, 1.0, num=lev)
 pars["n_clay"]      = np.linspace(0, 6, num=lev, dtype=int)
 pars["N_pal"]       = np.linspace(1, 10, num=lev, dtype=int)
@@ -63,7 +63,7 @@ pars["ani"]         = np.logspace(0, 2, num=lev)
 
 # River system
 pars["N_chan"]      = np.linspace(1, 7, num=lev, dtype=int)
-pars["f_cond_chan"] = np.logspace(0, 2, num=lev)
+pars["f_cond_chan"] = np.logspace(0, 1, num=lev)
 pars["intrusion_L"] = np.linspace(0, 1, num=lev)
 pars["bc_res"]      = 10.
 
