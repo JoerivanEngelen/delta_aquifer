@@ -57,7 +57,7 @@ pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
 pars["kh"]          = np.logspace(-1, np.log10(2e2), num=lev)
-pars["kh_mar"]      = np.logspace(-6, -1, num=lev)
+pars["kv_mar"]      = np.logspace(-6, -1, num=lev)
 pars["f_kh_pal"]    = np.linspace(0, 1, num=lev)
 pars["ani"]         = np.logspace(0, 2, num=lev)
 

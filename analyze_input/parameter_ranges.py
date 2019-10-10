@@ -81,8 +81,8 @@ hist_ax_lst = [fig.add_subplot(gs01[i]) for i in range(10)]
 opts = dict(ci="range", join=False, errwidth=1.5,scale=0.4)
 
 var2plot = OrderedDict(
-            logKaqf = "$\log(K_{aqf} \; [m/d])$",
-            logKaqt = "$\log(K_{aqt} \; [m/d])$", 
+            logKaqf = "$\log(K_{h,aqf} \; [m/d])$",
+            logKaqt = "$\log(K_{v,aqt} \; [m/d])$", 
             Recharge = "$R \; [m/d]$", 
             logAnisotropy = "$\log(K_h/K_v \; [-])$"
             )

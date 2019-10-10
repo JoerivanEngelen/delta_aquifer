@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 0
+    sim_nr = 10
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -123,8 +123,8 @@ shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init,
 #%%Calc dimensionless numbers
 dens_f, dens_s = ic.c2dens(pars["c_f"]), ic.c2dens(pars["c_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
-                dens_f, dens_s, pars["D"], pars["diff"], pars[kh_lab]/pars["ani"]
-                ) for kh_lab in ["kh", "kh_mar"]]),
+                dens_f, dens_s, pars["D"], pars["diff"], kv
+                ) for kv in [pars["kh"]/pars["ani"], pars["kv_mar"]]]),
                 index=["Ra", "Ra_mar"], columns=["value"])
     
 dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
@@ -273,3 +273,5 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   max_n_transport_timestep=999_999)
     
     m.write(directory = os.path.join(model_fol, mname))
+    if mod_nr == 0:
+        break

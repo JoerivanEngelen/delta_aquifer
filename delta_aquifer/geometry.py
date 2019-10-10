@@ -388,7 +388,8 @@ def calc_clay_thicknesses(d2_grid, n_clay):
         d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
     return(d2_grid)
 
-def create_Kh(d3, kh=0., kh_mar=0., f_kh_pal=0., **kwargs):
+def create_Kh(d3, kh=0., kv_mar=0., f_kh_pal=0., ani=0., **kwargs):
+    kh_mar = kv_mar*ani
     b = np.log10(kh_mar)
     a = np.log10(kh) - np.log10(kh_mar)
     
