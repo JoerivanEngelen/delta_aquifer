@@ -28,15 +28,31 @@ def isel_out_bounds(ds, shape, cell, n):
 
 def look_around(model, cell_fortran, n=2, 
                 var={
-         "ghb" : "head", 
-         "riv" : "stage", 
+         "ghb" : "conductance",
          "lpf" : "k_horizontal", 
          "btn" : "icbund"
          }, z = None):
     """Look around cell that gave non-convergence. 
     
-    Insert the indexes of the troublesome cell in Fortran (1 based) based indexing!
-    (As printed in the model prompt output)
+    Parameters
+    ----------
+    model : imod.wq.model.SeawatModel
+        The model object with all its boundary conditions etc.
+    
+    cell_fortran : tuple
+        Tuple with non-converging cell. Should be exactly as reported in the prompt
+        output, so with the Fortran 1-based indexing.
+        
+    n : int
+        Number of cells to look around the cell. 
+        n=0 returns just the cell, n=1 a 3x3x3 cube, n=2 a 5x5x5 cube etc.
+        
+        If the cell is located at the model boundary a smaller cube will be returned.
+        
+    var : dict
+        dictionary with variables to look at as values and the package they belong to as key. 
+        
+        Downside of this implementation is that you can only have one variable per package.
     """
 
     cell = (cell_fortran[0]-1, cell_fortran[1]-1, cell_fortran[2]-1)
