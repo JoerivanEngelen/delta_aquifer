@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 10
+    sim_nr = 110
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -88,13 +88,6 @@ geo, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 
-#%%
-#Cut off unused x and y cells 
-#otherwise writing the initial conditions for the next model run is 
-#problematic due to the RCB algorithms completely leaving out usused rows and columns
-geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
-geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
-
 #%%Create boundary conditions
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             L_a=L_a, figfol=figfol, ncfol=None, 
@@ -113,6 +106,14 @@ bcs = bcs.sel(y=slice(0, geo.y.max()))
 if (pars["N_chan"] % 2) == 1:
     y_loc = bcs.y.isel(y=0)
     bcs["riv_cond"].loc[dict(y = y_loc)] = bcs["riv_cond"].loc[dict(y = y_loc)]/2
+
+#%%
+#Cut off unused x and y cells 
+#otherwise writing the initial conditions for the next model run is 
+#problematic due to the RCB algorithms completely leaving out usused rows and columns
+geo["active"] = geo["IBOUND"].where(geo["IBOUND"]==1.)
+geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
+bcs = bcs.dropna("x", how="all", subset=["riv_stage", "sea"]).dropna("y", how="all", subset=["riv_stage", "sea"])
 
 #%%Create initial conditions
 approx_init = True
@@ -273,5 +274,3 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   max_n_transport_timestep=999_999)
     
     m.write(directory = os.path.join(model_fol, mname))
-    if mod_nr == 0:
-        break
