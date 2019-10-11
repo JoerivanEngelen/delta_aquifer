@@ -208,7 +208,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                  starting_head=starting_head)
     
     m["lpf"] = imod.wq.LayerPropertyFlow(
-        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=0.0,
+        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=10**-4.2,
         save_budget=True,
     )
     
