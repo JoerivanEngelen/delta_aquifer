@@ -19,13 +19,15 @@ def get_df_plot(df, var, i):
     df_min=df[["Delta", "%s_min"%var]].rename(columns={"%s_min"%var : "%s"%var}).assign(stat="min")
     df_max=df[["Delta", "%s_max"%var]].rename(columns={"%s_max"%var : "%s"%var}).assign(stat="max")
     
+    df_min["n_pubs_%s"%i] = df_min.groupby(by=["Delta"])["%s"%var].transform('count').astype(np.int64).replace(0, np.nan)
+    df_max["n_pubs_%s"%i] = df_min["n_pubs_%s"%i]
+
+    df_min=df_min.groupby(by=["Delta"]).min()
+    df_max=df_max.groupby(by=["Delta"]).max()
+    
     df_plot = pd.concat([df_min, df_max], axis=0)
     df_plot["log%s"%var] = np.log10(df_plot["%s"%var])
     
-    df_plot["n_pubs_%s"%i] = df_plot.groupby(by=["Delta"])["%s"%var].transform('count')/2
-    df_plot["n_pubs_%s"%i] = df_plot["n_pubs_%s"%i].astype(np.int64)
-    
-    df_plot["n_pubs_%s"%i] = df_plot["n_pubs_%s"%i].replace(0, np.nan)
     df_plot = df_plot.sort_values(by="Delta")    
     return(df_plot)
 
@@ -49,9 +51,7 @@ df['Anisotropy_max'] = df['Anisotropy_max'].where(to_keep, np.nan)
 
 hdrglgy = ["Kaqf", "Kaqt", "Recharge", "Anisotropy", "Ss"]
 df_hdrglgy_ls = [get_df_plot(df, var, i) for i, var in enumerate(hdrglgy)]
-#TODO: 'Delta' has duplicate values, so marge creates huge Dataframe with lots of NaNs
-#This does not influence the figures, but is confusing to the naive user.
-df_hdrglgy = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_hdrglgy_ls)
+df_hdrglgy = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_hdrglgy_ls).reset_index(level=0)
 
 sheets = ["BC_Raw", "Lithology_Raw", "Geometry_Raw"]
 
