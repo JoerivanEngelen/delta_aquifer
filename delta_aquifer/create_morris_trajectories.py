@@ -18,13 +18,20 @@ plt.ioff()
 import os
 from pkg_resources import resource_filename
 
+#%%Input relationships
+def aqtds_depth(H_b):
+    """Max aquitards with depth. Relationship result of data exploration in the 
+    parameter_ranges script.
+    """
+    x = np.log10(H_b)
+    return(np.where(x>2.05, -15.26+8/0.95*x, 2))
+
+
 #%%Path management
 traj_real_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_real.csv"))
 traj_id_path   = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
-
-fig_out_path = os.path.abspath(resource_filename("delta_aquifer", "../data/morris_inp_dist.png"))
-
 fixed_pars_path = os.path.abspath(resource_filename("delta_aquifer", "../data/fixed_pars.csv"))
+fig_out_path = os.path.abspath(resource_filename("delta_aquifer", "../data/morris_inp_dist.png"))
 
 #%%Morris parameters
 lev = 4
@@ -51,7 +58,7 @@ pars["L"]           = 200000
 # Internal geometry
 pars["SM"]          = np.linspace(0.1, 0.7, num=lev)
 pars["clay_conf"]   = np.linspace(0.0, 1.0, num=lev)
-pars["n_clay"]      = np.linspace(0, 6, num=lev, dtype=int)
+pars["n_clay"]      = np.linspace(0, 3, num=lev, dtype=int)
 pars["N_pal"]       = np.linspace(1, 10, num=lev, dtype=int)
 pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
@@ -110,11 +117,17 @@ sample_histograms(fig, param_values, problem, {'color': 'y'})
 plt.tight_layout()
 plt.savefig(fig_out_path, dpi=100)
 
-#%%Save as csv
+#%%Create Dataframes
 traj_real = pd.DataFrame(OrderedDict([(par, pars[par][param_values[:, i]]) for i, par in enumerate(par_morris)]))
 traj_id  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enumerate(par_morris)]))
 fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
 
+#Generate 2D linspace with for each simulation all levels
+n_aqtds_all = np.linspace(np.zeros(traj_real["D"].shape), aqtds_depth(traj_real["D"]), num=lev)
+n_aqtd_select = n_aqtds_all[traj_id["n_clay"].values, np.arange(traj_id["n_clay"].shape[0])].astype(np.int64)
+traj_real["n_clay"] = n_aqtd_select
+
+#%%Save as csv
 traj_real.to_csv(traj_real_path)
 traj_id.to_csv(traj_id_path)
 fixed_pars.to_csv(fixed_pars_path)
