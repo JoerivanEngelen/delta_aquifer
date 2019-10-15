@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 110
+    sim_nr = 10
 
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -94,7 +94,14 @@ bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
                                             **pars)
 
 #%%Dynamic geology
+
+#Holocene sedimentation model
 geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
+
+#Pleistocene erosion model
+is_bc = ((bcs["sea"]==1) | (bcs["river"]==1))
+geo = geometry.erosion_aquitards(geo, is_bc, bcs)
+
 geo = geometry.create_Kh(geo, **pars)
 
 #%%Data processing for model
@@ -179,9 +186,15 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     geo_mod = geo.isel(time=slice(i_start, i_end)).assign_coords(
             time = timesteps_mod)
 
-    #Select for each timestep 
+    #Select for each submodel the Kh with the least aquitards and confining layer.
     time_step_min_conf = geo_mod["lith"].where(geo_mod["lith"] == 2).sum(dim=["x", "y", "layer"]).argmin()
-    kh = geo_mod["Kh"].isel(time=time_step_min_conf).drop("time")
+    time_step_min_aqtd = geo_mod["lith"].where(geo_mod["lith"] >= 3).sum(dim=["x", "y", "layer"]).argmin()
+    
+    kh = geo_mod["Kh"].isel(time=time_step_min_aqtd).drop("time")
+    lith_min_conf = geo_mod["lith"].isel(time=time_step_min_conf).drop("time")
+    lith_min_aqtd = geo_mod["lith"].isel(time=time_step_min_aqtd).drop("time")
+    
+    kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["kh"], kh)
 
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     

@@ -374,13 +374,6 @@ def create_lith(d3, d2_grid, n_clay, pal_mask):
         d3["lith"] = xr.where(in_clayer & (pal_mask[i]),  pal_nr , d3["lith"])
     return(d3)
 
-def dynamic_confining_layer(d3, sea, t_max):
-    sea = sea.max(dim="z")
-    d3["lith"] = xr.where((d3["lith"] == 2) & (sea == 1)          , 1, d3["lith"]).astype(np.int64)
-    d3["lith"] = xr.where((d3["lith"] == 2) & (d3["time"] > t_max), 1, d3["lith"]).astype(np.int64)
-    d3 = d3.transpose("time", "z", "y", "x")
-    return(d3)
-
 def calc_clay_thicknesses(d2_grid, n_clay):
     if "conf_tops" in d2_grid.keys():
         d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
@@ -400,6 +393,38 @@ def create_Kh(d3, kh=0., kv_mar=0., f_kh_pal=0., ani=0., **kwargs):
     d3["Kh"] = xr.where(d3["lith"]==2, kh_mar,  d3["Kh"])
     d3["Kh"] = xr.where(d3["lith"]==3, kh_pal,  d3["Kh"])
     d3["Kh"] = xr.where(d3["lith"]>3,  kh_mar,  d3["Kh"])
+    return(d3)
+
+#%%Sedimentation/Erosion
+def dynamic_confining_layer(d3, sea, t_max):
+    sea = sea.max(dim="z")
+    d3["lith"] = xr.where((d3["lith"] == 2) & (sea == 1)          , 1, d3["lith"]).astype(np.int64)
+    d3["lith"] = xr.where((d3["lith"] == 2) & (d3["time"] > t_max), 1, d3["lith"]).astype(np.int64)
+    d3 = d3.transpose("time", "z", "y", "x")
+    return(d3)
+
+def erosion_aquitards(d3, is_bc, bcs):
+    #Choose maximum over z to keep aquitards active near the coastal slope.
+    #Coastal shelf should only have one layer of bc per timestep.
+    z_max_z = xr.where(is_bc, bcs.z, np.nan).max(dim="z")
+    #Coordinates have to be monotonically increasing for ufunc
+    z_max_z = z_max_z.assign_coords(time=z_max_z.time[::-1])
+    
+    #ignore nans seems not to be supported yet so have to use sentinel values    
+    #also erode clay at edges that are just left untouched by our bcs
+    sentinel=9999
+    ffill = z_max_z.min(dim="y").fillna(sentinel) 
+    z_max_z = z_max_z.fillna(ffill)
+
+    ##Take minimum over time
+    #This seems to work, I do not fully understand the docs though.
+    z_min_t = xr.apply_ufunc(np.minimum.accumulate, z_max_z, 
+                           input_core_dims  = [["x", "y"]], 
+                           output_core_dims = [["x", "y"]])
+    z_min_t = z_min_t.where(z_min_t<sentinel).assign_coords(time=z_min_t.time[::-1])
+    
+    d3["lith"] = xr.where((d3["lith"] >= 3) & (d3["z"]>z_min_t), 1, d3["lith"]).astype(np.int64)
+    d3 = d3.transpose("time", "z", "y", "x")
     return(d3)
 
 #%%Extra information
