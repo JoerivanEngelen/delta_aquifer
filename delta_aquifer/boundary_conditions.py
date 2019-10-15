@@ -370,6 +370,7 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     
     #Ensure that there are no river cells overlapping or overlying sea cells
     riv_mask = np.isfinite(bcs["riv_stage"])
+    bcs["river"] = xr.where(riv_mask, 1, np.nan).astype(np.int16)
     bcs["sea"] = xr.where((~riv_mask.sum(dim="z"))&(bcs["sea"]==1), sea_cells, np.nan) 
 
     #Peturb concentrations (above 0.)
