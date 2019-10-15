@@ -196,10 +196,12 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     
     kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["kh"], kh)
 
+    #Create model
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
     
     m = imod.wq.SeawatModel(mname_sub, check=None)
     
+    #Select correct initial conditions
     if mod_nr == 0:
         active=(geo_mod["active"]==1)
         starting_head = xr.where(active,   shd, -9999.0)
