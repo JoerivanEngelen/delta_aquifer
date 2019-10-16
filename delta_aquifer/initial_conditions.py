@@ -62,6 +62,6 @@ def get_ic(bcs, geo, c_f=None, c_s=None, approx_init=False, deep_salt=None,
             sconc = xr.where(sconc.z<deep_salt, c_s, sconc)
         shd = correct_head(sconc, shd, bcs, c_f, c_s)
     else:
-        sconc = c_f
+        sconc = xr.DataArray(c_f)
     
     return(shd, sconc)

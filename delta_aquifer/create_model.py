@@ -29,8 +29,8 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 10
-
+    sim_nr = 168
+    
 mname = "SD_i{:03d}".format(sim_nr)
 
 figfol = os.path.join(model_fol, mname, "input", "figures")
@@ -123,7 +123,10 @@ geo = geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subse
 bcs = bcs.dropna("x", how="all", subset=["riv_stage", "sea"]).dropna("y", how="all", subset=["riv_stage", "sea"])
 
 #%%Create initial conditions
-approx_init = True
+if min_sea_level <= geo.z.min():
+    approx_init = False
+else:
+    approx_init = True
 
 shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init, 
                        deep_salt=min_sea_level, **pars)
@@ -153,8 +156,9 @@ bcs = bcs.drop(["lith"])
 #%%Some extra processing to make iMOD-python accept these DataArrays
 geo = geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 bcs = bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 shd = shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+if approx_init==True:
+    sconc = sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
 
 #%%Combine river and sea, as in the end we put both in the GHB anyway.
 sea = (bcs["sea"]==1)
