@@ -7,6 +7,8 @@ Created on Wed Apr 17 09:46:32 2019
 
 import xarray as xr
 
+dim_order=["layer", "y", "x"]
+
 def get_out_bounds_slice(dim, cell_i, n):
     """return out of bounds slice
     """
@@ -21,7 +23,7 @@ def isel_out_bounds(ds, shape, cell, n):
     """
     
     ddims = {}
-    for i, dim in enumerate(["layer", "y", "x"]):
+    for i, dim in enumerate(dim_order):
         ddims[dim] = get_out_bounds_slice(shape[i], cell[i], n)
     
     return(ds.isel(**ddims))      
@@ -55,19 +57,16 @@ def look_around(model, cell_fortran, n=2,
         Downside of this implementation is that you can only have one variable per package.
     """
 
-    cell = (cell_fortran[0]-1, cell_fortran[1]-1, cell_fortran[2]-1)
-    
+    cell = tuple([i-1 for i in cell_fortran])
+            
     ds = xr.merge([model[pack][v] for pack, v in var.items()])
+
+    if z is not None:
+        ds = ds.assign_coords(z = ("layer", z))
     
-    shape = [ds.dims[dim] for dim in ["layer", "y", "x"]]
+    shape = [ds.dims[dim] for dim in dim_order]
     ds_sel = isel_out_bounds(ds, shape, cell, n)
     
-    try:
-        xyz = [ds_sel.x[n], ds_sel.y[n], ds_sel.layer[n]]
-    except IndexError:
-        xyz = [ds_sel.x[0], ds_sel.y[0], ds_sel.layer[0]]
-    
-    if z is not None:
-        xyz[2] = z[xyz[2]-1]
+    xyz = ds.isel(**dict([i for i in zip(dim_order, cell)])).coords
     
     return(ds_sel, xyz)
