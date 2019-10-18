@@ -227,11 +227,6 @@ def river_3d(
     #Ensure river layer does not exceed IBOUND.
     h_grid["h_l"] = xr.where(h_grid["h_l"] < top_active_layer, top_active_layer, h_grid["h_l"]) 
 
-    #Displace h_grid_bins 1 down, except the maximum which should not go lower than the sea
-    #This to avoid h_l from going outside the model domain    
-    ismax_hl = (h_grid["h_l"] == h_grid["h_l"].max(dim=["x", "y"]))
-    h_grid["h_l"] = xr.where(ismax_hl, h_grid["h_l"], h_grid["h_l"]+1)
-    
     riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.layer == h_grid["h_l"]))
     
     return(riv, z_bins, dhdx)
