@@ -133,15 +133,24 @@ def coastlines(geo, sea_level, phi=None, L = None, L_a = None,
     dx = geo.x[-1]-geo.x[-2]
     # top_coast
     top_coast = (
+            #TODO: test if making this dependent on dz is more robust
             _isclose(
-            geo["tops"], sea_level, atol=0.5, rtol=2e-1
+            geo["tops"], sea_level, atol=0.5, rtol=5e-1
                     ) | (
             geo.x >= (L-dx)
                     )
             # Get sea cells in upper layer
-            ) & geo["edges"].sel(z=sea_level, method="pad")  
+            ) & geo["edges"].sel(z=sea_level, method="pad")
+    
+    coast_y = xr.where(top_coast, top_coast.x, np.nan).min(dim="x")
             
-    coastline_rho = xr.where(top_coast, top_coast.x, np.nan).min(dim="x").sel(y=0.0, method="nearest")
+    coastline_rho = coast_y.sel(y=0.0, method="nearest")
+    #Sometimes at y=0.0 there are no cells located, so fill these with the minimum across y.
+    coastline_rho = xr.where(np.isnan(coastline_rho), 
+                             coast_y.min(dim="y"), coastline_rho)
+
+    if np.any(np.isnan(coastline_rho)):
+        raise ValueError("coastline_rho is nan at certain moments in time")
 
     weights_trans = np.clip((sea_level.time - t_start)/(t_max - t_start), 0, 1)
     weights_reg = np.clip((sea_level.time - t_max)/(t_end - t_max), 0, 1)
