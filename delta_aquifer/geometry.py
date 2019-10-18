@@ -191,15 +191,14 @@ def get_targgrid(dx, dy, L, phi_max):
 
 def pol2griddata(poldata, nan_idx, griddata, key_prep = ""):
     #Remove nans,which broadcasts to 1 dimensional array.
-    for key, arr in poldata.items():
-        poldata[key] = arr[~nan_idx]
+    poldata_no_nan=dict([(key, arr[~nan_idx]) for key, arr in poldata.items()])
     
     vrbls = [i for i in poldata.keys() if not i in ["x", "y", "phi", "phi_nan", "rho"]]
     #Explicitly create NDINterpolator once so QHULL has to be called only once, _griddata then just overrides the values.
-    ip = interpolate.LinearNDInterpolator(np.vstack((poldata["x"],poldata["y"])).T, poldata[vrbls[0]])
+    ip = interpolate.LinearNDInterpolator(np.vstack((poldata_no_nan["x"],poldata_no_nan["y"])).T, poldata_no_nan[vrbls[0]])
     for vrbl in vrbls:
         key = key_prep+vrbl
-        griddata[key] = _griddata(ip, poldata[vrbl], (griddata["x"], griddata["y"]))
+        griddata[key] = _griddata(ip, poldata_no_nan[vrbl], (griddata["x"], griddata["y"]))
     return(griddata)
 
 def get_edges(ibound, top, z_shelf):
@@ -320,9 +319,10 @@ def create_clayers(fracs, d1, d2, phis, phi, a_real, n_clay):
         
         #Create edges at shoreline, so they extent fully to the sea
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
+        d2["ctmax%d"%i] =  np.full_like(d2["ct0"], 1) * np.nanmax(d2["ct0"], axis=0)
         #Create bottom at the side edges
         d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
-        d2["cbmax%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
+        d2["cbmin%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
     
     return(rho_min, rho_max, d2)
 
@@ -335,8 +335,8 @@ def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
         corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
         corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
         
-        d2_grid["ct%d"%i] = np.where(corner_top, d2_grid["tops"], d2_grid["ct%d"%i])
-        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmax%d"%i], d2_grid["cb%d"%i])
+        d2_grid["ct%d"%i] = np.where(corner_top, np.minimum(d2_grid["tops"], d2_grid["ctmax%d"%i]), d2_grid["ct%d"%i])
+        d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmin%d"%i], d2_grid["cb%d"%i])
     return(d2_grid)
 
 def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi, rhos): #Perhaps also include w_pal
