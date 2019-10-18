@@ -319,9 +319,11 @@ def create_clayers(fracs, d1, d2, phis, phi, a_real, n_clay):
         
         #Create edges at shoreline, so they extent fully to the sea
         d2["ct%d"%i] = np.where(np.isnan(d2["ct%d"%i]) & (d2["cb%d"%i] < d2["tops"]), d2["tops"], d2["ct%d"%i])
+        #Find maximum the clay layer is allowed to be. Used to fix interpolation artifacts in finish_clayer_grid
         d2["ctmax%d"%i] =  np.full_like(d2["ct0"], 1) * np.nanmax(d2["ct0"], axis=0)
         #Create bottom at the side edges
         d2["cb%d"%i] = np.where(np.isnan(d2["cb%d"%i]) & (d2["ct%d"%i] > d2["bots"]), d2["bots"], d2["cb%d"%i])
+        #Find minimum the clay layer is allowed to be. Used to fix interpolation artifacts in finish_clayer_grid
         d2["cbmin%d"%i] =  (np.full_like(d2["cb%d"%i], 1).T * np.nanmin(d2["cb%d"%i], axis=1)).T
     
     return(rho_min, rho_max, d2)
