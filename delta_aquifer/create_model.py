@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 168
+    sim_nr = 216
     
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -87,6 +87,7 @@ rclose = pars["dx"] * pars["dy"] * hclose * 10.
 geo, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
+z=(topbot[:-1]+topbot[1:])/2
 
 #%%Create boundary conditions
 bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
@@ -290,7 +291,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   endtime=endtime,
                                   n_timesteps_p1=n_timesteps_p1,
                                   timestep_multiplier=7.,
-                                  max_n_transport_timestep=999_999)
+                                  max_n_transport_timestep=999_999,
+                                  transport_initial_timestep=1000.)
     
     m.write(directory = os.path.join(model_fol, mname))
     
