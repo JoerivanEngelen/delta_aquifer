@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 216
+    sim_nr = 96
     
 mname = "SD_i{:03d}".format(sim_nr)
 
