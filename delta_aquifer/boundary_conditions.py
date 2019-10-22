@@ -389,7 +389,10 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, np.nan)
     
     #Recharge
-    bcs["rch"] = recharge(riv_mask.sum(dim="z"), rch_rate)
+    onshore_mask = (
+            geo["IBOUND"].max(dim="z")-sea_cells.max(dim="z").fillna(0.)
+            )
+    bcs["rch"] = recharge(onshore_mask, rch_rate)
     
     #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")
