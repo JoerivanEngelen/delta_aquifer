@@ -1,4 +1,4 @@
-name: root
+name: synth
 channels:
   - conda-forge
   - defaults
