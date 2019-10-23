@@ -29,7 +29,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 96
+    sim_nr = 240
     
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -84,7 +84,7 @@ hclose = 1e-4
 rclose = pars["dx"] * pars["dy"] * hclose * 10.
 
 #%%Get geometry
-geo, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
+geo, d1, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
 
 topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 z=(topbot[:-1]+topbot[1:])/2

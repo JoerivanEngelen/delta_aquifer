@@ -240,15 +240,23 @@ def pol_to_d2_grid(dx, dy, phi, d2, nan_idx, d2_conf, nan_conf):
         d2_grid = pol2griddata(d2_conf, nan_conf, d2_grid, "conf_")
     return(d2_grid)
 
-def ds_d2_grid(d2_grid):
+def dict_to_ds(dic, dims, coords):
     ds = xr.Dataset(
-            dict([(key, (["y", "x"], value)) for key, value in d2_grid.items()\
-                  if key not in ["x", "y"]]),
-            coords = {"x" : d2_grid["x"][0, :],
-                      "y" : d2_grid["y"][:, 0]})
+            dict([(key, (dims, value)) for key, value in dic.items()\
+                  if key not in dims]),
+            coords = coords)    
+    return(ds)
+
+def ds_d2_grid(d2_grid):
+    coords = {"x" : d2_grid["x"][0, :],
+          "y" : d2_grid["y"][:, 0]}
+    ds = dict_to_ds(d2_grid, ["y", "x"], coords)
     ds = ds.dropna("y", "all")
     #For some reason this also clips off the first row where y["all"]!=np.nan??
     return(ds)
+
+def ds_d1(d1):
+    return(dict_to_ds(d1, ["rho"], {"rho" : d1["rho"]}))
     
 def create_3d_grid(d2_grid, d1, nz):
     d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
@@ -481,6 +489,7 @@ def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     
     #Convert to xarray
     d2_grid = ds_d2_grid(d2_grid)
+    d1 = ds_d1(d1)
 
     #Mask paleo channels
     pal_mask = create_paleo_channels(d2_grid, n_clay, 
@@ -510,7 +519,7 @@ def get_geometry(a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     layers = xr.DataArray(np.arange(len(d3.z))[::-1]+1, coords={"z":d3.z}, dims=["z"])
     d3 = d3.assign_coords(layer = layers)
     
-    return(d3, L_a)
+    return(d3, d1, L_a)
 
 #%%Plot functions
 def clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol, ext=".png"):
