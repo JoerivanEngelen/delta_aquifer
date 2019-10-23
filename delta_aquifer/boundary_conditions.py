@@ -76,12 +76,16 @@ def _dumb(x):
 
 def _get_inv_d1(d1):
     
-    #z=0.0 occurs twice, we have to remove this
-    mean_rho_z0=d1["top"].where(d1["top"]==0.0, drop=True).rho.mean()
-    z, index = np.unique(d1["top"], return_index=True)
+    #z=0.0 occurs twice, we replace this with 
+    rho_not_z0  = d1["top"].where(d1["top"]!=0.0, drop=True).rho.values
+    mean_rho_z0 = d1["top"].where(d1["top"]==0.0, drop=True).rho.mean().values
+    rho = np.append(rho_not_z0, mean_rho_z0)
+    rho.sort()
+    z = np.unique(d1["top"])[::-1]
     
     
-    d1_inv = xr.Dataset({"rho" : (["z"], d1["rho"].values)}, coords={"z": d1["top"].values})
+    d1_inv = xr.Dataset({"rho" : (["z"], rho)}, coords={"z": z})
+    return(d1_inv)
 
 #%%Get sea level
 def get_sea_level(sl_curve, ts, qt="50%", figfol=None, ext=".png"):
@@ -138,42 +142,18 @@ def calc_weighted_mean(df, ts, qt):
 #%%Boundary condition location
 def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None, 
                   figfol=None, t_start=None, t_max=None, t_end=None, 
-                  tra=None, **kwargs):
-    dx = geo.x[-1]-geo.x[-2]
-    
-    #Flip 
-    d1_inv = xr.Dataset({"rho" : (["z"], d1["rho"].values)}, coords={"z": d1["top"].values})
-    #two times z = 0.0 causes error.
-    d1_inv.sel(z=sea_level, method="pad")
-#    # top_coast
-#    top_coast = (
-#            #TODO: test if making this dependent on dz is more robust
-#            _isclose(
-#            geo["tops"], sea_level, atol=0.5, rtol=5e-1
-#                    ) | (
-#            geo.x >= (L-dx)
-#                    )
-#            # Get sea cells in upper layer
-#            ) & geo["edges"].sel(z=sea_level, method="pad")
-#    
-#    coast_y = xr.where(top_coast, top_coast.x, np.nan).min(dim="x")
-#            
-#    coastline_rho = coast_y.sel(y=0.0, method="nearest")
-#    #Sometimes at y=0.0 there are no cells located, so fill these with the minimum across y.
-#    coastline_rho = xr.where(np.isnan(coastline_rho), 
-#                             coast_y.min(dim="y"), coastline_rho)
-#
-#    if np.any(np.isnan(coastline_rho)):
-#        raise ValueError("coastline_rho is nan at certain moments in time")
+                  tra=None, **kwargs):   
+    #Invert datarray to do an inverse selction.
+    d1_inv = _get_inv_d1(d1)
+    coastline_rho = d1_inv.sel(z=sea_level, method="pad")["rho"]
 
     weights_trans = np.clip((sea_level.time - t_start)/(t_max - t_start), 0, 1)
     weights_reg = np.clip((sea_level.time - t_max)/(t_end - t_max), 0, 1)
     weights = weights_trans - weights_reg
     
     coastline_rho = L_a * (1-tra) * weights + (1-weights) * coastline_rho
-    phis = np.linspace(-phi/2, phi/2, num=top_coast["y"].shape[0])
+    phis = np.linspace(-phi/2, phi/2, num=geo["y"].shape[0])
     phis = xr.DataArray(phis, coords={"phi": phis}, dims=["phi"])
-     
     coastline_loc = xr.Dataset(dict([i for i in zip(*[["xc", "yc"], geometry._pol2cart(coastline_rho, phis)])]))
 
     x_bins, y_bins = [_mid_to_binedges(geo[dim].values) for dim in ["x", "y"]]
@@ -182,9 +162,9 @@ def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None,
     
     coastline = xr.where(
             (
-            top_coast.x == coastline_loc["xc_bins"]
+            geo["x"] == coastline_loc["xc_bins"]
             ) & (
-            top_coast.y == coastline_loc["yc_bins"]
+            geo["y"] == coastline_loc["yc_bins"]
             ), 1, 0).max(dim="phi")
 
     #Get rid of all the polar coordinate nonsense and create a more useful coastline_loc
@@ -337,14 +317,14 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, c_s, c_f):
     estuary_salinity = xr.where((rhos_2d > (intrusion_rho)) & (rhos_2d < coastline_rho), 
                          concs_rho, c_f)
     estuary_salinity = xr.where((rhos_2d > coastline_rho), c_s, estuary_salinity)
-    return(estuary_salinity.drop(labels=["z", "layer"]))
+    return(estuary_salinity.drop(labels=["z"]))
 
 #%%Recharge
 def recharge(onshore_mask, rch_rate):
     return(onshore_mask * rch_rate)
 
 #%%Master function
-def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None, 
+def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None, 
                         bc_res=None, N_chan=None, f_cond_chan=None,
                         L_a=None, intrusion_L=None, rch_rate=None, 
                         conc_noise=0.01, qt="50%", 
@@ -362,7 +342,7 @@ def boundary_conditions(sl_curve, ts, geo, c_s=None, c_f=None,
     
     # Find active sea cells where GHB's should be assigned.
     coastline, coastline_loc, coastline_rho = coastlines(
-        geo, sea_level, figfol=figfol, L_a=L_a, **kwargs
+        geo, d1, sea_level, figfol=figfol, L_a=L_a, **kwargs
     )
     
     sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)

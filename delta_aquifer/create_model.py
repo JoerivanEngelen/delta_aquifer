@@ -90,7 +90,7 @@ topbot=bc._mid_to_binedges(geo["z"].values)[::-1]
 z=(topbot[:-1]+topbot[1:])/2
 
 #%%Create boundary conditions
-bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, conc_noise = 0.05,
+bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, d1, conc_noise = 0.05,
                                             L_a=L_a, figfol=figfol, ncfol=None, 
                                             **pars)
 
@@ -294,7 +294,10 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   max_n_transport_timestep=999_999,
                                   transport_initial_timestep=1000.)
     
-    m.write(directory = os.path.join(model_fol, mname))
+    directory = os.path.join(model_fol, mname)
+    results_dir = os.path.join(directory, "results")
+    
+    m.write(directory = directory, result_dir=results_dir)
     
     if (len(sys.argv) == 1) & (mod_nr == 0):
         break
