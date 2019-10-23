@@ -295,9 +295,11 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   transport_initial_timestep=1000.)
     
     directory = os.path.join(model_fol, mname)
+    print(os.readlink(directory))
+    directory = os.readlink(directory)    
     results_dir = os.path.join(directory, "results")
     
-    m.write(directory = directory, result_dir=results_dir)
+    m.write(directory = directory)
     
     if (len(sys.argv) == 1) & (mod_nr == 0):
         break
