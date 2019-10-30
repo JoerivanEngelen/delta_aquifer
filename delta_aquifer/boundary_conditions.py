@@ -179,7 +179,8 @@ def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None,
     return(coastline, coastline_loc, coastline_rho)
 
 def river_grid(
-    geo, sea_level, coastline_rho, phi=None, L=None, figfol=None, **kwargs
+    geo, sea_level, coastline_rho,
+    phi=None, L=None, figfol=None, **kwargs
 ):
     """Create grid with river stages. 
     """
@@ -196,11 +197,17 @@ def river_grid(
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
     
     h_grid = apex - coords["rho"] * dhdx
+    
     h_grid = h_grid.where(
             (h_grid > sea_level) & (geo["IBOUND"].max(dim="z") == 1)
             )
     
-    return h_grid, dhdx
+    outer_ridge = geo["bots"]>h_grid
+    dz = geo.z[1]-geo.z[0]
+    
+    h_grid = xr.where(outer_ridge, geo["bots"]+dz, h_grid)
+    
+    return h_grid, dhdx, outer_ridge
 
 def sea_3d(geo, sea_level, coastline_loc):
     #This can probably be simplified just by using a coastline_rho instead of these coastlines...
@@ -214,12 +221,15 @@ def sea_3d(geo, sea_level, coastline_loc):
     return((sea_edge|sea_trans).astype(np.int16), sea_z)
     
 def river_3d(
-    geo, sea_level, coastline_rho, phi=None, L=None, figfol=None, **kwargs        
+    geo, sea_level, coastline_rho,
+    phi=None, L=None, figfol=None, **kwargs
 ):
+    
     assert type(sea_level) == xr.core.dataarray.DataArray
     assert type(geo) == xr.core.dataarray.Dataset
     
-    h_grid, dhdx = river_grid(geo, sea_level, coastline_rho, phi, L, figfol, **kwargs)
+    h_grid, dhdx, outer_ridge = river_grid(geo, sea_level, coastline_rho, 
+                                           phi, L, figfol, **kwargs)
     h_grid = xr.Dataset({"h_grid" : h_grid})
     z_bins = _mid_to_binedges(geo["z"].values)
 
@@ -232,7 +242,7 @@ def river_3d(
 
     riv = h_grid * geo["IBOUND"].where((geo["IBOUND"] == 1) & (geo.layer == h_grid["h_l"]))
     
-    return(riv, z_bins, dhdx)
+    return(riv, z_bins, dhdx, outer_ridge)
 
 def create_channel_mask(d2_ds, N_chan, phi=None, L = None, **kwargs):
     n_inp=200
@@ -304,7 +314,7 @@ def estuary_profile_slope(intrusion_rho, coastline_rho, c_s, c_f):
     """
     return((c_s - c_f)/(coastline_rho - intrusion_rho))
     
-def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, c_s, c_f):
+def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, outer_ridge, c_s, c_f):
     """
     """
 
@@ -317,6 +327,7 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, c_s, c_f):
     estuary_salinity = xr.where((rhos_2d > (intrusion_rho)) & (rhos_2d < coastline_rho), 
                          concs_rho, c_f)
     estuary_salinity = xr.where((rhos_2d > coastline_rho), c_s, estuary_salinity)
+    estuary_salinity = xr.where(outer_ridge, c_f, estuary_salinity)
     return(estuary_salinity.drop(labels=["z"]))
 
 #%%Recharge
@@ -346,15 +357,22 @@ def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None,
     )
     
     sea_cells, sea_z = sea_3d(geo, sea_level, coastline_loc)
+
+    onshore_mask = (
+            geo["IBOUND"].max(dim="z")-sea_cells.max(dim="z").fillna(0.)
+            )
     
     #Create river stages
-    rivers, z_bins, dhdx = river_3d(geo, sea_level, coastline_rho, figfol=figfol, **kwargs)
+    rivers, z_bins, dhdx, outer_ridge = river_3d(
+            geo, sea_level, coastline_rho, figfol=figfol, **kwargs
+                                    )
     
     #Salinity intrusion in surface water
     intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * L_a, dhdx)
     coords = {} #Should add these somewhere in geometry.py as dependent coordinates
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
-    estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, coastline_rho, c_s, c_f) 
+    estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, 
+                                        coastline_rho, outer_ridge, c_s, c_f) 
     
     #Calculate river conductance
     riv_conductance, base_cond = calc_riv_conductance(coastline_loc, 
@@ -383,9 +401,6 @@ def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None,
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, np.nan)
     
     #Recharge
-    onshore_mask = (
-            geo["IBOUND"].max(dim="z")-sea_cells.max(dim="z").fillna(0.)
-            )
     bcs["rch"] = recharge(onshore_mask, rch_rate)
     
     #Put dimensions in right order
