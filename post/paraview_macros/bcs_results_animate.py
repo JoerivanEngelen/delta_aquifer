@@ -15,7 +15,7 @@ netCDFReader1 = NetCDFReader(FileName=nc_paths)
 netCDFReader1.Dimensions = '(z, y, x)'
 
 bc_path=sys.argv[2]
-bcsnc = NetCDFReader(FileName=[path])
+bcsnc = NetCDFReader(FileName=[bc_path])
 bcsnc.Dimensions = '(z, y, x)'
 
 # get animation scene
