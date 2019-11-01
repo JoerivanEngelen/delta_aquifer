@@ -6,17 +6,16 @@ import glob
 import os, sys
 import math
 
-# create a new 'NetCDF Reader'
+#Path management
 fol=sys.argv[1]
 nc_paths = glob.glob(os.path.join(fol, "*[0-9][0-9][0-9].nc"))
 nc_paths.sort()
 
+bc_path=os.path.join(fol, "input", "data", "bcs.nc")
+
+# create a new 'NetCDF Reader'
 netCDFReader1 = NetCDFReader(FileName=nc_paths)
 netCDFReader1.Dimensions = '(z, y, x)'
-
-bc_path=os.path.join(fol, "input", "data", "bcs.nc")
-bcsnc = NetCDFReader(FileName=[bc_path])
-bcsnc.Dimensions = '(z, y, x)'
 
 # get animation scene
 animationScene1 = GetAnimationScene()
@@ -162,6 +161,10 @@ conc1LUT.ScalarRangeInitialized = 1.0
 
 # update the view to ensure updated data information
 renderView1.Update()
+
+#Load boundary conditions
+bcsnc = NetCDFReader(FileName=[bc_path])
+bcsnc.Dimensions = '(z, y, x)'
 
 # create a new 'Programmable Filter'
 programmableFilter2 = ProgrammableFilter(Input=bcsnc)
