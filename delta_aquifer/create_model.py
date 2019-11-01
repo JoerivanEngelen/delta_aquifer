@@ -20,7 +20,6 @@ from pkg_resources import resource_filename
 
 #%%TODO Tests
 #-Grid convergence test base case
-#-Testen: Heads boven maaiveld in case met lage K en hoge recharge?
 
 #%%Path management
 if len(sys.argv) > 1:
@@ -29,7 +28,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 96
+    sim_nr = 239
     
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -81,7 +80,9 @@ ts = (
 
 #%%Solver settings
 hclose = 1e-4
-rclose = pars["dx"] * pars["dy"] * hclose * 10.
+#Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
+#its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
+rclose = pars["dx"] * pars["dy"] * hclose * ic.c2dens(pars["c_f"])
 
 #%%Get geometry
 geo, d1, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
