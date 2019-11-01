@@ -3,7 +3,6 @@
 #SBATCH --output=../stds/synth_%j.out
 #SBATCH --error=../stds/synth_%j.err
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=joeri.vanengelen@deltares.nl
 #SBATCH -p normal
 #SBATCH -N 1
 #SBATCH -n 24
@@ -13,8 +12,8 @@ echo $TMPDIR
 
 module load gnu-parallel/2015.01.22
 
-export PATH=/home/jengelen/anaconda3/bin:$PATH
-export PYTHONPATH=/home/jengelen/anaconda3/lib/python3.7/site-packages:$PYTHONPATH
+export PATH=/path/to/anaconda3/bin:$PATH
+export PYTHONPATH=/path/to/anaconda3/lib/python3.7/site-packages:$PYTHONPATH
 
 #model id should be provided as an integer argument to this jobscript
 id=$1
