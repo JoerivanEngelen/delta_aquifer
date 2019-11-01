@@ -96,7 +96,7 @@ renderView1.Update()
 # create a new 'Threshold'
 threshold1 = Threshold(Input=transform1)
 threshold1.Scalars = ['CELLS', 'conc1']
-threshold1.ThresholdRange = [-1.0, 36.02853775024414]
+threshold1.ThresholdRange = [-1.0, 37]
 
 # show data in view
 threshold1Display = Show(threshold1, renderView1)
