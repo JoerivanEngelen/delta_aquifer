@@ -14,7 +14,7 @@ nc_paths.sort()
 netCDFReader1 = NetCDFReader(FileName=nc_paths)
 netCDFReader1.Dimensions = '(z, y, x)'
 
-bc_path=sys.argv[2]
+bc_path=os.path.join(fol, "input", "data", "bcs.nc")
 bcsnc = NetCDFReader(FileName=[bc_path])
 bcsnc.Dimensions = '(z, y, x)'
 
