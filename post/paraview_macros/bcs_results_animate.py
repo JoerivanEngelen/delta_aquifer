@@ -207,7 +207,7 @@ SetActiveSource(programmableFilter2)
 
 # Properties modified on programmableFilter2
 programmableFilter2.OutputDataSetType = 'vtkImageData'
-programmableFilter2.Script = 'dims = inputs[0].GetDimensions()\next = inputs[0].GetExtent()\noutput.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noutput.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\ninputPd = inputs[0].PointData\noutputCd = output.CellData\nfor array in inputPd:\n   print(type(array))\n   outputCd.append(array, array.GetName())'
+programmableFilter2.Script = 'inp = self.GetInput()\ndims = inp.GetDimensions()\next = inp.GetExtent()\n\noup = self.GetOutput()\noup.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noup.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\n\nN=inp.GetPointData().GetNumberOfArrays()\n\nfor i in range(N):\n    data = inp.GetPointData().GetAbstractArray(i)\n    oup.GetCellData().AddArray(data)\n\n'
 programmableFilter2.RequestInformationScript = ''
 programmableFilter2.RequestUpdateExtentScript = ''
 programmableFilter2.PythonPath = ''
