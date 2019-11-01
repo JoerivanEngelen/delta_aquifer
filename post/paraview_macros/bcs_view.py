@@ -135,11 +135,6 @@ threshold3 = Threshold(Input=transform2)
 threshold3.Scalars = ['CELLS', 'sea']
 threshold3.ThresholdRange = [0.17, 1.0]
 
-# get active view
-renderView1 = GetActiveViewOrCreate('RenderView')
-# uncomment following to set a specific view size
-# renderView1.ViewSize = [1009, 857]
-
 # show data in view
 threshold3Display = Show(threshold3, renderView1)
 # trace defaults for the display properties.
