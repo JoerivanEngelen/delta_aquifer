@@ -34,35 +34,6 @@ calculator1 = Calculator(Input=netCDFReader1)
 calculator1.ResultArrayName = 'v'
 calculator1.Function = '(-1*vx)*iHat+(1*vy)*jHat+(1*vz)*kHat'
 
-# show data in view
-calculator1Display = Show(calculator1, renderView1)
-# trace defaults for the display properties.
-calculator1Display.Representation = 'Outline'
-calculator1Display.ColorArrayName = [None, '']
-calculator1Display.OSPRayScaleArray = 'conc1'
-calculator1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-calculator1Display.SelectOrientationVectors = 'v'
-calculator1Display.ScaleFactor = 19800.0
-calculator1Display.SelectScaleArray = 'None'
-calculator1Display.GlyphType = 'Arrow'
-calculator1Display.GlyphTableIndexArray = 'None'
-calculator1Display.DataAxesGrid = 'GridAxesRepresentation'
-calculator1Display.PolarAxes = 'PolarAxesRepresentation'
-calculator1Display.GaussianRadius = 9900.0
-calculator1Display.SetScaleArray = ['POINTS', 'conc1']
-calculator1Display.ScaleTransferFunction = 'PiecewiseFunction'
-calculator1Display.OpacityArray = ['POINTS', 'conc1']
-calculator1Display.OpacityTransferFunction = 'PiecewiseFunction'
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-calculator1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-calculator1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-calculator1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
 # hide data in view
 Hide(netCDFReader1, renderView1)
 
@@ -77,35 +48,6 @@ programmableFilter1.Script='inp = self.GetInput()\ndims = inp.GetDimensions()\ne
 programmableFilter1.RequestInformationScript = ''
 programmableFilter1.RequestUpdateExtentScript = ''
 programmableFilter1.PythonPath = ''
-
-# show data in view
-programmableFilter1Display = Show(programmableFilter1, renderView1)
-# trace defaults for the display properties.
-programmableFilter1Display.Representation = 'Outline'
-programmableFilter1Display.ColorArrayName = [None, '']
-programmableFilter1Display.OSPRayScaleArray = 'conc1'
-programmableFilter1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-programmableFilter1Display.SelectOrientationVectors = 'None'
-programmableFilter1Display.ScaleFactor = 19800.0
-programmableFilter1Display.SelectScaleArray = 'None'
-programmableFilter1Display.GlyphType = 'Arrow'
-programmableFilter1Display.GlyphTableIndexArray = 'None'
-programmableFilter1Display.DataAxesGrid = 'GridAxesRepresentation'
-programmableFilter1Display.PolarAxes = 'PolarAxesRepresentation'
-programmableFilter1Display.GaussianRadius = 9900.0
-programmableFilter1Display.SetScaleArray = [None, '']
-programmableFilter1Display.ScaleTransferFunction = 'PiecewiseFunction'
-programmableFilter1Display.OpacityArray = [None, '']
-programmableFilter1Display.OpacityTransferFunction = 'PiecewiseFunction'
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-programmableFilter1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-programmableFilter1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-programmableFilter1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
 # hide data in view
 Hide(calculator1, renderView1)
