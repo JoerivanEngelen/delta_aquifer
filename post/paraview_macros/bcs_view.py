@@ -120,19 +120,10 @@ threshold2Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1
 # update the view to ensure updated data information
 renderView1.Update()
 
-# set scalar coloring
-ColorBy(threshold2Display, ('CELLS', 'river_stage'))
-
-# rescale color and/or opacity maps used to include current data range
-threshold2Display.RescaleTransferFunctionToDataRange(True, False)
-
 # show color bar/color legend
 threshold2Display.SetScalarBarVisibility(renderView1, True)
 
-# hide data in view
-Hide(threshold2, renderView1)
-
-ColorBy(threshold3Display, ('CELLS', 'river'))
+ColorBy(threshold2Display, ('CELLS', 'river'))
 
 riverLUT = GetColorTransferFunction('river')
 riverLUT.RGBPoints = [0.0, 0.9, 0.9, 0.9, 2.0, 0.9, 0.9, 0.9]
@@ -227,7 +218,7 @@ lithLUT = GetColorTransferFunction('lith')
 lithLUT.RGBPoints = [0.0, 0.6, 0.6, 0.6, 6.0, 0.6, 0.6, 0.6]
 lithLUT.ScalarRangeInitialized = 1.0
 lithLUT.EnableOpacityMapping = 1
-lithLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0])
+lithLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.2, 0.2, 0.0, 100.0, 0.2, 0.2, 0.0])
 
 
 #### saving camera placements for all active views
