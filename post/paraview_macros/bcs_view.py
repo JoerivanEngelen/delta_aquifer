@@ -4,8 +4,7 @@ from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'NetCDF Reader'\bcs.nc
-path=r"g:\synthdelta\test_output\SD_i202\synth_SD_i202_m24_6378797\input\data\bcs.nc"
-#path=r"g:\synthdelta\test_output\SD_i132\synth_SD_i132_m24_6365610\input\data\bcs.nc"
+path=r"c:\Users\engelen\test_imodpython\synth_delta_test\SD_i239\input\data\bcs.nc"
 bcsnc = NetCDFReader(FileName=[path])
 bcsnc.Dimensions = '(z, y, x)'
 
@@ -20,38 +19,6 @@ renderView1 = GetActiveViewOrCreate('RenderView')
 # uncomment following to set a specific view size
 # renderView1.ViewSize = [1009, 857]
 
-# show data in view
-bcsncDisplay = Show(bcsnc, renderView1)
-# trace defaults for the display properties.
-bcsncDisplay.Representation = 'Outline'
-bcsncDisplay.ColorArrayName = [None, '']
-bcsncDisplay.OSPRayScaleArray = 'river_stage'
-bcsncDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
-bcsncDisplay.SelectOrientationVectors = 'None'
-bcsncDisplay.ScaleFactor = 19900.0
-bcsncDisplay.SelectScaleArray = 'None'
-bcsncDisplay.GlyphType = 'Arrow'
-bcsncDisplay.GlyphTableIndexArray = 'None'
-bcsncDisplay.DataAxesGrid = 'GridAxesRepresentation'
-bcsncDisplay.PolarAxes = 'PolarAxesRepresentation'
-bcsncDisplay.ScalarOpacityUnitDistance = 1756.2869340104558
-bcsncDisplay.Slice = 49
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-bcsncDisplay.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# find source
-netCDFReader1 = FindSource('NetCDFReader1')
-
-# find source
-programmableFilter1 = FindSource('ProgrammableFilter1')
-
-# find source
-transform1 = FindSource('Transform1')
-
-# find source
-threshold1 = FindSource('Threshold1')
-
 # update the view to ensure updated data information
 renderView1.Update()
 
@@ -63,9 +30,6 @@ programmableFilter2.RequestUpdateExtentScript = ''
 programmableFilter2.PythonPath = ''
 
 # set active source
-SetActiveSource(programmableFilter1)
-
-# set active source
 SetActiveSource(programmableFilter2)
 
 # Properties modified on programmableFilter2
@@ -74,26 +38,6 @@ programmableFilter2.Script = 'dims = inputs[0].GetDimensions()\next = inputs[0].
 programmableFilter2.RequestInformationScript = ''
 programmableFilter2.RequestUpdateExtentScript = ''
 programmableFilter2.PythonPath = ''
-
-# show data in view
-programmableFilter2Display = Show(programmableFilter2, renderView1)
-# trace defaults for the display properties.
-programmableFilter2Display.Representation = 'Outline'
-programmableFilter2Display.ColorArrayName = [None, '']
-programmableFilter2Display.OSPRayScaleArray = 'river_stage'
-programmableFilter2Display.OSPRayScaleFunction = 'PiecewiseFunction'
-programmableFilter2Display.SelectOrientationVectors = 'None'
-programmableFilter2Display.ScaleFactor = 20000.0
-programmableFilter2Display.SelectScaleArray = 'None'
-programmableFilter2Display.GlyphType = 'Arrow'
-programmableFilter2Display.GlyphTableIndexArray = 'None'
-programmableFilter2Display.DataAxesGrid = 'GridAxesRepresentation'
-programmableFilter2Display.PolarAxes = 'PolarAxesRepresentation'
-programmableFilter2Display.ScalarOpacityUnitDistance = 1753.4583806374903
-programmableFilter2Display.Slice = 50
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-programmableFilter2Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
 # hide data in view
 Hide(bcsnc, renderView1)
@@ -140,11 +84,8 @@ renderView1.Update()
 
 # create a new 'Threshold'
 threshold2 = Threshold(Input=transform2)
-threshold2.Scalars = ['CELLS', 'river_stage']
-threshold2.ThresholdRange = [-81.1769253556934, 8.888909220323699]
-
-# Properties modified on threshold2
-threshold2.ThresholdRange = [-150.0, 20.0]
+threshold2.Scalars = ['CELLS', 'river']
+threshold2.ThresholdRange = [0.1, 1]
 
 # show data in view
 threshold2Display = Show(threshold2, renderView1)
@@ -191,8 +132,13 @@ threshold2Display.SetScalarBarVisibility(renderView1, True)
 # hide data in view
 Hide(threshold2, renderView1)
 
-# get color transfer function/color map for 'river_stage'
-river_stageLUT = GetColorTransferFunction('river_stage')
+ColorBy(threshold3Display, ('CELLS', 'river'))
+
+riverLUT = GetColorTransferFunction('river')
+riverLUT.RGBPoints = [0.0, 0.9, 0.9, 0.9, 2.0, 0.9, 0.9, 0.9]
+riverLUT.ScalarRangeInitialized = 1.0
+riverLUT.EnableOpacityMapping = 1
+riverLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.5, 0.5, 0.0, 100.0, 0.5, 0.5, 0.0])
 
 threshold3 = Threshold(Input=transform2)
 threshold3.Scalars = ['CELLS', 'sea']
@@ -243,7 +189,7 @@ seaLUT.ScalarOpacityFunction = CreatePiecewiseFunction(Points=[0.0, 0.5, 0.5, 0.
 
 threshold4 = Threshold(Input=transform2)
 threshold4.Scalars = ['CELLS', 'lith']
-threshold4.ThresholdRange = [1.5, 5.0]
+threshold4.ThresholdRange = [1.5, 100.0]
 
 # show data in view
 threshold4Display = Show(threshold4, renderView1)
