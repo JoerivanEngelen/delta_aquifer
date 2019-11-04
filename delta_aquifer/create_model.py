@@ -79,7 +79,7 @@ ts = (
 )
 
 #%%Solver settings
-hclose = 1e-4
+hclose = 2e-4
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
 rclose = pars["dx"] * pars["dy"] * hclose * ic.c2dens(pars["c_f"])
