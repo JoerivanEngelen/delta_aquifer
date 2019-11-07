@@ -49,10 +49,12 @@ else:
 nc_paths = glob(os.path.join(fol, "results_*.nc"))
 nc_paths.sort()
 
-bc = os.path.join(fol, "input", "data", "bcs.nc")
+bc_path = os.path.join(fol, "input", "data", "bcs.nc")
+
+oi_path = os.path.join(fol, "oi.csv")
 
 #%%pre-process data for analysis
-sea_level = xr.open_dataset(bc)["sea_level"]
+sea_level = xr.open_dataset(bc_path)["sea_level"]
 sea_level = cftime_to_ka(sea_level)
 
 ds = xr.open_mfdataset(nc_paths, 
@@ -126,11 +128,13 @@ oi["old_water"]       = frac_mas["ol_sal"].isel(time=-1).values
 oi["onshore_sw"]      = frac_mas["sal_onshore"].isel(time=-1).values/(35./1025.)
 oi["fw_gradient"]     = (grad_fw).isel( 
                             time=slice(-3, None)
-                            ).mean()
-oi["delay"] = coord_of_max(grad_sl).time - coord_of_max(grad_fw*-1).time 
+                            ).mean().values
+oi["delay"] = (coord_of_max(grad_sl).time - coord_of_max(grad_fw*-1).time ).values
 
 keys, values = list(zip(*oi.items()))
 oi = pd.DataFrame(data={"var" : keys, "value" : values}).set_index("var")
+
+oi.to_csv(oi_path)
 
 #%%Plot
 sns.set_style("darkgrid", {"axes.facecolor": ".4", "xtick.bottom": True})
@@ -159,3 +163,8 @@ plt.xlabel("time (ka)")
 plt.legend()
 
 plt.savefig(os.path.join(fol, "fw_volume.png"), dpi=300)
+
+#%%Close files that are open
+plt.close()
+frac_vols.close()
+frac_mas.close()
