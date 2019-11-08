@@ -13,9 +13,12 @@ import pandas as pd
 import os
 import numpy as np
 
-datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
-traj_id = os.path.join(datafol, "traj_id.csv")
+#%%Path management
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+traj_id  = os.path.join(datafol, "traj_id.csv")
+out_path = os.path.join(datafol, "text_aid.csv")
 
+#%%Process
 traj_len=24
 
 df = pd.read_csv(traj_id, index_col=0)
@@ -27,4 +30,9 @@ changed_parameters = diff[diff != 0].stack().index.tolist()
 changed_parameters.extend([(idx, "base") for idx in base_id])
 changed_parameters.sort()
 
-names=list(zip(*changed_parameters))[1]
+#Maybe change symbols here with dictionary?
+
+changed_parameters = pd.DataFrame(data=changed_parameters).set_index(0)
+changed_parameters.columns = ["par"]
+
+changed_parameters.to_csv(out_path)
