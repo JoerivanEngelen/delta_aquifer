@@ -13,6 +13,7 @@ import pandas as pd
 import os
 import numpy as np
 
+
 #%%Path management
 datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
 traj_id  = os.path.join(datafol, "traj_id.csv")
@@ -30,9 +31,15 @@ changed_parameters = diff[diff != 0].stack().index.tolist()
 changed_parameters.extend([(idx, "base") for idx in base_id])
 changed_parameters.sort()
 
+sign = np.sum(np.sign(diff), axis=1) #Direction parameters changed
+convert = {1.0 : "+",
+           -1.0: "-",
+           0.0:  ""}
+
 #Maybe change symbols here with dictionary?
 
 changed_parameters = pd.DataFrame(data=changed_parameters).set_index(0)
 changed_parameters.columns = ["par"]
+changed_parameters["par"] += sign.map(convert)
 
 changed_parameters.to_csv(out_path)
