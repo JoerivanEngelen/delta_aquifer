@@ -126,7 +126,7 @@ fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
 #Generate 2D linspace with for each simulation all levels
 n_aqtds_all = np.linspace(np.zeros(traj_real["H_b"].shape), aqtds_depth(traj_real["H_b"]), num=lev)
 n_aqtd_select = n_aqtds_all[traj_id["N_aqt"].values, np.arange(traj_id["N_aqt"].shape[0])].astype(np.int64)
-traj_real["n_clay"] = n_aqtd_select
+traj_real["N_aqt"] = n_aqtd_select
 
 #%%Save as csv
 traj_real.to_csv(traj_real_path)
