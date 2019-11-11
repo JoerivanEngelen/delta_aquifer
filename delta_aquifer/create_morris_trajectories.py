@@ -46,13 +46,13 @@ np.random.seed(seed=seed)
 pars = OrderedDict()
 
 # Domain geometry
-pars["a"]           = np.linspace(0.3, 0.8, num=lev)
-pars["D"]           = np.logspace(np.log10(70), np.log10(1000), num=lev)
-pars["dD"]          = np.linspace(0.0, 0.8, num=lev)
+pars["l_a"]           = np.linspace(0.3, 0.8, num=lev)
+pars["H_b"]           = np.logspace(np.log10(70), np.log10(1000), num=lev)
+pars["f_H"]          = np.linspace(0.0, 0.8, num=lev)
 pars["alpha"]       = np.logspace(-5, -3, num=lev)
 pars["beta"]        = np.logspace(-4, np.log10(4e-3), num=lev)
 pars["gamma"]       = 2.5e-2 # FIXED
-pars["phi"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
+pars["phi_f"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
 pars["L"]           = 200000
 
 # Internal geometry
@@ -63,8 +63,8 @@ pars["N_pal"]       = np.linspace(1, 10, num=lev, dtype=int)
 pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
-pars["kh"]          = np.logspace(-1, np.log10(2e2), num=lev)
-pars["kv_mar"]      = np.logspace(-6, -1, num=lev)
+pars["kh_aqf"]      = np.logspace(-1, np.log10(2e2), num=lev)
+pars["kv_aqt"]      = np.logspace(-6, -1, num=lev)
 pars["f_kh_pal"]    = np.linspace(0, 1, num=lev)
 pars["ani"]         = np.logspace(0, 2, num=lev)
 

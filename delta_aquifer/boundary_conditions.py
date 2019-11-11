@@ -140,7 +140,7 @@ def calc_weighted_mean(df, ts, qt):
     return means
 
 #%%Boundary condition location
-def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None, 
+def coastlines(geo, d1, sea_level, phi_f=None, L = None, L_a = None, 
                   figfol=None, t_start=None, t_max=None, t_end=None, 
                   tra=None, **kwargs):   
     #Invert datarray to do an inverse selction.
@@ -152,7 +152,7 @@ def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None,
     weights = weights_trans - weights_reg
     
     coastline_rho = L_a * (1-tra) * weights + (1-weights) * coastline_rho
-    phis = np.linspace(-phi/2, phi/2, num=geo["y"].shape[0])
+    phis = np.linspace(-phi_f/2, phi_f/2, num=geo["y"].shape[0])
     phis = xr.DataArray(phis, coords={"phi": phis}, dims=["phi"])
     coastline_loc = xr.Dataset(dict([i for i in zip(*[["xc", "yc"], geometry._pol2cart(coastline_rho, phis)])]))
 
@@ -180,7 +180,6 @@ def coastlines(geo, d1, sea_level, phi=None, L = None, L_a = None,
 
 def river_grid(
     geo, sea_level, coastline_rho,
-    phi=None, L=None, figfol=None, **kwargs
 ):
     """Create grid with river stages. 
     """
@@ -222,14 +221,12 @@ def sea_3d(geo, sea_level, coastline_loc):
     
 def river_3d(
     geo, sea_level, coastline_rho,
-    phi=None, L=None, figfol=None, **kwargs
 ):
     
     assert type(sea_level) == xr.core.dataarray.DataArray
     assert type(geo) == xr.core.dataarray.Dataset
     
-    h_grid, dhdx, outer_ridge = river_grid(geo, sea_level, coastline_rho, 
-                                           phi, L, figfol, **kwargs)
+    h_grid, dhdx, outer_ridge = river_grid(geo, sea_level, coastline_rho)
     h_grid = xr.Dataset({"h_grid" : h_grid})
     z_bins = _mid_to_binedges(geo["z"].values)
 
@@ -244,10 +241,10 @@ def river_3d(
     
     return(riv, z_bins, dhdx, outer_ridge)
 
-def create_channel_mask(d2_ds, N_chan, phi=None, L = None, **kwargs):
+def create_channel_mask(d2_ds, N_chan, phi_f=None, L = None, **kwargs):
     n_inp=200
     rhos = np.linspace(0, L, num=n_inp)
-    channel = geometry._cake_cuts(N_chan, phi, rhos, f_offset = 0.)
+    channel = geometry._cake_cuts(N_chan, phi_f, rhos, f_offset = 0.)
     channel = [c.flatten() for c in channel]
 
     da = d2_ds.sel(x=xr.DataArray(channel[0], dims="foo"),
@@ -364,8 +361,8 @@ def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None,
     
     #Create river stages
     rivers, z_bins, dhdx, outer_ridge = river_3d(
-            geo, sea_level, coastline_rho, figfol=figfol, **kwargs
-                                    )
+            geo, sea_level, coastline_rho
+            )
     
     #Salinity intrusion in surface water
     intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * L_a, dhdx)
