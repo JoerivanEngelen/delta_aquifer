@@ -277,18 +277,18 @@ def create_3d_grid(d2_grid, d1, nz):
     return(d3)
 
 #%%Main functions: Geology
-def get_relative_clay_depths(SM, n_clay):
-    frac_sand = (1-SM) / (n_clay+1) #+1 because there also is a confining layer
-    frac_clay = SM/(n_clay+1)
+def get_relative_clay_depths(f_aqt, N_aqt):
+    frac_sand = (1-f_aqt) / (N_aqt+1) #+1 because there also is a confining layer
+    frac_clay = f_aqt/(N_aqt+1)
     
-    rel_clay_depths = np.cumsum([frac_clay, frac_sand]*(n_clay+1))
+    rel_clay_depths = np.cumsum([frac_clay, frac_sand]*(N_aqt+1))
     return(rel_clay_depths)
 
-def create_confining_layer(clay_conf, d2, d1, phis, L_a, frac, n_inp):
+def create_confining_layer(l_conf, d2, d1, phis, L_a, frac, n_inp):
     d2_clay = {}
     x_ons, y_ons = _get_pizza_slice(d1, L_a, phis)
     
-    x_offset=L_a * (1-clay_conf)
+    x_offset=L_a * (1-l_conf)
     rho_clay, phi_clay = _cart2pol(x_ons[0][-1] - x_offset, y_ons[0][-1])
     rhos_clay = np.linspace(0, rho_clay, num=n_inp)
     phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
@@ -323,10 +323,10 @@ def create_clayer(frac, d1, d2, phis, phi_f, a_real, bot_offset=0):
     clayer[~in_prism] = np.nan
     return(clayer)
 
-def create_clayers(fracs, d1, d2, phis, phi_f, a_real, n_clay):
+def create_clayers(fracs, d1, d2, phis, phi_f, a_real, N_aqt):
     rho_min, rho_max = {}, {}
     
-    for i in range(n_clay):
+    for i in range(N_aqt):
         d2["ct%d"%i] = create_clayer(fracs[1::2][i], d1, d2, phis, phi_f, a_real)
         d2["cb%d"%i] = create_clayer(fracs[2::2][i], d1, d2, phis, phi_f, a_real)
         
@@ -344,11 +344,11 @@ def create_clayers(fracs, d1, d2, phis, phi_f, a_real, n_clay):
     
     return(rho_min, rho_max, d2)
 
-def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
+def finish_clayer_grid(d2_grid, N_aqt, rho_min, rho_max):
     """Final touch to erase errors caused by the interpolation to a grid
     """
 
-    for i in range(n_clay):
+    for i in range(N_aqt):
         #Make sure empty corners of clay layers are filled
         corner_top = ((d2_grid["rho"] < rho_max['ct%d'%i]) & (d2_grid["rho"] > rho_min['ct%d'%i]) & np.isnan(d2_grid["ct%d"%i]))
         corner_bot = ((d2_grid["rho"] < rho_max['cb%d'%i]) & (d2_grid["rho"] > rho_min['cb%d'%i]) & np.isnan(d2_grid["cb%d"%i]))
@@ -357,13 +357,13 @@ def finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max):
         d2_grid["cb%d"%i] = np.where(corner_bot, d2_grid["cbmin%d"%i], d2_grid["cb%d"%i])
     return(d2_grid)
 
-def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi_f, rhos): #Perhaps also include w_pal
+def create_paleo_channels(d2_ds, N_aqt, N_pal, s_pal, phi_f, rhos): #Perhaps also include w_pal
     pal_masks = {}
     
-    offset = np.zeros(n_clay)
+    offset = np.zeros(N_aqt)
     offset[::2] = s_pal
     
-    for i in range(n_clay):
+    for i in range(N_aqt):
         pal = _cake_cuts(N_pal, phi_f, rhos, f_offset = offset[i])
         pal = [p.flatten() for p in pal]
 
@@ -375,7 +375,7 @@ def create_paleo_channels(d2_ds, n_clay, N_pal, s_pal, phi_f, rhos): #Perhaps al
 
     return(pal_masks)
     
-def create_lith(d3, d2_grid, n_clay, pal_mask):
+def create_lith(d3, d2_grid, N_aqt, pal_mask):
     d3["lith"] = d3["IBOUND"]
     
     #Confining clayer gets nr 2 as nr
@@ -384,7 +384,7 @@ def create_lith(d3, d2_grid, n_clay, pal_mask):
         d3["lith"] = xr.where((d3.z<d2_grid["conf_tops"])&(d3.z>d2_grid["conf_bots"]), conf_nr, d3["lith"])
     
     pal_nr = 3
-    for i in range(n_clay):
+    for i in range(N_aqt):
         #The other clay layer are assigned a number exceeding conf_nr
         clay_nr = 1 + pal_nr + i
         in_clayer = (d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])
@@ -392,25 +392,25 @@ def create_lith(d3, d2_grid, n_clay, pal_mask):
         d3["lith"] = xr.where(in_clayer & (pal_mask[i]),  pal_nr , d3["lith"])
     return(d3)
 
-def calc_clay_thicknesses(d2_grid, n_clay):
+def calc_clay_thicknesses(d2_grid, N_aqt):
     if "conf_tops" in d2_grid.keys():
         d2_grid["conf_d"] = d2_grid["conf_tops"] - d2_grid["conf_bots"]
-    for i in range(n_clay):
+    for i in range(N_aqt):
         d2_grid["cd%d"%i] = d2_grid["ct%d"%i] - d2_grid["cb%d"%i]
     return(d2_grid)
 
-def create_Kh(d3, kh_aqf=0., kv_aqt=0., f_kh_pal=0., ani=0., **kwargs):
-    kh_aqt = kv_aqt*ani
-    b = np.log10(kh_aqt)
-    a = np.log10(kh_aqf) - np.log10(kh_aqt)
+def create_Kh(d3, Kh_aqf=0., Kv_aqt=0., f_Kh_pal=0., Kh_Kv=0., **kwargs):
+    Kh_aqt = Kv_aqt*Kh_Kv
+    b = np.log10(Kh_aqt)
+    a = np.log10(Kh_aqf) - np.log10(Kh_aqt)
     
-    kh_pal = 10**(a*f_kh_pal + b)
+    Kh_pal = 10**(a*f_Kh_pal + b)
     
     d3["Kh"] = xr.zeros_like(d3["lith"])
-    d3["Kh"] = xr.where(d3["lith"]==1, kh_aqf,   d3["Kh"])
-    d3["Kh"] = xr.where(d3["lith"]==2, kh_aqt,  d3["Kh"])
-    d3["Kh"] = xr.where(d3["lith"]==3, kh_pal,  d3["Kh"])
-    d3["Kh"] = xr.where(d3["lith"]>3,  kh_aqt,  d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]==1, Kh_aqf,  d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]==2, Kh_aqt,  d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]==3, Kh_pal,  d3["Kh"])
+    d3["Kh"] = xr.where(d3["lith"]>3,  Kh_aqt,  d3["Kh"])
     return(d3)
 
 #%%Sedimentation/Erosion
@@ -456,10 +456,11 @@ def add_topsystem(d2_grid):
     return(d2_grid)
 
 #%%Master function
-def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None, 
-                 H_b=None,  f_H=None,    phi_f=None, 
-                 SM=None, n_clay=None,clay_conf=None, N_pal=None, s_pal=None,
-                 dx=None, dy=None,    nz=None,  figfol=None, ncfol=None, **kwargs):
+def get_geometry(l_a=None,   alpha=None,  beta=None,   gamma=None,   L=None, 
+                 H_b=None,   f_H=None,    phi_f=None, 
+                 f_aqt=None, N_aqt=None,  l_conf=None, N_pal=None, s_pal=None,
+                 dx=None,    dy=None,     nz=None,    figfol=None, ncfol=None, 
+                 **kwargs):
 
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
@@ -470,27 +471,27 @@ def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     d2, nan_idx, phis = create_2D_top_bot(phi_f, d1, n_inp)
     
     #Create confining layer
-    frac_clay = SM/(n_clay+1)
+    frac_clay = f_aqt/(N_aqt+1)
     
-    if clay_conf > 0.:
-        d2_conf,nan_conf = create_confining_layer(clay_conf, d2, d1, 
+    if l_conf > 0.:
+        d2_conf,nan_conf = create_confining_layer(l_conf, d2, d1, 
                                                   phis, L_a, frac_clay, n_inp)
     else:
         d2_conf,nan_conf = None, None
     
     #Create clay layers
-    rel_clay_depths = get_relative_clay_depths(SM, n_clay)
+    rel_clay_depths = get_relative_clay_depths(frac_clay, N_aqt)
     rho_min, rho_max, d2 = create_clayers(rel_clay_depths, 
-                                          d1, d2, phis, phi_f, L_a/L, n_clay)
+                                          d1, d2, phis, phi_f, L_a/L, N_aqt)
     
     if figfol is not None:
-        clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol)
+        clayer_plot(d2, d2_conf, N_aqt, L_a, L, figfol)
     
     #Convert to Cartesian regular grid
     d2_grid = pol_to_d2_grid(dx, dy, phi_f, d2, nan_idx, d2_conf, nan_conf)
     
     #Fill up last gaps in clayers
-    d2_grid = finish_clayer_grid(d2_grid, n_clay, rho_min, rho_max)
+    d2_grid = finish_clayer_grid(d2_grid, N_aqt, rho_min, rho_max)
     
     if figfol is not None:
         top_bot_grid_plot(d2_grid,figfol)
@@ -500,7 +501,7 @@ def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     d1 = ds_d1(d1)
 
     #Mask paleo channels
-    pal_mask = create_paleo_channels(d2_grid, n_clay, 
+    pal_mask = create_paleo_channels(d2_grid, N_aqt, 
                                      N_pal, s_pal, phi_f, d1["rho"])
 
     #Add topsystem
@@ -509,11 +510,11 @@ def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
         _plot_imshow(d2_grid["topsys"], os.path.join(figfol, "topsystem_grid.png"))
     
     #Calculate clay thicknesses
-    d2_grid = calc_clay_thicknesses(d2_grid, n_clay)
+    d2_grid = calc_clay_thicknesses(d2_grid, N_aqt)
 
     #Create 3D 
     d3 = create_3d_grid(d2_grid, d1, nz)
-    d3 = create_lith(d3, d2_grid, n_clay, pal_mask)
+    d3 = create_lith(d3, d2_grid, N_aqt, pal_mask)
     
     z_shelf_edge = d1["top"][~d1["slope"]][-1]
     d3["edges"] = get_edges(d3["IBOUND"], d2_grid["tops"], z_shelf_edge)
@@ -530,7 +531,7 @@ def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     return(d3, d1, L_a)
 
 #%%Plot functions
-def clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol, ext=".png"):
+def clayer_plot(d2, d2_conf, N_aqt, L_a, L, figfol, ext=".png"):
     id_x = int(d2["bots"].shape[1] * L_a /L / 2)
     
     slcs = [np.s_[:, id_x],np.s_[90, :]]
@@ -555,7 +556,7 @@ def clayer_plot(d2, d2_conf, n_clay, L_a, L, figfol, ext=".png"):
             xconf = d2_conf[dims[i]][idx]
             axes[i].fill(np.append(xconf[::-1], xconf), np.append(d2_conf["tops"][idx][::-1], d2_conf["bots"][idx]), label="conf")
         
-        for j in range(n_clay):
+        for j in range(N_aqt):
             xtop = xbot = d2[dims[i]][slc]
             top = d2["ct%d"%j][slc]
             bot = d2["cb%d"%j][slc]
