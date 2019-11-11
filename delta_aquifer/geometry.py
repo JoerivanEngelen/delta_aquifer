@@ -259,7 +259,15 @@ def ds_d1(d1):
     return(dict_to_ds(d1, ["rho"], {"rho" : d1["rho"]}))
     
 def create_3d_grid(d2_grid, d1, nz):
-    d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=np.linspace(np.min(d1["bot"]), np.max(d1["top"]), num=nz))
+    
+    #TODO: This selection should be actually done when determining d1, 
+    #but currently results in 
+    to_keep = d1["top"] > d1["bot"]
+    
+    z = np.linspace(np.min(d1["bot"][to_keep]), 
+                    np.max(d1["top"][to_keep]), num=nz)
+
+    d3 = xr.Dataset(coords = dict(d2_grid.coords)).assign_coords(z=z)
     d3["IBOUND"] = xr.where((d3.z<d2_grid["tops"])&(d3.z>d2_grid["bots"]), 1, 0)
     #Brush away small isolated cells.
     d3["IBOUND"] = xr.full_like(d3["IBOUND"],
