@@ -124,8 +124,8 @@ traj_id  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enu
 fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
 
 #Generate 2D linspace with for each simulation all levels
-n_aqtds_all = np.linspace(np.zeros(traj_real["D"].shape), aqtds_depth(traj_real["D"]), num=lev)
-n_aqtd_select = n_aqtds_all[traj_id["n_clay"].values, np.arange(traj_id["n_clay"].shape[0])].astype(np.int64)
+n_aqtds_all = np.linspace(np.zeros(traj_real["H_b"].shape), aqtds_depth(traj_real["H_b"]), num=lev)
+n_aqtd_select = n_aqtds_all[traj_id["N_aqt"].values, np.arange(traj_id["N_aqt"].shape[0])].astype(np.int64)
 traj_real["n_clay"] = n_aqtd_select
 
 #%%Save as csv
