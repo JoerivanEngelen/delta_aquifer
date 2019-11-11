@@ -13,7 +13,6 @@ import sys, os
 import pandas as pd
 
 #%%TODO
-#Incorporate which parameter changes for each frame
 #Time + (Colorbar?)
 
 #%%Path management
