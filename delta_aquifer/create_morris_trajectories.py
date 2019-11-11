@@ -113,10 +113,10 @@ param_values = sample(problem, N=n_traj, grid_jump=grid_jump, num_levels=lev,
                       sample4uniformity = 1000).astype(np.int64)
 
 #%%Plot
-fig = plt.figure(figsize=(8, 6))
-sample_histograms(fig, param_values, problem, {'color': 'y'})
-plt.tight_layout()
-plt.savefig(fig_out_path, dpi=100)
+#fig = plt.figure(figsize=(8, 6))
+#sample_histograms(fig, param_values, problem, {'color': 'y'})
+#plt.tight_layout()
+#plt.savefig(fig_out_path, dpi=100)
 
 #%%Create Dataframes
 traj_real = pd.DataFrame(OrderedDict([(par, pars[par][param_values[:, i]]) for i, par in enumerate(par_morris)]))
@@ -124,8 +124,8 @@ traj_id  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enu
 fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
 
 #Generate 2D linspace with for each simulation all levels
-n_aqtds_all = np.linspace(np.zeros(traj_real["H_b"].shape), aqtds_depth(traj_real["H_b"]), num=lev)
-n_aqtd_select = n_aqtds_all[traj_id["N_aqt"].values, np.arange(traj_id["N_aqt"].shape[0])].astype(np.int64)
+n_aqtds_all = (np.linspace(0,1,num=lev)*aqtds_depth(traj_real["H_b"])[:, None])
+n_aqtd_select = n_aqtds_all[np.arange(traj_id["N_aqt"].shape[0]), traj_id["N_aqt"].values].astype(np.int64)
 traj_real["N_aqt"] = n_aqtd_select
 
 #%%Save as csv
