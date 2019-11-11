@@ -144,7 +144,7 @@ def _rho_min_max(interface, rho):
     return(rho_min, rho_max)
 
 #%%Main functions: Geometry
-def create_crosssection(l_a, alpha, beta, gamma, f_H, H_b, L, n_inp):
+def create_crosssection(l_a, alpha, beta, gamma, H_b, f_H, L, n_inp):
     d1 = {}
     
     d1["rho"] = np.linspace(0, L, num=n_inp)
@@ -464,7 +464,7 @@ def get_geometry(l_a=None,  alpha=None,  beta=None,   gamma=None,   L=None,
     n_inp = 200 #Discretization polar coordinates, not in actual model
     
     #Process central crosssection
-    d1, L_a = create_crosssection(l_a, alpha, beta, gamma, f_H, H_b, L, n_inp)
+    d1, L_a = create_crosssection(l_a, alpha, beta, gamma, H_b, f_H, L, n_inp)
     
     #Create 3D top & bottom    
     d2, nan_idx, phis = create_2D_top_bot(phi_f, d1, n_inp)
