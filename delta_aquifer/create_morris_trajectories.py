@@ -67,29 +67,30 @@ pars["Kh_aqf"]      = np.logspace(-1, np.log10(2e2), num=lev)
 pars["Kv_aqt"]      = np.logspace(-6, -1, num=lev)
 pars["f_Kh_pal"]    = np.linspace(0, 1, num=lev)
 pars["Kh_Kv"]       = np.logspace(0, 2, num=lev)
+pars["S_s"]         = 10**-4.2
 
 # River system
 pars["N_chan"]      = np.linspace(1, 7, num=lev, dtype=int)
-pars["f_chan"] = np.logspace(0, 1, num=lev)
-pars["intrusion_L"] = np.linspace(0, 1, num=lev)
+pars["f_chan"]      = np.logspace(0, 1, num=lev)
+pars["l_surf_end"]  = np.linspace(0, 1, num=lev)
 pars["bc_res"]      = 10.
 
 # Transgression
-pars["tra"]         = np.linspace(0.25, 1, num=lev)
-pars["t_max"]       = np.linspace(6, 9, num=lev)
+pars["l_tra"]       = np.linspace(0.25, 1, num=lev)
+pars["t_tra"]       = np.linspace(6, 9, num=lev)
 pars["t_start"], pars["t_end"] = 12, 0
 
 # Recharge
 pars["R"]           = np.linspace(0.0, 2e-3, num=lev)
 
 #Solute transport
-pars["por"]         = np.linspace(0.1, 0.4, num=lev)
-pars["al"]          = np.logspace(-0.6, 1, num=lev)
+pars["n"]           = np.linspace(0.1, 0.4, num=lev)
+pars["a_l"]         = np.logspace(-0.6, 1, num=lev)
 pars["trpt"]        = 0.1
 pars["trpv"]        = 0.01
-pars["diff"]        = 8.64e-5
-pars["c_f"]         = 0.
-pars["c_s"]         = 35.
+pars["D_m"]         = 8.64e-5
+pars["C_f"]         = 0.
+pars["C_s"]         = 35.
 
 # Model discretization
 pars["dx"], pars["dy"], pars["nz"] = 1000, 1000, 100

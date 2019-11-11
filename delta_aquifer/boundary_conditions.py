@@ -141,17 +141,17 @@ def calc_weighted_mean(df, ts, qt):
 
 #%%Boundary condition location
 def coastlines(geo, d1, sea_level, phi_f=None, L = None, L_a = None, 
-                  figfol=None, t_start=None, t_max=None, t_end=None, 
-                  tra=None, **kwargs):   
+                  figfol=None, t_start=None, t_tra=None, t_end=None, 
+                  l_tra=None, **kwargs):   
     #Invert datarray to do an inverse selction.
     d1_inv = _get_inv_d1(d1)
     coastline_rho = d1_inv.sel(z=sea_level, method="pad")["rho"]
 
-    weights_trans = np.clip((sea_level.time - t_start)/(t_max - t_start), 0, 1)
-    weights_reg = np.clip((sea_level.time - t_max)/(t_end - t_max), 0, 1)
+    weights_trans = np.clip((sea_level.time - t_start)/(t_tra - t_start), 0, 1)
+    weights_reg = np.clip((sea_level.time - t_tra)/(t_end - t_tra), 0, 1)
     weights = weights_trans - weights_reg
     
-    coastline_rho = L_a * (1-tra) * weights + (1-weights) * coastline_rho
+    coastline_rho = L_a * (1-l_tra) * weights + (1-weights) * coastline_rho
     phis = np.linspace(-phi_f/2, phi_f/2, num=geo["y"].shape[0])
     phis = xr.DataArray(phis, coords={"phi": phis}, dims=["phi"])
     coastline_loc = xr.Dataset(dict([i for i in zip(*[["xc", "yc"], geometry._pol2cart(coastline_rho, phis)])]))
@@ -286,7 +286,7 @@ def perturb_conc(flat_conc, c_s, seed=100, noise_frac=0.01, c_f = 0.):
     noise = np.random.rand(*flat_conc.shape)
     return(flat_conc + noise_frac * (c_s-c_f) * (noise - 0.5))
     
-def correct_salinity_intrusion(intrusion_length, dhdx):
+def correct_salinity_intrusion(l_surf_end, dhdx):
     """Correct salinity intrusion in surface water for the changing gradient
     
     This equation is derived from substituting a factor in the Chezy formula.
@@ -301,7 +301,7 @@ def correct_salinity_intrusion(intrusion_length, dhdx):
     f_L = np.log(1/np.sqrt(f)+1)/np.log(2)
     #Normalize over np.log(2) as we want f_L at time=-1  to be 1.
 
-    return(f_L * intrusion_length)
+    return(f_L * l_surf_end)
 
 def estuary_profile_slope(intrusion_rho, coastline_rho, c_s, c_f):
     """Create linear salinity profile for the estuary,
@@ -328,13 +328,13 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, outer_ridge, c_s, c_
     return(estuary_salinity.drop(labels=["z"]))
 
 #%%Recharge
-def recharge(onshore_mask, rch_rate):
-    return(onshore_mask * rch_rate)
+def recharge(onshore_mask, R):
+    return(onshore_mask * R)
 
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None, 
                         bc_res=None, N_chan=None, f_chan=None,
-                        L_a=None, intrusion_L=None, rch_rate=None, 
+                        L_a=None, l_surf_end=None, R=None, 
                         conc_noise=0.01, qt="50%", 
                         figfol=None, ncfol=None, **kwargs):
     # Get sea level
@@ -365,7 +365,7 @@ def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None,
             )
     
     #Salinity intrusion in surface water
-    intrusion_rho = coastline_rho - correct_salinity_intrusion(intrusion_L * L_a, dhdx)
+    intrusion_rho = coastline_rho - correct_salinity_intrusion(l_surf_end * L_a, dhdx)
     coords = {} #Should add these somewhere in geometry.py as dependent coordinates
     coords["rho"], coords["phi"] = geometry._cart2pol(geo["x"], geo["y"])
     estuary_salinity = salinity_profile(coords["rho"], intrusion_rho, 
@@ -398,7 +398,7 @@ def boundary_conditions(sl_curve, ts, geo, d1, c_s=None, c_f=None,
     bcs["riv_cond"] = xr.where(riv_mask, riv_conductance, np.nan)
     
     #Recharge
-    bcs["rch"] = recharge(onshore_mask, rch_rate)
+    bcs["rch"] = recharge(onshore_mask, R)
     
     #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")
