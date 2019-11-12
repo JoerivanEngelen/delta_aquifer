@@ -28,7 +28,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 194
+    sim_nr = 239
     
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -98,7 +98,7 @@ bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, d1, conc_noise = 0.
 #%%Dynamic geology
 
 #Holocene sedimentation model
-geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
+geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_tra"])
 
 #Pleistocene erosion model
 is_bc = ((bcs["sea"]==1) | (bcs["river"]==1))
@@ -137,7 +137,7 @@ shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init,
 dens_f, dens_s = ic.c2dens(pars["C_f"]), ic.c2dens(pars["C_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
                 dens_f, dens_s, pars["H_b"], pars["D_m"], kv
-                ) for kv in [pars["Kh"]/pars["Kh_Kv"], pars["Kv_aqt"]]]),
+                ) for kv in [pars["Kh_aqf"]/pars["Kh_Kv"], pars["Kv_aqt"]]]),
                 index=["Ra", "Ra_mar"], columns=["value"])
     
 dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
@@ -200,7 +200,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     lith_min_conf = geo_mod["lith"].isel(time=time_step_min_conf).drop("time")
     lith_min_aqtd = geo_mod["lith"].isel(time=time_step_min_aqtd).drop("time")
     
-    kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["Kh"], kh)
+    kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["Kh_aqf"], kh)
 
     #Create model
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)

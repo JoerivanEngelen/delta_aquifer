@@ -414,10 +414,10 @@ def create_Kh(d3, Kh_aqf=0., Kv_aqt=0., f_Kh_pal=0., Kh_Kv=0., **kwargs):
     return(d3)
 
 #%%Sedimentation/Erosion
-def dynamic_confining_layer(d3, sea, t_max):
+def dynamic_confining_layer(d3, sea, t_tra):
     sea = sea.max(dim="z")
     d3["lith"] = xr.where((d3["lith"] == 2) & (sea == 1)          , 1, d3["lith"]).astype(np.int64)
-    d3["lith"] = xr.where((d3["lith"] == 2) & (d3["time"] > t_max), 1, d3["lith"]).astype(np.int64)
+    d3["lith"] = xr.where((d3["lith"] == 2) & (d3["time"] > t_tra), 1, d3["lith"]).astype(np.int64)
     d3 = d3.transpose("time", "z", "y", "x")
     return(d3)
 
