@@ -480,7 +480,7 @@ def get_geometry(l_a=None,   alpha=None,  beta=None,   gamma=None,   L=None,
         d2_conf,nan_conf = None, None
     
     #Create clay layers
-    rel_clay_depths = get_relative_clay_depths(frac_clay, N_aqt)
+    rel_clay_depths = get_relative_clay_depths(f_aqt, N_aqt)
     rho_min, rho_max, d2 = create_clayers(rel_clay_depths, 
                                           d1, d2, phis, phi_f, L_a/L, N_aqt)
     
