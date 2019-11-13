@@ -32,6 +32,8 @@ cont_nr = len(files)
 mname = os.path.basename(model_folder)
 sub_model_path = os.path.join(model_folder, mname+"_nr{:02d}".format(cont_nr))
 
+tempfile=os.path.join(model_folder, "cont_nr.txt")
+
 #%%Get appropriate time
 
 #Created in create_model.py. Update this if changed in create_model.py
@@ -56,7 +58,11 @@ ds_ini = ds_ini.drop(labels="conc2")
 #Ensure appropriate time is assigned (the call to update_timesteps.py messed this up)
 ds_ini = ds_ini.assign_coords(time=time)
 
-#Save
+#Write .IDFS
 idf.save(os.path.join(sub_model_path, "bas", "head"), ds_ini["head"])
 idf.save(os.path.join(sub_model_path, "btn", "conc"), ds_ini["conc"], 
          pattern = r"{name}_{time:%Y%m%d%H%M%S}_c{species}_l{layer}{extension}")
+
+#%%Save cont_nr in temporary file
+with open(tempfile, mode="w") as f:
+    f.write(str(cont_nr))
