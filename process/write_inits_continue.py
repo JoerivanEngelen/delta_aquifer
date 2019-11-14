@@ -16,6 +16,7 @@ import numpy as np
 import cftime
 
 #%%Path management
+
 if len(sys.argv) > 1:
     res_folder  = sys.argv[1]
     model_folder = sys.argv[2] 
@@ -27,6 +28,10 @@ else:
 files = glob(os.path.join(res_folder, "results_[0-9][0-9][0-9].nc"))
 files.sort()
 
+nr_mod = glob(os.path.join(res_folder, "nr_mod_[0-9][0-9].nr"))[0]
+with open(nr_mod) as f:
+    nr_mod=int(f.readline())
+
 cont_nr = len(files)
 
 mname = os.path.basename(model_folder)
@@ -37,7 +42,7 @@ tempfile=os.path.join(model_folder, "cont_nr.txt")
 #%%Get appropriate time
 
 #Created in create_model.py. Update this if changed in create_model.py
-sub_ends=np.array([8000., 8000., 5000., 5000., 8000., 8000., 4000.])
+sub_ends=np.array([8000., 8000., 5000., 5000., 8000., 8000., 4000.])[-(nr_mod+1):]
 n_ts = (sub_ends/1000.).astype(np.int64)
 start_year = 1999
 
