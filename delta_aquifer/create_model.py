@@ -82,7 +82,7 @@ ts = (
 hclose = 2e-4
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
-rclose = pars["dx"] * pars["dy"] * hclose * ic.c2dens(pars["c_f"])
+rclose = pars["dx"] * pars["dy"] * hclose * ic.c2dens(pars["C_f"])
 
 #%%Get geometry
 geo, d1, L_a = geometry.get_geometry(figfol=figfol, ncfol=None, **pars)
@@ -98,7 +98,7 @@ bcs, min_sea_level = bc.boundary_conditions(spratt, ts, geo, d1, conc_noise = 0.
 #%%Dynamic geology
 
 #Holocene sedimentation model
-geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_max"])
+geo = geometry.dynamic_confining_layer(geo, bcs["sea"], pars["t_tra"])
 
 #Pleistocene erosion model
 is_bc = ((bcs["sea"]==1) | (bcs["river"]==1))
@@ -134,10 +134,10 @@ shd, sconc = ic.get_ic(bcs, geo, approx_init=approx_init,
                        deep_salt=min_sea_level, **pars)
 
 #%%Calc dimensionless numbers
-dens_f, dens_s = ic.c2dens(pars["c_f"]), ic.c2dens(pars["c_s"])
+dens_f, dens_s = ic.c2dens(pars["C_f"]), ic.c2dens(pars["C_s"])
 dimless = pd.DataFrame(np.array([hydro_util.rayleigh(
-                dens_f, dens_s, pars["D"], pars["diff"], kv
-                ) for kv in [pars["kh"]/pars["ani"], pars["kv_mar"]]]),
+                dens_f, dens_s, pars["H_b"], pars["D_m"], kv
+                ) for kv in [pars["Kh_aqf"]/pars["Kh_Kv"], pars["Kv_aqt"]]]),
                 index=["Ra", "Ra_mar"], columns=["value"])
     
 dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
@@ -176,7 +176,7 @@ bcs["conc"] = xr.where(((bcs["conc"].species == 2) & (np.isfinite(bcs["conc"].se
 sconc = sconc.expand_dims(species=species)
 sconc = xr.where(((sconc.species == 2) & (sconc.sel(species=2)>1.0)), 1.0, sconc)
 
-rch_conc = xr.DataArray(data=[pars["c_f"]]*len(species), 
+rch_conc = xr.DataArray(data=[pars["C_f"]]*len(species), 
                          coords=dict(species=species), dims=["species"])
 
 #%%
@@ -200,7 +200,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
     lith_min_conf = geo_mod["lith"].isel(time=time_step_min_conf).drop("time")
     lith_min_aqtd = geo_mod["lith"].isel(time=time_step_min_aqtd).drop("time")
     
-    kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["kh"], kh)
+    kh = xr.where((lith_min_conf != 2) & (lith_min_aqtd == 2), pars["Kh_aqf"], kh)
 
     #Create model
     mname_sub = "{}_nr{:02d}".format(mname, mod_nr)
@@ -229,7 +229,8 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                  starting_head=starting_head)
     
     m["lpf"] = imod.wq.LayerPropertyFlow(
-        k_horizontal=kh, k_vertical=kh/pars["ani"], specific_storage=10**-4.2,
+        k_horizontal=kh, k_vertical=kh/pars["Kh_Kv"], 
+        specific_storage=pars["S_s"],
         save_budget=True,
     )
     
@@ -237,16 +238,16 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
         n_species=len(species),
         icbund=geo["IBOUND"], 
         starting_concentration=starting_conc, 
-        porosity=pars["por"],
+        porosity=pars["n"],
         inactive_concentration = -9999.0
     )
     
     m["adv"] = imod.wq.AdvectionTVD(courant=0.9)
     m["dsp"] = imod.wq.Dispersion(
-            longitudinal=pars["al"], 
+            longitudinal=pars["a_l"], 
             ratio_horizontal=pars["trpt"],
             ratio_vertical=pars["trpv"],
-            diffusion_coefficient=pars["diff"]
+            diffusion_coefficient=pars["D_m"]
     )
     
     m["vdf"] = imod.wq.VariableDensityFlow(density_concentration_slope=0.7143)

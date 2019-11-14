@@ -46,50 +46,51 @@ np.random.seed(seed=seed)
 pars = OrderedDict()
 
 # Domain geometry
-pars["a"]           = np.linspace(0.3, 0.8, num=lev)
-pars["D"]           = np.logspace(np.log10(70), np.log10(1000), num=lev)
-pars["dD"]          = np.linspace(0.0, 0.8, num=lev)
+pars["l_a"]         = np.linspace(0.3, 0.8, num=lev)
+pars["H_b"]         = np.logspace(np.log10(70), np.log10(1000), num=lev)
+pars["f_H"]         = np.linspace(0.0, 0.8, num=lev)
 pars["alpha"]       = np.logspace(-5, -3, num=lev)
 pars["beta"]        = np.logspace(-4, np.log10(4e-3), num=lev)
 pars["gamma"]       = 2.5e-2 # FIXED
-pars["phi"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
+pars["phi_f"]         = np.linspace(0.125, 0.5, num=lev) * np.pi
 pars["L"]           = 200000
 
 # Internal geometry
-pars["SM"]          = np.linspace(0.1, 0.7, num=lev)
-pars["clay_conf"]   = np.linspace(0.0, 1.0, num=lev)
-pars["n_clay"]      = np.linspace(0, 3, num=lev, dtype=int)
+pars["f_aqt"]       = np.linspace(0.1, 0.7, num=lev)
+pars["l_conf"]      = np.linspace(0.0, 1.0, num=lev)
+pars["N_aqt"]       = np.linspace(0, 3, num=lev, dtype=int)
 pars["N_pal"]       = np.linspace(1, 10, num=lev, dtype=int)
 pars["s_pal"]       = np.linspace(0, 1.0, num=lev)
 
 # Hydrogeological parameters
-pars["kh"]          = np.logspace(-1, np.log10(2e2), num=lev)
-pars["kv_mar"]      = np.logspace(-6, -1, num=lev)
-pars["f_kh_pal"]    = np.linspace(0, 1, num=lev)
-pars["ani"]         = np.logspace(0, 2, num=lev)
+pars["Kh_aqf"]      = np.logspace(-1, np.log10(2e2), num=lev)
+pars["Kv_aqt"]      = np.logspace(-6, -1, num=lev)
+pars["f_Kh_pal"]    = np.linspace(0, 1, num=lev)
+pars["Kh_Kv"]       = np.logspace(0, 2, num=lev)
+pars["S_s"]         = 10**-4.2
 
 # River system
 pars["N_chan"]      = np.linspace(1, 7, num=lev, dtype=int)
-pars["f_cond_chan"] = np.logspace(0, 1, num=lev)
-pars["intrusion_L"] = np.linspace(0, 1, num=lev)
+pars["f_chan"]      = np.logspace(0, 1, num=lev)
+pars["l_surf_end"]  = np.linspace(0, 1, num=lev)
 pars["bc_res"]      = 10.
 
 # Transgression
-pars["tra"]         = np.linspace(0.25, 1, num=lev)
-pars["t_max"]       = np.linspace(6, 9, num=lev)
+pars["l_tra"]       = np.linspace(0.25, 1, num=lev)
+pars["t_tra"]       = np.linspace(6, 9, num=lev)
 pars["t_start"], pars["t_end"] = 12, 0
 
 # Recharge
-pars["rch_rate"]    = np.linspace(0.0, 2e-3, num=lev)
+pars["R"]           = np.linspace(0.0, 2e-3, num=lev)
 
 #Solute transport
-pars["por"]         = np.linspace(0.1, 0.4, num=lev)
-pars["al"]          = np.logspace(-0.6, 1, num=lev)
+pars["n"]           = np.linspace(0.1, 0.4, num=lev)
+pars["a_l"]         = np.logspace(-0.6, 1, num=lev)
 pars["trpt"]        = 0.1
 pars["trpv"]        = 0.01
-pars["diff"]        = 8.64e-5
-pars["c_f"]         = 0.
-pars["c_s"]         = 35.
+pars["D_m"]         = 8.64e-5
+pars["C_f"]         = 0.
+pars["C_s"]         = 35.
 
 # Model discretization
 pars["dx"], pars["dy"], pars["nz"] = 1000, 1000, 100
@@ -112,10 +113,10 @@ param_values = sample(problem, N=n_traj, grid_jump=grid_jump, num_levels=lev,
                       sample4uniformity = 1000).astype(np.int64)
 
 #%%Plot
-fig = plt.figure(figsize=(8, 6))
-sample_histograms(fig, param_values, problem, {'color': 'y'})
-plt.tight_layout()
-plt.savefig(fig_out_path, dpi=100)
+#fig = plt.figure(figsize=(8, 6))
+#sample_histograms(fig, param_values, problem, {'color': 'y'})
+#plt.tight_layout()
+#plt.savefig(fig_out_path, dpi=100)
 
 #%%Create Dataframes
 traj_real = pd.DataFrame(OrderedDict([(par, pars[par][param_values[:, i]]) for i, par in enumerate(par_morris)]))
@@ -123,9 +124,9 @@ traj_id  = pd.DataFrame(OrderedDict([(par, param_values[:, i]) for i, par in enu
 fixed_pars = pd.DataFrame(fixed_pars,  index=["fix"])
 
 #Generate 2D linspace with for each simulation all levels
-n_aqtds_all = np.linspace(np.zeros(traj_real["D"].shape), aqtds_depth(traj_real["D"]), num=lev)
-n_aqtd_select = n_aqtds_all[traj_id["n_clay"].values, np.arange(traj_id["n_clay"].shape[0])].astype(np.int64)
-traj_real["n_clay"] = n_aqtd_select
+n_aqtds_all = (np.linspace(0,1,num=lev)*aqtds_depth(traj_real["H_b"])[:, None])
+n_aqtd_select = n_aqtds_all[np.arange(traj_id["N_aqt"].shape[0]), traj_id["N_aqt"].values].astype(np.int64)
+traj_real["N_aqt"] = n_aqtd_select
 
 #%%Save as csv
 traj_real.to_csv(traj_real_path)
