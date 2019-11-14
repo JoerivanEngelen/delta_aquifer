@@ -37,7 +37,8 @@ tempfile=os.path.join(model_folder, "cont_nr.txt")
 #%%Get appropriate time
 
 #Created in create_model.py. Update this if changed in create_model.py
-sub_ends=np.array([8000., 8000., 5000., 5000., 8000., 8000., 4000.]) 
+sub_ends=np.array([8000., 8000., 5000., 5000., 8000., 8000., 4000.])
+n_ts = (sub_ends/1000.).astype(np.int64)
 start_year = 1999
 
 time = cftime.DatetimeProlepticGregorian(
@@ -46,6 +47,13 @@ time = cftime.DatetimeProlepticGregorian(
 #%%Process data
 #Load
 ds_last = xr.open_dataset(files[cont_nr-1])
+#Check if this file has all the timesteps, if not go one back and rename wrong file.
+if len(ds_last.time) != n_ts[cont_nr-1]:
+    ds_last.close()
+    os.rename(files[cont_nr-1], files[cont_nr-1]+"_fail")
+    cont_nr -= 1
+    ds_last = xr.open_dataset(files[cont_nr-1])
+
 ds_ini = ds_last.isel(time=-1)[["conc1","conc2", "head"]].load()
 
 #Expand conc with species
