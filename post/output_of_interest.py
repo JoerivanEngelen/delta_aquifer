@@ -11,6 +11,7 @@ import xarray as xr
 import numpy as np
 from delta_aquifer import initial_conditions as ic
 import pandas as pd
+import re
 
 def spat_sum(da, name):
     return(da.sum(dim=["x", "y", "z"]).rename(name))
@@ -41,7 +42,10 @@ nc_paths.sort()
 
 bc_path = os.path.join(fol, "input", "data", "bcs.nc")
 
-oi_path = os.path.join(fol, "oi.csv")
+match = re.search(r"(i[0-9]{3}).+([0-9]{7})", os.path.basename(fol))
+oi_name = match.group(0)
+
+oi_path = os.path.join(fol, "oi_"+oi_name+".csv")
 
 #%%pre-process data for analysis
 sea_level = xr.open_dataset(bc_path)["sea_level"]
