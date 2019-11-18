@@ -26,9 +26,10 @@ res_paths.sort()
 
 ds_ls = [xr.open_dataset(path) for path in res_paths]
 
-times_peek = ds_ls[0].time.values
-dt = times_peek[2].year - times_peek[1].year
-assert(dt==1000.)
+dt=1000.
+#times_peek = ds_ls[0].time.values
+#dt = times_peek[2].year - times_peek[1].year
+#assert(dt==1000.)
 
 n_ts = [ds_ls[i].time.shape[0] for i in range(len(ds_ls))]
 
