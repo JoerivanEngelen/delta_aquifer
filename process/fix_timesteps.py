@@ -22,6 +22,7 @@ else:
     test = True
 
 res_paths = glob(os.path.join(res_fol, "results_[0-9][0-9][0-9].nc"))
+res_paths.sort()
 
 ds_ls = [xr.open_dataset(path) for path in res_paths]
 
@@ -45,17 +46,27 @@ times = [cftime.num2date(
         np.array(time)*365, units=units, calendar=calendar
         ) for time in times]
 
+#%%Close files linked to data
+for ds in ds_ls:
+    ds = ds.load()
+    ds.close()
+
+#%%Create backup for test before adapting the Dataset
 if test:
     ds_ls_backup = deepcopy(ds_ls)
     
-#%%
+#%%Override timesteps
 for i, time in enumerate(times):
     ds_ls[i]["time"] = time
     ds_ls[i]["time"].encoding["units"] = units
     ds_ls[i]["time"].encoding["calendar"] = calendar
     ds_ls[i]=ds_ls[i].transpose("time", "z", "y", "x")
     
-#%%test
+#%%Test
 if test:
     for i, ds in enumerate(ds_ls):
         assert(ds.time.equals(ds_ls_backup[i].time))
+
+#%%Override timesteps
+for i, ds in enumerate(ds_ls):
+    ds.to_netcdf(res_paths[i])
