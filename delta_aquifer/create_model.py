@@ -82,7 +82,7 @@ ts = (
 hclose = 2e-4
 
 #Set hclose higher for few troublesome ids
-if sim_nr in [171, 173, 174, 175, 176, 177, 281, 283, 284, 285, 286]:
+if sim_nr in [171, 173, 174, 175, 176, 177, 242, 281, 283, 284, 285, 286]:
     hclose=5e-4
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
