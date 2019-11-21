@@ -28,7 +28,7 @@ if len(sys.argv) > 1:
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 239
+    sim_nr = 242
     
 mname = "SD_i{:03d}".format(sim_nr)
 
@@ -83,7 +83,7 @@ hclose = 2e-4
 
 #Set hclose higher for few troublesome ids
 if sim_nr in [171, 173, 174, 175, 176, 177, 242, 281, 283, 284, 285, 286]:
-    hclose=5e-4
+    hclose=1e-3
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
 rclose = pars["dx"] * pars["dy"] * hclose * ic.c2dens(pars["C_f"])
