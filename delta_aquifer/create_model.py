@@ -298,7 +298,7 @@ for mod_nr, (i_start, i_end) in enumerate(zip(sub_splits[:-1], sub_splits[1:])):
                                   n_timesteps_p1=n_timesteps_p1,
                                   timestep_multiplier=7.,
                                   max_n_transport_timestep=999_999,
-                                  transport_initial_timestep=1000.)
+                                  transport_initial_timestep=100.)
     
     directory = os.path.join(model_fol, mname)
 #    results_dir = os.path.join(directory, mname_sub, "results")
