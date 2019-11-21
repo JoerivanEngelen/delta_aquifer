@@ -30,6 +30,8 @@ def coord_of_max(da):
 #How much recharge goes in, how much discharged?
 #   -> qz*A/rch
 
+#Average slope of the interface?
+
 #%%Path management
 if len(sys.argv) > 1:
     fol  = sys.argv[1]
