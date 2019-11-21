@@ -130,7 +130,6 @@ cropbox = (220, 40, 850, 850)
 w_crop_original = cropbox[2]-cropbox[0]
 h_crop_original = cropbox[3]-cropbox[1]
 
-
 #%%Prepare
 font = ImageFont.truetype(font_path, 16)
 
