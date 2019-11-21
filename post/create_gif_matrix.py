@@ -6,7 +6,7 @@ Created on Thu Nov  7 16:21:38 2019
 """
 
 from glob import glob
-from PIL import Image, ImageSequence, ImageDraw, ImageFont
+from PIL import Image, ImageSequence, ImageFont
 from pkg_resources import resource_filename
 from matplotlib import font_manager
 import matplotlib.pyplot as plt
@@ -73,7 +73,6 @@ def get_text_image(text, size):
     arr = _black2white(arr)
     image = Image.fromarray(arr)
     return(image)
-
 
 #%%TODO
 #Time + (Colorbar?)
