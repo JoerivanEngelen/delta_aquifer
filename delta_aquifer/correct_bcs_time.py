@@ -32,7 +32,7 @@ timedeltas = ds.time.values - ds.time[0].values
 years = np.round([timedelta.days/365 for timedelta in timedeltas], -1)
 years = cftime.num2date(np.array(years)*365, units=units, calendar=calendar)
 
-ds = ds.assign_coords(coords={"time" : years})
+ds = ds.assign_coords(time=years)
 ds["time"].encoding["units"] = units
 ds["time"].encoding["calendar"] = calendar
 
