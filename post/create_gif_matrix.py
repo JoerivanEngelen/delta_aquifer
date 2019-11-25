@@ -111,7 +111,7 @@ stops = starts+23
 for start, stop in zip(starts, stops):
     files_mod = [i for i in files if get_model_id(i) in range(start, stop+1)]
     
-    out_gif_path = os.path.join(out_fol, "SD_i%s-%s.gif" % (start, stop))
+    out_gif_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.gif".format(start, stop))
 
     #%%Specify output image size
     cropbox = (220, 40, 850, 850) #Original image 1000, 850
@@ -126,7 +126,7 @@ for start, stop in zip(starts, stops):
     #%%Load
     ims = [Image.open(f) for f in files_mod]
     n_frames = [im.n_frames for im in ims]
-    assert(len(files_mod)==23)
+    assert(len(files_mod)==24)
 
     #%%Prepare
     texts = get_texts(text_path, start, stop) #Get texts
