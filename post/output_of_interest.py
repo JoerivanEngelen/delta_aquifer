@@ -99,32 +99,33 @@ vol["ow"]          = spat_sum(xr.where(ds["conc2"] > 0.5, ds["vol"], 0), "ow")
 vol=xr.Dataset(data_vars=vol)
 
 frac_vols = vol/vol["tot"]
-frac_mas = mas[["sal", "ol_sal", "sal_onshore"]]
-frac_mas["sal"] = mas["sal"]/mas["tot"]
-frac_mas["ol_sal"] = mas["ol_sal"]/mas["sal"]
-frac_mas["sal_onshore"] = mas["sal_onshore"]/mas["tot_onshore"]
+frac_mas = {}
+frac_mas["m_sal"] = mas["sal"]/mas["tot"]
+frac_mas["m_ol_sal"] = mas["ol_sal"]/mas["sal"]
+frac_mas["m_sal_onshore"] = mas["sal_onshore"]/mas["tot_onshore"]
+frac_mas=xr.Dataset(data_vars=frac_mas)
 
+#%%
 frac_vols.compute()
 frac_mas.compute()
 
-frac_vols.to_netcdf(os.path.join(fol, "frac_vols.nc"))
-frac_mas.to_netcdf( os.path.join(fol, "frac_mas.nc"))
+fracs = xr.merge([frac_mas, frac_vols])
+fracs.to_netcdf(os.path.join(fol, "fracs.nc"))
 
 #%%Read again to remove chunking
-frac_vols = xr.open_dataset(os.path.join(fol, "frac_vols.nc"))
-frac_mas  = xr.open_dataset(os.path.join(fol, "frac_mas.nc"))
+fracs = xr.open_dataset(os.path.join(fol, "fracs.nc"))
 
 #%%Differentiate
-grad_fw = frac_vols["fw"].differentiate("time") * -1 #Multiply with -1 because the time axis is decreasing
+grad_fw = fracs["fw"].differentiate("time") * -1 #Multiply with -1 because the time axis is decreasing
 grad_sl = sea_level.differentiate("time") * -1 
 
 #%%Outputs of interest
 oi = {}
-oi["end_fw"]          = frac_vols["fw"].isel(time=-1).values
-oi["offshore_fw"]     = frac_vols["fw_offshore"].isel(time=-1).values
-oi["max_fw_decrease"] = frac_vols["fw"].max().values - oi["end_fw"] 
-oi["old_water"]       = frac_mas["ol_sal"].isel(time=-1).values
-oi["onshore_sw"]      = frac_mas["sal_onshore"].isel(time=-1).values/(35./1025.)
+oi["end_fw"]          = fracs["fw"].isel(time=-1).values
+oi["offshore_fw"]     = fracs["fw_offshore"].isel(time=-1).values
+oi["max_fw_decrease"] = fracs["fw"].max().values - oi["end_fw"] 
+oi["old_water"]       = fracs["m_ol_sal"].isel(time=-1).values
+oi["onshore_sw"]      = fracs["m_sal_onshore"].isel(time=-1).values/(35./1025.)
 oi["fw_gradient"]     = (grad_fw).isel( 
                             time=slice(-3, None)
                             ).mean().values
@@ -136,5 +137,6 @@ oi = pd.DataFrame(data={"var" : keys, "value" : values}).set_index("var")
 oi.to_csv(oi_path)
 
 #%%Close files that are open
+fracs.close()
 frac_vols.close()
 frac_mas.close()
