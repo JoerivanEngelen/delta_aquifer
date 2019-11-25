@@ -104,6 +104,9 @@ frac_mas["sal"] = mas["sal"]/mas["tot"]
 frac_mas["ol_sal"] = mas["ol_sal"]/mas["sal"]
 frac_mas["sal_onshore"] = mas["sal_onshore"]/mas["tot_onshore"]
 
+frac_vols.compute()
+frac_mas.compute()
+
 frac_vols.to_netcdf(os.path.join(fol, "frac_vols.nc"))
 frac_mas.to_netcdf( os.path.join(fol, "frac_mas.nc"))
 
