@@ -6,9 +6,8 @@ Created on Thu Nov  7 16:21:38 2019
 """
 
 from glob import glob
-from PIL import Image, ImageSequence, ImageFont
+from PIL import Image, ImageSequence
 from pkg_resources import resource_filename
-from matplotlib import font_manager
 import matplotlib.pyplot as plt
 import sys, os
 import pandas as pd
@@ -74,6 +73,19 @@ def get_text_image(text, size):
     image = Image.fromarray(arr)
     return(image)
 
+def get_texts(text_path, start, stop):
+    tex = {"alpha" : r"\alpha",
+           "beta"  : r"\beta", 
+           "phi_f"   : r"\phi_f",
+           "Kh_Kv" : r"Kh/Kv"}
+    
+    mod_idx = slice(start, stop+1)
+    texts = pd.read_csv(text_path, index_col=0)["par"][mod_idx]
+    texts = list(texts)
+    texts = [tex[t[:-1]]+t[-1] if t[:-1] in tex.keys() else t for t in texts]
+    texts = [str_to_mathtxt(s) for s in texts]
+    return(texts)
+
 #%%TODO
 #Time + (Colorbar?)
 
@@ -81,94 +93,78 @@ def get_text_image(text, size):
 if len(sys.argv) > 1:
     globpath  = sys.argv[1]
     out_fol = sys.argv[2]
-    start = sys.argv[3]
-    stop = sys.argv[4]
 else:
     #Local testing on my own windows laptop
     globpath = r"g:\synthdelta\results\gifs\*.gif"
     out_fol = r"g:\synthdelta\results"
-    start = 0
-    stop = 23
 
-
-mod_idx = range(start, stop+1)
 files = glob(globpath)
 files.sort()
-files = [i for i in files if get_model_id(i) in mod_idx]
-
-#Get default font path of Matplotlib
-font_path = font_manager.findfont(None)
 
 #Path with text aid
 text_path = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "text_aid.csv")))
 
-out_gif_path = os.path.join(out_fol, "SD_i%s-%s.gif" % (start, stop))
+#%%
+starts = np.array([0, 24, 48, 72, 120, 144, 168, 192, 240, 264])
+stops = starts+23
 
-#%%Specify output image
-nrows, ncols = 3, 8
-
-#%%Get texts
-tex = {"alpha" : r"\alpha",
-       "beta"  : r"\beta", 
-       "phi_f"   : r"\phi_f",
-       "Kh_Kv" : r"Kh/Kv"}
-
-mod_idx = slice(start, stop+1)
-texts = pd.read_csv(text_path, index_col=0)["par"][mod_idx]
-texts = list(texts)
-texts = [tex[t[:-1]]+t[-1] if t[:-1] in tex.keys() else t for t in texts]
-texts = [str_to_mathtxt(s) for s in texts]
-#%%Load and peek
-ims = [Image.open(f) for f in files]
-
-n_frames = [im.n_frames for im in ims]
-
-#w_original, h_original = ims[0].size
-#Original image 1000, 850
-cropbox = (220, 40, 850, 850)
-w_crop_original = cropbox[2]-cropbox[0]
-h_crop_original = cropbox[3]-cropbox[1]
-
-#%%Prepare
-font = ImageFont.truetype(font_path, 16)
-
-new_size = int(w_crop_original/ncols)*2, int(h_crop_original/nrows)
-output_size = new_size[0] * ncols, new_size[1] * nrows
-idxs = [(int(i/ncols), i%ncols) for i in range(len(ims))]
-
-max_n = max(n_frames)
-start_frames = [max_n-n_frame for n_frame in n_frames]
-
-out_frames = []
-iterators=[ImageSequence.Iterator(im) for im in ims]
-
-#%%Create text overlay
-text_overlay = Image.new("RGBA", output_size)
-
-for j, (r, c) in enumerate(idxs):
-    sub_extent=(c*new_size[0], r*new_size[1], (c+1)*new_size[0], (r+1)*new_size[1])
-    text_im = get_text_image(texts[j], new_size)
-    text_overlay.paste(text_im, sub_extent)
-
-#%%Process
-for i in range(max_n):
-    #We convert everything to RGB, as each .gif has a different color lookup table
-    #In the end convert to Palette mode
-    stitched_image = Image.new("RGBA", output_size)
-    #Select frame if available, else show first frame.
-    frames = [iterator[i-start_frames[j]] if i >= start_frames[j] else iterator[0] for j, iterator in enumerate(iterators)]
+for start, stop in zip(starts, stops):
+    files_mod = [i for i in files if get_model_id(i) in range(start, stop+1)]
     
-    resized_frames = [frame.crop(cropbox).resize(new_size).convert("RGBA") for frame in frames]
-    for j, resized_frame in enumerate(resized_frames):
-        r, c = idxs[j]
-        sub_extent=(c*new_size[0], r*new_size[1], (c+1)*new_size[0], (r+1)*new_size[1])
-        stitched_image.paste(resized_frame, sub_extent)
-    
-    stitched_image = Image.alpha_composite(stitched_image, text_overlay)
-    stitched_image = stitched_image.convert("P", palette=Image.ADAPTIVE)
-    out_frames.append(stitched_image)
+    out_gif_path = os.path.join(out_fol, "SD_i%s-%s.gif" % (start, stop))
 
-#%%Save
-out_frames[0].save(out_gif_path, format='GIF', 
-          append_images=out_frames[1:], save_all=True, duration=100, loop=0,
-          include_color_table=True)
+    #%%Specify output image size
+    cropbox = (220, 40, 850, 850) #Original image 1000, 850
+    w_crop_original = cropbox[2]-cropbox[0]
+    h_crop_original = cropbox[3]-cropbox[1]
+    
+    nrows, ncols = 3, 8 
+
+    panel_size = int(w_crop_original/ncols)*2, int(h_crop_original/nrows)
+    output_size = panel_size[0] * ncols, panel_size[1] * nrows
+    
+    #%%Load
+    ims = [Image.open(f) for f in files_mod]
+    n_frames = [im.n_frames for im in ims]
+    assert(len(files_mod)==23)
+
+    #%%Prepare
+    texts = get_texts(text_path, start, stop) #Get texts
+    
+    idxs = [(int(i/ncols), i%ncols) for i in range(len(ims))]
+    
+    max_n = max(n_frames)
+    start_frames = [max_n-n_frame for n_frame in n_frames]
+    iterators=[ImageSequence.Iterator(im) for im in ims]
+    
+    #%%Create text overlay
+    text_overlay = Image.new("RGBA", output_size)
+    
+    for j, (r, c) in enumerate(idxs):
+        sub_extent=(c*panel_size[0], r*panel_size[1], (c+1)*panel_size[0], (r+1)*panel_size[1])
+        text_im = get_text_image(texts[j], panel_size)
+        text_overlay.paste(text_im, sub_extent)
+    
+    #%%Process
+    out_frames = []
+    for i in range(max_n):
+        #We convert everything to RGB, as each .gif has a different color lookup table
+        #In the end convert to Palette mode
+        stitched_image = Image.new("RGBA", output_size)
+        #Select frame if available, else show first frame.
+        frames = [iterator[i-start_frames[j]] if i >= start_frames[j] else iterator[0] for j, iterator in enumerate(iterators)]
+        
+        resized_frames = [frame.crop(cropbox).resize(panel_size).convert("RGBA") for frame in frames]
+        for j, resized_frame in enumerate(resized_frames):
+            r, c = idxs[j]
+            sub_extent=(c*panel_size[0], r*panel_size[1], (c+1)*panel_size[0], (r+1)*panel_size[1])
+            stitched_image.paste(resized_frame, sub_extent)
+        
+        stitched_image = Image.alpha_composite(stitched_image, text_overlay)
+        stitched_image = stitched_image.convert("P", palette=Image.ADAPTIVE)
+        out_frames.append(stitched_image)
+    
+    #%%Save
+    out_frames[0].save(out_gif_path, format='GIF', 
+              append_images=out_frames[1:], save_all=True, duration=100, loop=0,
+              include_color_table=True)
