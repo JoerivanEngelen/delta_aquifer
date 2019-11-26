@@ -5,6 +5,8 @@ Created on Mon Nov 25 10:12:46 2019
 @author: engelen
 """
 
+#Requires adjustText https://github.com/Phlya/adjustText
+
 import pandas as pd
 import seaborn as sns
 from glob import glob
@@ -15,6 +17,7 @@ from pkg_resources import resource_filename
 
 import matplotlib.pyplot as plt
 import numpy as np
+from adjustText import adjust_text
 
 #%%Functions to parse
 def get_model_id(file):     
@@ -46,20 +49,38 @@ def convert_texts(texts):
     return(texts)
 
 def labeled_scatter(ax, xs, ys, labels):
-    ax.scatter(xs, ys)
+    ax.scatter(xs, ys, alpha=0.5)
+    
+    x_max=np.nanmax(xs)
+    y_max=np.nanmax(ys)
+    x_max += 0.1 * x_max
+    y_max += 0.1 * y_max
+    ax.set_xlim(left=0.0, right=x_max)
+    ax.set_ylim(bottom=0.0, top=y_max)
+    
+    x_line = np.linspace(0, x_max)
+    ax.plot(x_line, x_line, ls=":")
     
     dx=np.diff(np.array(ax.get_xlim()))
     dy=np.diff(np.array(ax.get_ylim()))
     
+    texts=[]
+    
     for x, y, label in zip(xs, ys, labels):
-        if x > (0.1 * dx):
-            ax.text(x+0.01*dx, y+0.01*dy, label)
-    return(ax)
+        if x > (0.25 * dx):
+            texts.append(ax.text(x, y, label, va="center", ha="center"))
+        elif y > (0.3 * dy):
+            texts.append(ax.text(x, y, label, va="center", ha="center"))
+    
+    texts = adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color="k", lw=0.1))
+    
+    return()
 
 #%%Path management
 path = r"g:\synthdelta\results\outputs_of_interest"
 traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
-outf = os.path.join(path, "..", "morris_covariance.png")
+outf = os.path.join(path, "..", "morris_covariance.pdf")
+monotone_f = os.path.join(path, "..", "monotonicity.pdf")
 
 #%%Process paths
 #Unfinished trajectories
@@ -101,23 +122,24 @@ for var in df.columns:
     output[var]=analyze(problem, X, Y, num_resamples=1000, conf_level=0.95, 
                            print_to_console=False, num_levels=lev, seed=seed)
 
+#%%Check monotonicity
+monotone=dict([(var, np.abs(output[var]["mu"])/output[var]["mu_star"]) for var in df.columns])
+monotone=pd.DataFrame(monotone, index=convert_texts(output[var]["names"]))
+
 #%%Figsizes
 agu_small = (9.5/2.54, 11.5/2.54)
 agu_half  = (19/2.54, 11.5/2.54)
 agu_whole = (19/2.54, 23/2.54)
 agu_half_vert = (9.5/2.54, 23/2.54)
 
-#%%Plot
-sns.set_style("whitegrid")
+#%%Plot scatter
+sns.set_style("white")
 ncol=3
 nrow=3
 
 fig, axes = plt.subplots(ncol, nrow, figsize=agu_whole)
 
 sns.despine(right=True, top=True)
-
-#Onshore_sw
-#df.loc[df["onshore_sw"].isnull()]
 
 for i, var in enumerate(output.keys()):
     ax=axes.flatten()[i]
@@ -132,6 +154,14 @@ for j in range(i+1, (ncol*nrow)):
     axes.flatten()[j].axis("off")
 
 plt.tight_layout()
-#%%Save
-
 plt.savefig(outf)
+plt.close()
+
+#%%Plot heatmap monotonicity
+
+fig, ax = plt.subplots(1, 1, figsize=agu_half_vert)
+sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax)
+ax.set_title("monotocity")
+plt.tight_layout()
+plt.savefig(monotone_f)
+plt.close()
