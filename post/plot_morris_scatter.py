@@ -77,6 +77,9 @@ traj_id = pd.read_csv(traj_id_path, index_col=0)
 dfs = [pd.read_csv(path, index_col=0).T.assign(mod_id = idx) for idx, path in zip(idxs, paths)]
 df = pd.concat(dfs).set_index("mod_id")
 
+#filter values without a delay. Not sure if this is a very good metric
+df["delay"] = df["delay"].clip(0, None)
+
 #%%Morris
 lev=4
 par_morris=traj_id.columns.to_list()
