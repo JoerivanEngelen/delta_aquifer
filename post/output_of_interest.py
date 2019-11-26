@@ -37,7 +37,7 @@ if len(sys.argv) > 1:
     fol  = sys.argv[1]
 else:
     #Local testing on my own windows laptop
-    fol = r"g:\synthdelta\results\test_output\synth_SD_i029_m24_7065039"
+    fol = r"g:\synthdelta\results\test_output\synth_SD_i023_m24_7071784"
 
 nc_paths = glob(os.path.join(fol, "results_*.nc"))
 nc_paths.sort()
@@ -66,6 +66,8 @@ active = (ds["conc1"] > -1.)
 #For this I probably have to store coastline_x in bcs.nc and read this
 #Right now not a problem because I'm looking at the endstate offshore/onshore stuff
 onshore = active.isel(time=-1).sel(z=0, method="nearest")
+if np.all(onshore==0.):
+    onshore = active.isel(time=-1).sel(z=0, method="backfill")
 x_loc=xr.where(onshore, onshore.x, np.nan).max(dim="x")
 x_loc=x_loc.fillna(x_loc.min()) #fillna
 
