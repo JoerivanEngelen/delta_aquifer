@@ -118,7 +118,7 @@ frac_vols.compute()
 frac_mas.compute()
 
 fracs = xr.merge([frac_mas, frac_vols])
-fracs.to_netcdf(os.path.join(fol, "fracs.nc"))
+fracs.to_netcdf(fracs_path)
 
 #%%Read again to remove chunking
 fracs = xr.open_dataset(fracs_path)
