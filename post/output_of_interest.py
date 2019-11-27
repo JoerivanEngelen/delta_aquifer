@@ -76,6 +76,8 @@ fw_vols  = xr.where((ds["conc1"] > -1.) & (ds["conc1"] < 1.),  ds["vol"], 0)
 fw_vols_offshore = xr.where((fw_vols!=0) & (ds.x > x_loc), fw_vols, 0)
 
 tot_vols = xr.where(active, ds["vol"], 0)
+tot_offshore_vols = (ds.x > x_loc) * tot_vols
+
 tot_masses = ic.c2dens(ds["conc1"]*active)*tot_vols
 sal_masses=xr.where(
         (ds["conc1"] > 0.), 
@@ -92,6 +94,7 @@ mas=xr.Dataset(data_vars=mas)
 
 vol={}
 vol["tot"]         = spat_sum(tot_vols,"tot")
+vol["tot_offshore"]= spat_sum(tot_offshore_vols, "tot_offshore")
 vol["fw"]          = spat_sum(fw_vols, "fw")
 vol["fw_offshore"] = spat_sum(fw_vols_offshore, "fw_offshore")
 vol["bw"]          = spat_sum(xr.where((ds["conc1"] > 1.)&(ds["conc1"] < 30.), 
@@ -101,6 +104,8 @@ vol["ow"]          = spat_sum(xr.where(ds["conc2"] > 0.5, ds["vol"], 0), "ow")
 vol=xr.Dataset(data_vars=vol)
 
 frac_vols = vol/vol["tot"]
+frac_vols["fw_offshore"] = vol["fw_offshore"]/vol["tot_offshore"]
+
 frac_mas = {}
 frac_mas["m_sal"] = mas["sal"]/mas["tot"]
 frac_mas["m_ol_sal"] = mas["ol_sal"]/mas["sal"]
