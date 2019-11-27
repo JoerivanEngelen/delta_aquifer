@@ -47,7 +47,8 @@ bc_path = os.path.join(fol, "input", "data", "bcs.nc")
 match = re.search(r"(i[0-9]{3}).+([0-9]{7})", os.path.basename(fol))
 oi_name = match.group(0)
 
-oi_path = os.path.join(fol, "oi_"+oi_name+".csv")
+fracs_path = os.path.join(fol, "fracs_%s.nc" % oi_name)
+oi_path = os.path.join(fol, "oi_%s.csv" % oi_name)
 
 #%%pre-process data for analysis
 sea_level = xr.open_dataset(bc_path)["sea_level"]
@@ -120,7 +121,7 @@ fracs = xr.merge([frac_mas, frac_vols])
 fracs.to_netcdf(os.path.join(fol, "fracs.nc"))
 
 #%%Read again to remove chunking
-fracs = xr.open_dataset(os.path.join(fol, "fracs.nc"))
+fracs = xr.open_dataset(fracs_path)
 
 #%%Differentiate
 grad_fw = fracs["fw"].differentiate("time") * -1 #Multiply with -1 because the time axis is decreasing
