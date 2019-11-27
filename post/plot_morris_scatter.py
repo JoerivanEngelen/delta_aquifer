@@ -61,6 +61,9 @@ def labeled_scatter(ax, xs, ys, labels):
     x_line = np.linspace(0, x_max)
     ax.plot(x_line, x_line, ls=":")
     
+    ax.set_xlabel("$\mu *$")
+    ax.set_ylabel("$\sigma$")
+    
     dx=np.diff(np.array(ax.get_xlim()))
     dy=np.diff(np.array(ax.get_ylim()))
     
@@ -72,9 +75,10 @@ def labeled_scatter(ax, xs, ys, labels):
         elif y > (0.3 * dy):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
     
-    texts = adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-", color="k", lw=0.1))
+    adjust_text(texts, ax=ax, expand_points=(1.7, 2), force_text=(1.0, 1.0),  
+                arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.5, lw=0.1))
     
-    return()
+    return(texts)
 
 #%%Path management
 path = r"g:\synthdelta\results\outputs_of_interest"
@@ -132,22 +136,31 @@ agu_half  = (19/2.54, 11.5/2.54)
 agu_whole = (19/2.54, 23/2.54)
 agu_half_vert = (9.5/2.54, 23/2.54)
 
+#%%Select vars to plot
+output.pop("max_fw_decrease", None)
+
+order=["end_fw", "offshore_fw", "onshore_sw", "old_water", "fw_gradient", "delay"]
+
+monotone = monotone[order]
+
 #%%Plot scatter
 sns.set_style("white")
 ncol=3
-nrow=3
+nrow=2
 
-fig, axes = plt.subplots(ncol, nrow, figsize=agu_whole)
+fig, axes = plt.subplots(nrow, ncol, figsize=agu_half)
 
 sns.despine(right=True, top=True)
 
-for i, var in enumerate(output.keys()):
+texts_all = []
+
+for i, var in enumerate(order):
     ax=axes.flatten()[i]
     xs = output[var]["mu_star"]
     ys = output[var]["sigma"]
     labels = convert_texts(output[var]["names"])
     
-    labeled_scatter(ax, xs, ys, labels)
+    texts_all += labeled_scatter(ax, xs, ys, labels)
     ax.set_title(var)
 
 for j in range(i+1, (ncol*nrow)):
@@ -157,11 +170,14 @@ plt.tight_layout()
 plt.savefig(outf)
 plt.close()
 
-#%%Plot heatmap monotonicity
+#%%Select what to plot for monotonicity
+monotone = monotone[order]
+monotone = monotone.loc[set([t._text for t in texts_all])]
 
-fig, ax = plt.subplots(1, 1, figsize=agu_half_vert)
+#%%Plot heatmap monotonicity
+fig, ax = plt.subplots(1, 1, figsize=agu_small)
 sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax)
-ax.set_title("monotocity")
+ax.set_title("monotonicity")
 plt.tight_layout()
 plt.savefig(monotone_f)
 plt.close()
