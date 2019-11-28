@@ -14,6 +14,7 @@ import os
 import re
 from SALib.analyze.morris import analyze
 from pkg_resources import resource_filename
+import itertools
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,7 +50,7 @@ def convert_texts(texts):
     return(texts)
 
 def labeled_scatter(ax, xs, ys, labels):
-    ax.scatter(xs, ys, alpha=0.5)
+    ax.scatter(xs, ys, alpha=0.7)
     
     x_max=np.nanmax(xs)
     y_max=np.nanmax(ys)
@@ -59,7 +60,7 @@ def labeled_scatter(ax, xs, ys, labels):
     ax.set_ylim(bottom=0.0, top=y_max)
     
     x_line = np.linspace(0, x_max)
-    ax.plot(x_line, x_line, ls=":")
+    ax.plot(x_line, x_line, ls=":", alpha=0.5)
     
     ax.set_xlabel("$\mu *$")
     ax.set_ylabel("$\sigma$")
@@ -70,13 +71,15 @@ def labeled_scatter(ax, xs, ys, labels):
     texts=[]
     
     for x, y, label in zip(xs, ys, labels):
-        if x > (0.25 * dx):
+        if x > (0.3 * dx):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
-        elif y > (0.3 * dy):
+        elif y > (0.4 * dy):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
     
     adjust_text(texts, ax=ax, expand_points=(1.7, 2), force_text=(1.0, 1.0),  
-                arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.5, lw=0.1))
+                arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.2, lw=0.1))
+    
+    texts = [t._text for t in texts]
     
     return(texts)
 
@@ -160,7 +163,7 @@ for i, var in enumerate(order):
     ys = output[var]["sigma"]
     labels = convert_texts(output[var]["names"])
     
-    texts_all += labeled_scatter(ax, xs, ys, labels)
+    texts_all.append(labeled_scatter(ax, xs, ys, labels))
     ax.set_title(var)
 
 for j in range(i+1, (ncol*nrow)):
@@ -171,12 +174,23 @@ plt.savefig(outf)
 plt.close()
 
 #%%Select what to plot for monotonicity
-monotone = monotone[order]
-monotone = monotone.loc[set([t._text for t in texts_all])]
+
+mask = pd.DataFrame(1, index=monotone.index, columns=monotone.columns)
+for txts, var in zip(texts_all, order):
+    for txt in txts:
+        mask.loc[txt, var] = 0
+
+
+#%%Select what to plot for monotonicity
+texts = list(itertools.chain.from_iterable(texts_all))
+texts = sorted(texts,key=texts.count,reverse=True)
+texts = list(dict.fromkeys(texts)) #Get unique values, and preseverve order (requires a least Python 3.6)
+monotone = monotone.loc[texts]
+mask = mask.loc[texts]
 
 #%%Plot heatmap monotonicity
 fig, ax = plt.subplots(1, 1, figsize=agu_small)
-sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax)
+sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax, mask=mask)
 ax.set_title("monotonicity")
 plt.tight_layout()
 plt.savefig(monotone_f)
