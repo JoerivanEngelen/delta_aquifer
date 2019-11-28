@@ -23,7 +23,7 @@ def cftime_to_ka(ds):
     return(ds.assign_coords(time=years))
 
 def coord_of_max(da):
-    return(da.where(da==da.max(), drop=True).squeeze())
+    return(da.where(da==da.max(), drop=True)[-1].time)
 
 #%%Ideas
 #Upward salt flux? -> Check if can even occur in this model
@@ -128,6 +128,8 @@ grad_fw = fracs["fw"].differentiate("time") * -1 #Multiply with -1 because the t
 grad_sl = sea_level.differentiate("time") * -1 
 
 #%%Outputs of interest
+t_start = 12
+
 oi = {}
 oi["end_fw"]          = fracs["fw"].isel(time=-1).values
 oi["offshore_fw"]     = fracs["fw_offshore"].isel(time=-1).values
@@ -137,7 +139,7 @@ oi["onshore_sw"]      = fracs["m_sal_onshore"].isel(time=-1).values/(35./1025.)
 oi["fw_gradient"]     = (grad_fw).isel( 
                             time=slice(-3, None)
                             ).mean().values
-oi["delay"] = (coord_of_max(grad_sl).time - coord_of_max(grad_fw*-1).time ).values
+oi["delay"] = (t_start - coord_of_max(fracs["fw"]*-1).time ).values
 
 keys, values = list(zip(*oi.items()))
 oi = pd.DataFrame(data={"var" : keys, "value" : values}).set_index("var")
