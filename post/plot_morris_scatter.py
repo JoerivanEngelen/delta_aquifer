@@ -86,8 +86,8 @@ def labeled_scatter(ax, xs, ys, labels):
 #%%Path management
 path = r"g:\synthdelta\results\outputs_of_interest"
 traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
-outf = os.path.join(path, "..", "morris_covariance.pdf")
-monotone_f = os.path.join(path, "..", "monotonicity.pdf")
+outf = os.path.join(path, "..", "morris_covariance")
+monotone_f = os.path.join(path, "..", "monotonicity")
 
 #%%Process paths
 #Unfinished trajectories
@@ -143,6 +143,9 @@ agu_half_vert = (9.5/2.54, 23/2.54)
 output.pop("max_fw_decrease", None)
 
 order=["end_fw", "offshore_fw", "onshore_sw", "old_water", "fw_gradient", "delay"]
+vars_paper=["$FW_{tot}$", "$FW_{off}$", "$S_{on}$", "$S_{init}$", "$FW'$", "$\Delta t_r$"]
+
+lookup = dict(zip(order, vars_paper))
 
 monotone = monotone[order]
 
@@ -164,13 +167,14 @@ for i, var in enumerate(order):
     labels = convert_texts(output[var]["names"])
     
     texts_all.append(labeled_scatter(ax, xs, ys, labels))
-    ax.set_title(var)
+    ax.set_title(lookup[var])
 
 for j in range(i+1, (ncol*nrow)):
     axes.flatten()[j].axis("off")
 
 plt.tight_layout()
-plt.savefig(outf)
+plt.savefig(outf + ".pdf")
+plt.savefig(outf + ".png", dpi=300)
 plt.close()
 
 #%%Select what to plot for monotonicity
@@ -190,8 +194,11 @@ mask = mask.loc[texts]
 
 #%%Plot heatmap monotonicity
 fig, ax = plt.subplots(1, 1, figsize=agu_small)
+monotone.columns = vars_paper
+mask.columns = vars_paper
 sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax, mask=mask)
 ax.set_title("monotonicity")
 plt.tight_layout()
-plt.savefig(monotone_f)
+plt.savefig(monotone_f + ".pdf")
+plt.savefig(monotone_f + ".png", dpi=300)
 plt.close()
