@@ -75,6 +75,9 @@ x_loc=x_loc.fillna(x_loc.min()) #fillna
 #%%Calculate vols and masses
 fw_vols  = xr.where((ds["conc1"] > -1.) & (ds["conc1"] < 1.),  ds["vol"], 0)
 fw_vols_offshore = xr.where((fw_vols!=0) & (ds.x > x_loc), fw_vols, 0)
+bw_vols = xr.where((ds["conc1"] > 1.)&(ds["conc1"] < 30.), 
+                               ds["vol"], 0)
+bw_vols_onshore = xr.where((bw_vols!=0) & (ds.x < x_loc), bw_vols, 0)
 
 tot_vols = xr.where(active, ds["vol"], 0)
 tot_offshore_vols = (ds.x > x_loc) * tot_vols
@@ -100,15 +103,16 @@ vol["tot_onshore"] = vol["tot"] - vol["tot_offshore"]
 vol["fw"]          = spat_sum(fw_vols, "fw")
 vol["fw_offshore"] = spat_sum(fw_vols_offshore, "fw_offshore")
 vol["fw_onshore"]  = vol["fw"] - vol["fw_offshore"]
-vol["bw"]          = spat_sum(xr.where((ds["conc1"] > 1.)&(ds["conc1"] < 30.), 
-                               ds["vol"], 0), "bw")
+vol["bw"]          = spat_sum(bw_vols, "bw")
+vol["bw_onshore"]  = spat_sum(bw_vols_onshore, "bw_onshore") 
 vol["sw"]          = spat_sum(xr.where(ds["conc1"] > 30., ds["vol"], 0), "sw")
 vol["ow"]          = spat_sum(xr.where(ds["conc2"] > 0.5, ds["vol"], 0), "ow")
 vol=xr.Dataset(data_vars=vol)
 
-frac_vols = vol/vol["tot"]
+frac_vols = vol[["fw", "bw", "sw", "ow"]]/vol["tot"]
 frac_vols["fw_offshore"] = vol["fw_offshore"]/vol["tot_offshore"]
 frac_vols["fw_onshore"] = vol["fw_onshore"]/vol["tot_onshore"]
+frac_vols["bw_onshore"] = vol["bw_onshore"]/vol["tot_onshore"]
 
 frac_mas = {}
 frac_mas["m_sal"] = mas["sal"]/mas["tot"]
@@ -117,8 +121,5 @@ frac_mas["m_sal_onshore"] = mas["sal_onshore"]/mas["tot_onshore"]
 frac_mas=xr.Dataset(data_vars=frac_mas)
 
 #%%
-frac_vols.compute()
-frac_mas.compute()
-
 fracs = xr.merge([frac_mas, frac_vols])
 fracs.to_netcdf(fracs_path)
