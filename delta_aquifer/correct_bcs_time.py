@@ -14,7 +14,7 @@ if len(sys.argv) > 1:
     model_fol  = sys.argv[1]
 else:
     #Local testing on my own windows laptop
-    model_fol = r"g:\synthdelta\results\test_output\synth_SD_i123_m24_7114121"
+    model_fol = r"g:\synthdelta\results\test_output\synth_SD_i200_m24_7248732"
     
 #%%Path management
 path = os.path.join(model_fol, "input", "data", "bcs.nc")
