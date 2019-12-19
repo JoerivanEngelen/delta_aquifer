@@ -7,17 +7,20 @@ Created on Mon Nov 25 10:12:46 2019
 
 #Requires adjustText https://github.com/Phlya/adjustText
 
-import pandas as pd
-import seaborn as sns
-from glob import glob
 import os
 import re
+
+import pandas as pd
+from glob import glob
+import numpy as np
 from SALib.analyze.morris import analyze
 from pkg_resources import resource_filename
 import itertools
 
 import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.gridspec import GridSpec
+import seaborn as sns
+
 from adjustText import adjust_text
 
 #%%Functions to parse
@@ -73,11 +76,12 @@ def labeled_scatter(ax, xs, ys, labels):
     for x, y, label in zip(xs, ys, labels):
         if x > (0.3 * dx):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
-        elif y > (0.4 * dy):
+        elif y > (0.44 * dy):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
     
     adjust_text(texts, ax=ax, expand_points=(1.7, 2), force_text=(1.0, 1.0),  
                 arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.2, lw=0.1))
+#                arrowprops=dict(arrowstyle="wedge", color="lightgray", lw=0.1))
     
     texts = [t._text for t in texts]
     
@@ -86,8 +90,7 @@ def labeled_scatter(ax, xs, ys, labels):
 #%%Path management
 path = r"g:\synthdelta\results\outputs_of_interest"
 traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
-outf = os.path.join(path, "..", "morris_covariance")
-monotone_f = os.path.join(path, "..", "monotonicity")
+outf = os.path.join(path, "..", "morris")
 
 #%%Process paths
 #Unfinished trajectories
@@ -142,8 +145,8 @@ agu_half_vert = (9.5/2.54, 23/2.54)
 #%%Select vars to plot
 output.pop("max_fw_decrease", None)
 
-order=["end_fw", "offshore_fw", "onshore_sw", "old_water", "fw_gradient", "delay"]
-vars_paper=["$FW_{tot}$", "$FW_{off}$", "$S_{on}$", "$S_{init}$", "$FW'$", "$\Delta t_r$"]
+order=["onshore_sw", "offshore_fw","old_water", "s_gradient"]
+vars_paper=["$S_{on}$", "$FW_{off}$", "$S_{init}$", "$S_{on}'$"]
 
 lookup = dict(zip(order, vars_paper))
 
@@ -154,28 +157,25 @@ sns.set_style("white")
 ncol=3
 nrow=2
 
-fig, axes = plt.subplots(nrow, ncol, figsize=agu_half)
+fig = plt.figure(figsize=agu_half)
+gs = GridSpec(nrow, ncol, figure=fig)
+
+ax_locs = list(itertools.product(*([[0,1]]*2)))
+axes_scatter = [fig.add_subplot(gs[i, j]) for i, j in ax_locs]
+ax_mono = fig.add_subplot(gs[:, -1])
 
 sns.despine(right=True, top=True)
 
 texts_all = []
 
 for i, var in enumerate(order):
-    ax=axes.flatten()[i]
+    ax=axes_scatter[i]
     xs = output[var]["mu_star"]
     ys = output[var]["sigma"]
     labels = convert_texts(output[var]["names"])
     
     texts_all.append(labeled_scatter(ax, xs, ys, labels))
     ax.set_title(lookup[var])
-
-for j in range(i+1, (ncol*nrow)):
-    axes.flatten()[j].axis("off")
-
-plt.tight_layout()
-plt.savefig(outf + ".pdf")
-plt.savefig(outf + ".png", dpi=300)
-plt.close()
 
 #%%Select what to plot for monotonicity
 
@@ -192,13 +192,22 @@ texts = list(dict.fromkeys(texts)) #Get unique values, and preseverve order (req
 monotone = monotone.loc[texts]
 mask = mask.loc[texts]
 
+
 #%%Plot heatmap monotonicity
-fig, ax = plt.subplots(1, 1, figsize=agu_small)
 monotone.columns = vars_paper
 mask.columns = vars_paper
-sns.heatmap(monotone, fmt="d", linewidths=.5, ax=ax, mask=mask)
-ax.set_title("monotonicity")
+cmap = sns.light_palette("midnightblue", as_cmap=True, reverse=True)
+g = sns.heatmap(monotone, cmap= cmap, linewidths=.5, ax=ax_mono, mask=mask)
+g.set_yticklabels(g.get_yticklabels(), rotation=0)
+g.set_xticklabels(g.get_xticklabels(), rotation=45)
+g.set_title("monotonicity")
+
+#%%Save
+dpi_paper = 300
+dpi_poster = 12.5/5 * 1.1 * dpi_paper
+
 plt.tight_layout()
-plt.savefig(monotone_f + ".pdf")
-plt.savefig(monotone_f + ".png", dpi=300)
+plt.savefig(outf + ".pdf")
+plt.savefig(outf + ".png", dpi=dpi_poster)
+plt.savefig(outf + ".svg")
 plt.close()
