@@ -34,6 +34,46 @@ def str_to_mathtxt(s):
     s = "${}{}{}$".format(var, sub, sign)
     return(s)
 
+#%%Functions to create texts
+def get_changes(traj_id, traj_len):
+    df = pd.read_csv(traj_id, index_col=0)
+    diff = df.rolling(window=2).apply(lambda x: x[1] - x[0], raw=True)
+    diff.loc[0::traj_len] = np.nan
+    return(diff)
+
+def create_text_aid(diff, traj_len, text_path=None):
+    base_id = list(diff.loc[0::traj_len].index)
+    sign = np.sum(np.sign(diff), axis=1) #Direction parameters changed
+    convert = {1.0 : "+",
+               -1.0: "-",
+               0.0:  ""}
+    
+    changed_parameters = diff[diff != 0].stack().index.tolist()
+    changed_parameters.extend([(idx, "base") for idx in base_id])
+    changed_parameters.sort()
+    
+    changed_parameters = pd.DataFrame(data=changed_parameters).set_index(0)
+    changed_parameters.columns = ["par"]
+    changed_parameters["par"] += sign.map(convert)
+    
+    if text_path is not None:
+        changed_parameters.to_csv(text_path)
+    
+    return(changed_parameters)
+
+def create_texts(diff, traj_len):
+    tex = {"alpha" : r"\alpha",
+           "beta"  : r"\beta", 
+           "phi_f"   : r"\phi_f",
+           "Kh_Kv" : r"Kh/Kv"}
+    
+    text_aid = create_text_aid(diff, traj_len)
+    texts = text_aid["par"]
+    texts = list(texts)
+    texts = [tex[t[:-1]]+t[-1] if t[:-1] in tex.keys() else t for t in texts]
+    texts = [str_to_mathtxt(s) for s in texts]
+    return(texts)
+
 #%%Functions to convert matplotlib figs to pillow Images
 def _get_text_imagearray(text, size):
     dpi=300
@@ -74,18 +114,6 @@ def get_text_image(text, size):
     image = Image.fromarray(arr)
     return(image)
 
-def get_texts(text_path, start, stop):
-    tex = {"alpha" : r"\alpha",
-           "beta"  : r"\beta", 
-           "phi_f"   : r"\phi_f",
-           "Kh_Kv" : r"Kh/Kv"}
-    
-    mod_idx = slice(start, stop+1)
-    texts = pd.read_csv(text_path, index_col=0)["par"][mod_idx]
-    texts = list(texts)
-    texts = [tex[t[:-1]]+t[-1] if t[:-1] in tex.keys() else t for t in texts]
-    texts = [str_to_mathtxt(s) for s in texts]
-    return(texts)
 
 #%%Functions to edit pillow images
 def get_figure_sizes(cropbox, nrows, ncols, mag=1):
@@ -174,7 +202,15 @@ files = glob(globpath)
 files.sort()
 
 #Path with text aid
-text_path = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "text_aid.csv")))
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+traj_id  = os.path.join(datafol, "traj_id.csv")
+text_path = os.path.join(datafol, "text_aid.csv")
+
+#%%Get text aids
+traj_len = 24
+
+diff = get_changes(traj_id, traj_len)
+texts = create_texts(diff, traj_len)
 
 #%%Plot all trajectories
 starts = np.array([0, 24, 48, 72, 120, 144, 168, 192, 240, 264])
@@ -184,12 +220,17 @@ for start, stop in zip(starts, stops):
     assert(len(files_mod)==24)
     
     nrows, ncols = 3, 8 
-
-    texts = get_texts(text_path, start, stop) #Get texts
-    out_frames = create_frames(files_mod, texts, nrows, ncols)
+    mod_idx = slice(start, stop+1)
+    out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols)
     
     #Save
     out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop))
     save_frames(out_frames, out_path)
 
 #%%Plot change per parameter
+df_text = pd.DataFrame(texts, columns=["par"])
+
+inps = list(np.unique(df_text["par"].str[1:-2])) #Strip of sign (dollar signs)
+inps.remove("bas") #Remove base run
+
+
