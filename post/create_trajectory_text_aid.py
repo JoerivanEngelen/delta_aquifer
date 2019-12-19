@@ -25,18 +25,16 @@ traj_len=24
 df = pd.read_csv(traj_id, index_col=0)
 diff = df.rolling(window=2).apply(lambda x: x[1] - x[0], raw=True)
 diff.loc[0::traj_len] = np.nan
+
 base_id = list(diff.loc[0::traj_len].index)
-
-changed_parameters = diff[diff != 0].stack().index.tolist()
-changed_parameters.extend([(idx, "base") for idx in base_id])
-changed_parameters.sort()
-
 sign = np.sum(np.sign(diff), axis=1) #Direction parameters changed
 convert = {1.0 : "+",
            -1.0: "-",
            0.0:  ""}
 
-#Maybe change symbols here with dictionary?
+changed_parameters = diff[diff != 0].stack().index.tolist()
+changed_parameters.extend([(idx, "base") for idx in base_id])
+changed_parameters.sort()
 
 changed_parameters = pd.DataFrame(data=changed_parameters).set_index(0)
 changed_parameters.columns = ["par"]
