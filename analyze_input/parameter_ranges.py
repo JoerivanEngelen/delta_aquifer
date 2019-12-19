@@ -127,6 +127,9 @@ for i in range(n_range-1):
     #We have to remove ticklabels manually, as gridspec does not do hide this
     plt.setp(hdrglgy_ax_lst[i+1].get_yticklabels(), visible=False)
 
+leg = hdrglgy_ax_lst[n_range-1].get_legend()
+leg.set_title("$N_{pubs}$")
+
 ##Plot histograms for the other parameters
 opts = dict(hist=True, rug=False, kde=False, bins='doane')
 
@@ -135,27 +138,28 @@ for i, var in enumerate(var2plot.keys()):
 
 plt.tight_layout()
 plt.savefig(os.path.join(df_path, "..", "input_distributions.png"), dpi=300)
+plt.savefig(os.path.join(df_path, "..", "input_distributions.svg"))
 plt.savefig(os.path.join(df_path, "..", "input_distributions.pdf"))
 plt.close()
 
 #%%Explore relation H_b and N_aqt
-fig = plt.figure(figsize = agu_small)
-gs0 = gridspec.GridSpec(1, 1, figure=fig)
-ax = fig.add_subplot(gs0[0])
-
-df_all["logH_b"] = np.log10(df_all["H_b"])
-sns.regplot(x="logH_b", y="N_aqt", data=df_all, robust=True, ax=ax)
-
-#Seaborn does not return coefficients to 
-mean = ax.lines[0]
-verts = ax.collections[1]._paths[0]._vertices
-#ASSUME: Second half of verts is upper line. Not sure if this is guarenteed.
-highest_ci = verts[int(verts.shape[0]/2):, :]
-
-plt.plot(highest_ci[:, 0], highest_ci[:, 1])
-#plt.plot(highest_ci[:, 0], lin(highest_ci[:, 0], 8/0.95, -15.26, 2.))
-
-plt.tight_layout()
-plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.png"), dpi=300)
-plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.pdf"))
-plt.close()
+#fig = plt.figure(figsize = agu_small)
+#gs0 = gridspec.GridSpec(1, 1, figure=fig)
+#ax = fig.add_subplot(gs0[0])
+#
+#df_all["logH_b"] = np.log10(df_all["H_b"])
+#sns.regplot(x="logH_b", y="N_aqt", data=df_all, robust=True, ax=ax)
+#
+##Seaborn does not return coefficients to 
+#mean = ax.lines[0]
+#verts = ax.collections[1]._paths[0]._vertices
+##ASSUME: Second half of verts is upper line. Not sure if this is guarenteed.
+#highest_ci = verts[int(verts.shape[0]/2):, :]
+#
+#plt.plot(highest_ci[:, 0], highest_ci[:, 1])
+##plt.plot(highest_ci[:, 0], lin(highest_ci[:, 0], 8/0.95, -15.26, 2.))
+#
+#plt.tight_layout()
+#plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.png"), dpi=300)
+#plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.pdf"))
+#plt.close()
