@@ -189,6 +189,10 @@ def save_frames(out_frames, out_path):
 #%%TODO
 #Time + (Colorbar?)
 
+#%%Settings
+plot_trajectories=False
+plot_inputs=True
+
 #%%Path management
 if len(sys.argv) > 1:
     globpath  = sys.argv[1]
@@ -213,24 +217,55 @@ diff = get_changes(traj_id, traj_len)
 texts = create_texts(diff, traj_len)
 
 #%%Plot all trajectories
-starts = np.array([0, 24, 48, 72, 120, 144, 168, 192, 240, 264])
-stops = starts+23
-for start, stop in zip(starts, stops):
-    files_mod = [i for i in files if get_model_id(i) in range(start, stop+1)]
-    assert(len(files_mod)==24)
-    
-    nrows, ncols = 3, 8 
-    mod_idx = slice(start, stop+1)
-    out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols)
-    
-    #Save
-    out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop))
-    save_frames(out_frames, out_path)
+skip = [96, 216]
+
+starts = np.arange(0, 12) * traj_len
+starts[~np.isin(starts, skip)]
+stops = starts+traj_len
+
+if plot_trajectories:
+    for start, stop in zip(starts, stops):
+        files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
+        assert(len(files_mod)==traj_len)
+        
+        nrows, ncols = 3, 8 
+        mod_idx = slice(start, stop)
+        out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols)
+        
+        #Save
+        out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop-1))
+        save_frames(out_frames, out_path)
 
 #%%Plot change per parameter
-df_text = pd.DataFrame(texts, columns=["par"])
+bad_chars = r"{}\\/"
+pattern = re.compile('[%s]' % bad_chars)
 
-inps = list(np.unique(df_text["par"].str[1:-2])) #Strip of sign (dollar signs)
-inps.remove("bas") #Remove base run
-
-
+if plot_inputs:
+    df_text = pd.DataFrame(texts, columns=["par"])
+    invalid_ids = np.concatenate([np.arange(s, s+traj_len) for s in skip])
+    
+    inps = list(np.unique(df_text["par"].str[1:-2])) #Strip of sign (dollar signs)
+    inps.remove("bas") #Remove base run
+    
+    for inp in inps:
+        text_inp = df_text[df_text["par"].str.contains(inp, regex=False)]
+        
+        idx = text_inp.index
+        idx = np.array(list(set(idx) - set(invalid_ids))) #Remove the values from idx that are in invalid_ids
+        idx = np.concatenate([idx, idx-1])
+        
+        files_mod = [i for i in files if get_model_id(i) in idx]
+        files_mod = files_mod[::2] + files_mod[1::2]
+        
+        nrows = 2
+        ncols = int(len(files_mod)/nrows)
+        
+        text_inp = list(text_inp["par"])
+        text_inp = [""] * ncols + text_inp
+        
+        out_frames = create_frames(files_mod, text_inp, nrows, ncols)
+        
+        out_path = os.path.join(out_fol, "per_parameter", pattern.sub("", inp) + ".%s")
+        save_frames(out_frames, out_path)
+        
+    
