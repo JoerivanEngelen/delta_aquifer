@@ -248,11 +248,16 @@ if plot_inputs:
     inps.remove("bas") #Remove base run
     
     for inp in inps:
+        print(inp)
         text_inp = df_text[df_text["par"].str.contains(inp, regex=False)]
         
         idx = text_inp.index
         idx = np.array(list(set(idx) - set(invalid_ids))) #Remove the values from idx that are in invalid_ids
-        idx = np.concatenate([idx, idx-1])
+        idx.sort()
+        
+        text_inp = list(text_inp.loc[idx]["par"])
+        
+        idx = np.concatenate([idx-1, idx])
         
         files_mod = [i for i in files if get_model_id(i) in idx]
         files_mod = files_mod[::2] + files_mod[1::2]
@@ -260,12 +265,10 @@ if plot_inputs:
         nrows = 2
         ncols = int(len(files_mod)/nrows)
         
-        text_inp = list(text_inp["par"])
         text_inp = [""] * ncols + text_inp
         
         out_frames = create_frames(files_mod, text_inp, nrows, ncols)
         
         out_path = os.path.join(out_fol, "per_parameter", pattern.sub("", inp) + ".%s")
         save_frames(out_frames, out_path)
-        
     
