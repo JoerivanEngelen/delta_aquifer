@@ -75,7 +75,7 @@ def create_texts(diff, traj_len):
     return(texts)
 
 #%%Functions to convert matplotlib figs to pillow Images
-def _get_text_imagearray(text, size):
+def _get_text_imagearray(text, size, nr=None):
     dpi=300
     
     lp = (270/300) #Appropriate scaling relationship for fontsize
@@ -86,6 +86,8 @@ def _get_text_imagearray(text, size):
     
     fig = plt.figure(figsize=figsize, dpi=dpi)
     plt.text(0.0, 1.0, text, transform=fig.transFigure, fontsize=fontsize, ha="left", va="top")
+    if nr is not None:
+        plt.text(0.98, 1.0, str(nr), transform=fig.transFigure, fontsize=fontsize, ha="right", va="top")
     plt.axis('off')
     fig.canvas.draw()
     s, (width, height) = fig.canvas.print_to_buffer()
@@ -108,8 +110,8 @@ def _black2white(arr, background=110):
     arr[:, :, :3] = 255 - arr[:, :, :3]
     return(arr)
 
-def get_text_image(text, size):
-    arr = _get_text_imagearray(text, size)
+def get_text_image(text, size, nr):
+    arr = _get_text_imagearray(text, size, nr)
     arr = _black2white(arr)
     image = Image.fromarray(arr)
     return(image)
@@ -126,13 +128,19 @@ def get_figure_sizes(cropbox, nrows, ncols, mag=1):
 def create_text_overlay(texts, output_size, panel_size, idxs):
     text_overlay = Image.new("RGBA", output_size)
     
-    for j, (r, c) in enumerate(idxs):
+    for j, (r, c, nr) in enumerate(idxs):
         sub_extent=(c*panel_size[0], r*panel_size[1], (c+1)*panel_size[0], (r+1)*panel_size[1])
-        text_im = get_text_image(texts[j], panel_size)
+        text_im = get_text_image(texts[j], panel_size, nr)
         text_overlay.paste(text_im, sub_extent)
     return(text_overlay)
 
-def create_frames(files, texts, nrows, ncols, enhance=None):
+def create_frames(files, texts, nrows, ncols, enhance=None, start = None):
+    def add_if_start(i, start):
+        if start is None:
+            return(None)
+        else:
+            return(i+start)
+    
     #specify output image size
     cropbox = (220, 40, 850, 850) #Original image 1000, 850    
     panel_size, output_size = get_figure_sizes(cropbox, nrows, ncols)
@@ -141,7 +149,7 @@ def create_frames(files, texts, nrows, ncols, enhance=None):
     ims = [Image.open(f) for f in files]
 
     #Prepare
-    idxs = [(int(i/ncols), i%ncols) for i in range(len(ims))]
+    idxs = [(int(i/ncols), i%ncols, add_if_start(i,start)) for i in range(len(ims))]
     
     n_frames = [im.n_frames for im in ims]
     max_n = max(n_frames)
@@ -163,7 +171,7 @@ def create_frames(files, texts, nrows, ncols, enhance=None):
         
         resized_frames = [frame.crop(cropbox).resize(panel_size).convert("RGBA") for frame in frames]
         for j, resized_frame in enumerate(resized_frames):
-            r, c = idxs[j]
+            r, c, _ = idxs[j]
             sub_extent=(c*panel_size[0], r*panel_size[1], (c+1)*panel_size[0], (r+1)*panel_size[1])
             stitched_image.paste(resized_frame, sub_extent)
         
@@ -190,8 +198,8 @@ def save_frames(out_frames, out_path):
 #Time + (Colorbar?)
 
 #%%Settings
-plot_trajectories=False
-plot_inputs=True
+plot_trajectories=True
+plot_inputs=False
 
 #%%Path management
 if len(sys.argv) > 1:
@@ -220,17 +228,18 @@ texts = create_texts(diff, traj_len)
 skip = [96, 216]
 
 starts = np.arange(0, 12) * traj_len
-starts[~np.isin(starts, skip)]
+starts = starts[~np.isin(starts, skip)]
 stops = starts+traj_len
 
 if plot_trajectories:
     for start, stop in zip(starts, stops):
+        print(r"%d-%d" % (start, stop))
         files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
         assert(len(files_mod)==traj_len)
         
         nrows, ncols = 3, 8 
         mod_idx = slice(start, stop)
-        out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols)
+        out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols, start=start)
         
         #Save
         out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop-1))
