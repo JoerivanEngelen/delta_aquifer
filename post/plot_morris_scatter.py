@@ -13,7 +13,7 @@ import re
 import pandas as pd
 from glob import glob
 import numpy as np
-from SALib.analyze.morris import analyze
+from SALib.analyze.morris import analyze, compute_elementary_effects
 from pkg_resources import resource_filename
 import itertools
 
@@ -46,7 +46,9 @@ def convert_texts(texts):
     tex = {"alpha" : r"\alpha",
            "beta"  : r"\beta", 
            "phi_f"   : r"\phi_f",
-           "Kh_Kv" : r"Kh/Kv"}
+           "Kh_Kv" : r"K_h/K_v",
+           "Kh_aqf" : "K_h_aqf",
+           "Kv_aqt" : "K_v_aqt"}
     
     texts = [tex[t] if t in tex.keys() else t for t in texts]
     texts = [str_to_mathtxt(s) for s in texts]
@@ -88,7 +90,7 @@ def labeled_scatter(ax, xs, ys, labels):
     return(texts)
 
 #%%Path management
-path = r"g:\synthdelta\results\outputs_of_interest"
+path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results\outputs_of_interest"
 traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
 outf = os.path.join(path, "..", "morris")
 
@@ -126,11 +128,17 @@ problem = {
 X = traj_id.iloc[idxs].values.astype(float)
 
 #%%Get morris output
+delta = lev / (2 * (lev - 1))
+
 output={}
+ee={}
 for var in df.columns:
     Y = df[var].values
     output[var]=analyze(problem, X, Y, num_resamples=1000, conf_level=0.95, 
                            print_to_console=False, num_levels=lev, seed=seed)
+
+    ee[var] = compute_elementary_effects(  #For bookkeeping purposes
+        X, Y, problem["num_vars"]+1, delta)
 
 #%%Check monotonicity
 monotone=dict([(var, np.abs(output[var]["mu"])/output[var]["mu_star"]) for var in df.columns])
@@ -172,6 +180,8 @@ for i, var in enumerate(order):
     ax=axes_scatter[i]
     xs = output[var]["mu_star"]
     ys = output[var]["sigma"]
+    negativ = output[var]["mu"] < 0
+    
     labels = convert_texts(output[var]["names"])
     
     texts_all.append(labeled_scatter(ax, xs, ys, labels))
@@ -200,7 +210,7 @@ cmap = sns.light_palette("midnightblue", as_cmap=True, reverse=True)
 g = sns.heatmap(monotone, cmap= cmap, linewidths=.5, ax=ax_mono, mask=mask)
 g.set_yticklabels(g.get_yticklabels(), rotation=0)
 g.set_xticklabels(g.get_xticklabels(), rotation=45)
-g.set_title("monotonicity")
+g.set_title("$\epsilon$")
 
 #%%Save
 dpi_paper = 300
@@ -208,6 +218,6 @@ dpi_poster = 12.5/5 * 1.1 * dpi_paper
 
 plt.tight_layout()
 plt.savefig(outf + ".pdf")
-plt.savefig(outf + ".png", dpi=dpi_poster)
+plt.savefig(outf + ".png", dpi=dpi_paper)
 plt.savefig(outf + ".svg")
 plt.close()
