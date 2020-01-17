@@ -19,7 +19,7 @@ def get_df_plot(df, var, i):
     df_min=df[["Delta", "%s_min"%var]].rename(columns={"%s_min"%var : "%s"%var}).assign(stat="min")
     df_max=df[["Delta", "%s_max"%var]].rename(columns={"%s_max"%var : "%s"%var}).assign(stat="max")
     
-    df_min["n_pubs_%s"%i] = df_min.groupby(by=["Delta"])["%s"%var].transform('count').astype(np.int64).replace(0, np.nan)
+    df_min["n_pubs_%s"%i] = df_min.groupby(by=["Delta"])["%s"%var].transform('count').astype("Int64").replace(0, np.nan) #Int64 supports NaNs
     df_max["n_pubs_%s"%i] = df_min["n_pubs_%s"%i]
 
     df_min=df_min.groupby(by=["Delta"]).min()
@@ -78,16 +78,16 @@ hdrglgy2plot = OrderedDict((
             ))
 
 #Histograms for other parameters
-var2plot = OrderedDict((("l_a",         "$l_a$"), 
-                        ("beta",        r"$\beta$"),
-                        (r"H_a/H_b",    "$f_H$"),
-                        ('H_b',         "$H_b$"),
-                        (r'Mud/Total',  "$f_{aqt}$"),
-                        ('l_conf',      "$l_{conf}$"),
-                        ('N_aqt',       "$N_{aqt}$"),
-                        ('N_pal',       "$N_{pal}$"),
-                        ('l_tra',       "$l_{tra}$"),
-                        ('N_chan',      "$N_{chan}$")
+var2plot = OrderedDict((("l_a",         "$l_a$ [-]"), 
+                        ("beta",        r"$\beta$ [rad]"),
+                        (r"H_a/H_b",    "$f_H$ [-]"),
+                        ('H_b',         "$H_b$ [m]"),
+                        (r'Mud/Total',  "$f_{aqt}$ [-]"),
+                        ('l_conf',      "$l_{conf}$ [-]"),
+                        ('N_aqt',       "$N_{aqt}$ [-]"),
+                        ('N_pal',       "$N_{pal}$ [-]"),
+                        ('l_tra',       "$l_{tra}$ [-]"),
+                        ('N_chan',      "$N_{chan}$ [-]")
                         ))
 
 #%%Plot hydrogeology ranges per delta and histograms for the rest
