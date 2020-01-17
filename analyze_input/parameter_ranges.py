@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from functools import reduce
 from collections import OrderedDict
+from pkg_resources import resource_filename
 
 def get_df_plot(df, var, i):
     df_min=df[["Delta", "%s_min"%var]].rename(columns={"%s_min"%var : "%s"%var}).assign(stat="min")
@@ -35,7 +36,9 @@ def lin(x, slope, intercept, clip):
     return(np.clip(x*slope+intercept, clip, None))
 
 #%%Path management
-df_path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\Reftable.xlsx"
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+df_path  = os.path.join(datafol, "Reftable.xlsx")
+out_path = os.path.join(datafol, "..", "example", "scratch_figures")
 
 #%%Figsizes
 agu_small = (9.5/2.54, 11.5/2.54)
@@ -137,9 +140,9 @@ for i, var in enumerate(var2plot.keys()):
     sns.distplot(df_all[var].dropna(), ax=hist_ax_lst[i], axlabel=var2plot[var], **opts)
 
 plt.tight_layout()
-plt.savefig(os.path.join(df_path, "..", "input_distributions.png"), dpi=300)
-plt.savefig(os.path.join(df_path, "..", "input_distributions.svg"))
-plt.savefig(os.path.join(df_path, "..", "input_distributions.pdf"))
+plt.savefig(os.path.join(out_path, "input_distributions.png"), dpi=300)
+plt.savefig(os.path.join(out_path, "input_distributions.svg"))
+plt.savefig(os.path.join(out_path, "input_distributions.pdf"))
 plt.close()
 
 #%%Explore relation H_b and N_aqt
