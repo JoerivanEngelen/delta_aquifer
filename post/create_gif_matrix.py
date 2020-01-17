@@ -6,7 +6,7 @@ Created on Thu Nov  7 16:21:38 2019
 """
 
 from glob import glob
-from PIL import Image, ImageSequence, ImageEnhance
+from PIL import Image, ImageSequence, ImageEnhance, ImageDraw
 from pkg_resources import resource_filename
 import matplotlib.pyplot as plt
 import sys, os
@@ -33,6 +33,18 @@ def str_to_mathtxt(s):
         sub=""
     s = "${}{}{}$".format(var, sub, sign)
     return(s)
+
+def chunkIt(seq, num):
+    #https://stackoverflow.com/questions/2130016/splitting-a-list-into-n-parts-of-approximately-equal-length
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
 
 #%%Functions to create texts
 def get_changes(traj_id, traj_len):
@@ -121,7 +133,7 @@ def get_text_image(text, size, nr):
 def get_figure_sizes(cropbox, nrows, ncols, mag=1):
     w_crop_original = cropbox[2]-cropbox[0]
     h_crop_original = cropbox[3]-cropbox[1]    
-    panel_size = int(w_crop_original/ncols)*2*mag, int(h_crop_original/nrows)*mag
+    panel_size = int(w_crop_original/ncols)*mag, int(h_crop_original/nrows)*mag
     output_size = panel_size[0] * ncols, panel_size[1] * nrows
     return(panel_size, output_size)
 
@@ -134,7 +146,8 @@ def create_text_overlay(texts, output_size, panel_size, idxs):
         text_overlay.paste(text_im, sub_extent)
     return(text_overlay)
 
-def create_frames(files, texts, nrows, ncols, enhance=None, start = None):
+def create_frames(files, texts, nrows, ncols, enhance=None, start=None, 
+                  output_frame=None, draw_lines=None):
     def add_if_start(i, start):
         if start is None:
             return(None)
@@ -142,8 +155,12 @@ def create_frames(files, texts, nrows, ncols, enhance=None, start = None):
             return(i+start)
     
     #specify output image size
-    cropbox = (220, 40, 850, 850) #Original image 1000, 850    
-    panel_size, output_size = get_figure_sizes(cropbox, nrows, ncols)
+    cropbox = (220, 40, 850, 850) #Original image 1000, 850
+    
+    if output_frame is not None:
+        panel_size, output_size = get_figure_sizes([0,0]+output_frame, nrows, ncols)
+    else:
+        panel_size, output_size = get_figure_sizes(cropbox, nrows, ncols)
 
     #Load
     ims = [Image.open(f) for f in files]
@@ -176,6 +193,16 @@ def create_frames(files, texts, nrows, ncols, enhance=None, start = None):
             stitched_image.paste(resized_frame, sub_extent)
         
         stitched_image = Image.alpha_composite(stitched_image, text_overlay)
+        
+        if draw_lines is not None:
+            draw = ImageDraw.Draw(stitched_image)
+            line_coords = [(panel_size[0]*i, 0, panel_size[0]*i, output_size[1]) for i in range(1, ncols+1)] #vertical lines
+            row_step=2
+            line_coords += [(0, panel_size[1]*i, output_size[0], panel_size[1]*i) for i in range(row_step, nrows, row_step)] #horizontal
+            for line in line_coords:
+                draw.line(line, fill=128, width=3)
+            del draw
+        
         if enhance is not None:
             #enhance = 1.4 is a good value
             stitched_image = ImageEnhance.Contrast(stitched_image).enhance(enhance)
@@ -198,8 +225,14 @@ def save_frames(out_frames, out_path):
 #Time + (Colorbar?)
 
 #%%Settings
-plot_trajectories=True
-plot_inputs=False
+plot_trajectories=False
+plot_inputs=True
+
+#%%Figsizes
+agu_small = (9.5/2.54, 11.5/2.54)
+agu_half  = (19/2.54, 11.5/2.54)
+agu_whole = (19/2.54, 23/2.54)
+agu_half_vert = (9.5/2.54, 23/2.54)
 
 #%%Path management
 if len(sys.argv) > 1:
@@ -271,12 +304,22 @@ if plot_inputs:
         files_mod = [i for i in files if get_model_id(i) in idx]
         files_mod = files_mod[::2] + files_mod[1::2]
         
-        nrows = 2
+        nrows = 4
         ncols = int(len(files_mod)/nrows)
         
-        text_inp = [""] * ncols + text_inp
+        files_mod = chunkIt(files_mod, nrows)
+        files_mod = files_mod[::2] + files_mod[1::2]
+        files_mod = [j for i in files_mod for j in i]
         
-        out_frames = create_frames(files_mod, text_inp, nrows, ncols)
+        text_inp = chunkIt(text_inp, nrows/2)
+        text_inp = [[""] * ncols + text for text in text_inp]
+        text_inp = [j for i in text_inp for j in i] #flatten list
+        
+        dpi = 300
+        
+        output_frame = [int(i * dpi) for i in agu_whole]
+        
+        out_frames = create_frames(files_mod, text_inp, nrows, ncols, output_frame=output_frame, draw_lines=True)
         
         out_path = os.path.join(out_fol, "per_parameter", pattern.sub("", inp) + ".%s")
         save_frames(out_frames, out_path)
