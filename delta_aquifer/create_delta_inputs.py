@@ -1,0 +1,153 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan 24 10:31:23 2020
+
+@author: engelen
+"""
+import pandas as pd
+import numpy as np
+
+import os
+from pkg_resources import resource_filename
+
+def select_re(df, key):
+    return(df.loc[:, df.columns.str.contains(key)])
+    
+def add_logspace(df, columns, new_column, n=1):
+    a = np.log10(df.loc[:, columns])
+    for i in range(n):
+        a.insert(i+1, new_column+"_%s"%i, np.nan)
+    a = 10**a.interpolate(axis=1)
+    a = select_re(a, new_column)
+    return(a)
+
+def average_column(df, key, log=False):
+    """Calculate average across column
+    and remove columns
+    """
+    
+    min_key = "%s_min" % key
+    max_key = "%s_max" % key
+    cols = [min_key, max_key]
+    
+    if log == True:
+        df[key] = 10**np.log10(df.loc[:, cols]).mean(axis=1)
+    else:
+        df[key] = df.loc[:, cols].mean(axis=1)
+    df = df.drop(columns = cols)
+    return(df)
+
+def discretize_range(df, inp, identifier):
+    """Discretize min-max input range and convert this to long format."""
+    df = pd.concat([df, add_logspace(df, 
+                                     [f"{inp}_min", f"{inp}_max"], 
+                                     f"{inp}_mid")], axis=1)
+    df = pd.wide_to_long(df.reset_index(), stubnames=f"{inp}", 
+                              i=identifier, j=f"{inp}_type", 
+                              sep='_', suffix='\w+').reset_index()
+    return(df)
+    
+
+#%%Path management
+inp_path = os.path.abspath(resource_filename("delta_aquifer", "../data/Reftable.xlsx"))
+model_inputs = os.path.join(inp_path, "..", "model_inputs.csv")
+
+#%%Sheets and parameters to use for models
+sheetnames = ["Geometry_Raw", "Lithology_Raw", "BC_Raw", "Hydrogeology_Raw"]
+inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi", "H_b", "H_a/H_b",
+          "N_aqt", "Mud/Total", "l_conf", "N_pal", "s_pal", "l_tra", "t_max",
+          "N_chan", "l_sal"]
+
+#%%Read data
+sheets = {}
+
+for shtname in sheetnames:
+    sheets[shtname] = pd.read_excel(inp_path, sheet_name = shtname, skiprows=[1])
+
+hdrglgy = sheets["Hydrogeology_Raw"]
+
+#%%Filter cases where reported anisotropies are effective 
+#  anisotropies for the complete groundwater system.
+
+ani_eff = hdrglgy["Aqt_explicit"]==0
+
+hdrglgy["Kaqt_min"] = hdrglgy["Kaqt_min"].where(~ani_eff, hdrglgy["Kaqf_min"]/hdrglgy["Anisotropy_max"])
+hdrglgy["Kaqt_max"] = hdrglgy["Kaqt_max"].where(~ani_eff, hdrglgy["Kaqf_max"]/hdrglgy["Anisotropy_min"])
+hdrglgy["Anisotropy_max"] = hdrglgy["Anisotropy_max"].where(~ani_eff)
+hdrglgy["Anisotropy_min"] = hdrglgy["Anisotropy_min"].where(~ani_eff)
+
+#%%Select only columns for calculation (no remarks or references etc.)
+hdrglgy = select_re(hdrglgy, "min|max|Delta")
+
+d = {"min|Delta" : min, 
+     "max|Delta" : max}
+
+hdrglgy = pd.concat(
+        [select_re(hdrglgy, key).groupby(
+                by="Delta"
+                ).aggregate(func) for key, func in d.items()],
+        axis=1)
+
+#Drop Ss, not of influence on salt transport
+hdrglgy = hdrglgy.drop(columns=["Ss_min", "Ss_max"])
+
+#%%The model is insensitive to these variables, so we average these
+col_dic = {"Anisotropy": True,
+           "n": False,
+#           "Ss": True,
+           "Recharge": True,
+           "riv_c": True}
+
+columns = col_dic.keys()
+
+for col in columns:
+    hdrglgy = average_column(hdrglgy, col, col_dic[col])
+
+#Guadalfeo aquifer adjacent to Donana
+#so we take the inputs from that area
+hdrglgy.rename(index={'Guadalfeo':'Doñana'},inplace=True)
+
+#Count NaNs as this is a measure of uncertainty
+hy_nans = hdrglgy.isna().sum(axis=1)
+
+#%%NaNs with the median value to limit amount of runs required
+hdrglgy.loc[:, columns] = hdrglgy.loc[:, columns].fillna(hdrglgy.loc[:, columns].median())
+hdrglgy["Kaqt_min"] = hdrglgy["Kaqt_min"].fillna(hdrglgy["Kaqt_min"].min())
+hdrglgy["Kaqt_max"] = hdrglgy["Kaqt_max"].fillna(hdrglgy["Kaqt_max"].max())
+
+#%%Discretize min-max input range and convert this to long format.
+hdrglgy = discretize_range(hdrglgy, "Kaqf", "Delta")
+hdrglgy = discretize_range(hdrglgy, "Kaqt", ["Delta", "Kaqf_type"])
+
+#%%Merge and filter
+df = sheets[sheetnames[0]]
+for shtname in sheetnames[1:-1]:
+    df = pd.merge(df, sheets[shtname], on = ["Delta", "Country"])
+
+df = df.loc[:, inputs]
+df = df.set_index("Delta").drop("Nakdong") #Too small, too little data
+
+#Count NaNs as this is a measure of uncertainty
+df_nans = df.isna().sum(axis=1)
+
+#%%Fill missing data records
+#Fill NaN in t_max with delta on same coast with
+#roughly similar climate and sediment source
+df.loc["Mahanadi", "t_max"] = df.loc["Krishna", "t_max"] 
+
+#Create many clay layers and many paleochannels in the GBM delta
+#To mimic chaotic lithology
+df.loc["Ganges-Brahmaputra", "N_aqt"] = 50
+df.loc["Ganges-Brahmaputra", "N_pal"] = 30
+
+#Fill rest of missing data values with median
+nanputs = ["H_a/H_b", "N_aqt", "Mud/Total", "l_conf", "N_pal", "s_pal"]
+for inp in nanputs:  
+    df[inp] = df[inp].fillna(df[inp].median())
+
+#%%Combine dfs
+nans_all = pd.concat([df_nans, hy_nans], axis=1).sum(axis=1)
+df_out = pd.merge(hdrglgy, df, on="Delta")
+
+#%%Save
+df_out.to_csv(model_inputs)
