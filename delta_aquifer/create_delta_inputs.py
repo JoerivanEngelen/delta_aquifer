@@ -147,7 +147,7 @@ for inp in nanputs:
 
 #%%Combine dfs
 nans_all = pd.concat([df_nans, hy_nans], axis=1).sum(axis=1)
-df_out = pd.merge(hdrglgy, df, on="Delta")
+df_out = pd.merge(df, hdrglgy, on="Delta")
 
 #%%Save
 df_out.to_csv(model_inputs)
