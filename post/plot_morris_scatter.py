@@ -15,13 +15,15 @@ from glob import glob
 import numpy as np
 from SALib.analyze.morris import analyze, compute_elementary_effects
 from pkg_resources import resource_filename
-import itertools
+#import itertools
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 
 from adjustText import adjust_text
+
+from itertools import combinations, product, chain
 
 #%%Functions to parse
 def get_model_id(file):     
@@ -54,11 +56,18 @@ def convert_texts(texts):
     texts = [str_to_mathtxt(s) for s in texts]
     return(texts)
 
-def labeled_scatter(ax, xs, ys, labels):
-    ax.scatter(xs, ys, alpha=0.7)
+def labeled_scatter(fig, ax, data, labels, legend_out=True, 
+                    plot_y_label=True, plot_x_label=True):
+    markers={"decrease": "v", "increase": "^"}
+    if legend_out == True:
+        legend_out = "brief"
     
-    x_max=np.nanmax(xs)
-    y_max=np.nanmax(ys)
+    sns.scatterplot(x = "mu_star", y = "sigma", style="sign", ax = ax, 
+                    data = data, hue = "group", palette = "Set2", alpha=0.8,
+                    markers = markers, legend=legend_out)
+    
+    x_max=np.nanmax(data["mu_star"])
+    y_max=np.nanmax(data["sigma"])
     x_max += 0.1 * x_max
     y_max += 0.1 * y_max
     ax.set_xlim(left=0.0, right=x_max)
@@ -67,15 +76,22 @@ def labeled_scatter(ax, xs, ys, labels):
     x_line = np.linspace(0, x_max)
     ax.plot(x_line, x_line, ls=":", alpha=0.5)
     
-    ax.set_xlabel("$\mu *$")
-    ax.set_ylabel("$\sigma$")
+    if plot_x_label:
+        ax.set_xlabel("$\mu *$")
+    else:
+        ax.axes.get_xaxis().get_label().set_visible(False)
+    
+    if plot_y_label:
+        ax.set_ylabel("$\sigma$")
+    else:
+        ax.axes.get_yaxis().get_label().set_visible(False)
     
     dx=np.diff(np.array(ax.get_xlim()))
     dy=np.diff(np.array(ax.get_ylim()))
     
     texts=[]
     
-    for x, y, label in zip(xs, ys, labels):
+    for x, y, label in zip(data["mu_star"], data["sigma"], labels):
         if x > (0.3 * dx):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
         elif y > (0.44 * dy):
@@ -83,14 +99,20 @@ def labeled_scatter(ax, xs, ys, labels):
     
     adjust_text(texts, ax=ax, expand_points=(1.7, 2), force_text=(1.0, 1.0),  
                 arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.2, lw=0.1))
-#                arrowprops=dict(arrowstyle="wedge", color="lightgray", lw=0.1))
+    
+    if legend_out != False:
+        leg = ax.get_legend()
+        labels = [t._text for t in leg.texts]
+        fig.legend(leg.legendHandles, labels, loc="upper right")
+        ax.get_legend().remove()
     
     texts = [t._text for t in texts]
     
     return(texts)
 
 #%%Path management
-path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results\outputs_of_interest"
+#path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results\outputs_of_interest"
+path = r"g:\synthdelta\results\outputs_of_interest"
 traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
 outf = os.path.join(path, "..", "morris")
 
@@ -102,6 +124,12 @@ paths = glob(os.path.join(path, "*.csv"))
 paths.sort()
 idxs = [get_model_id(path) for path in paths]
 idxs = [idx for idx in idxs if idx not in exclude]
+#Check duplicates:
+dupl = set([x for x in idxs if idxs.count(x) > 1])
+if len(dupl) != 0:
+    print(dupl)
+    raise ValueError("duplicate model ID's found, check which version is the correct one")
+
 paths = [path for path in paths if get_model_id(path) not in exclude]
 
 #%%Load and create dataframe
@@ -130,19 +158,37 @@ X = traj_id.iloc[idxs].values.astype(float)
 #%%Get morris output
 delta = lev / (2 * (lev - 1))
 
-output={}
 ee={}
 for var in df.columns:
     Y = df[var].values
-    output[var]=analyze(problem, X, Y, num_resamples=1000, conf_level=0.95, 
-                           print_to_console=False, num_levels=lev, seed=seed)
-
     ee[var] = compute_elementary_effects(  #For bookkeeping purposes
         X, Y, problem["num_vars"]+1, delta)
+    
+    ee[var] = pd.DataFrame(data = ee[var].T, columns = problem["names"])
 
+#%%Correct errors
+#In one instance Kh_aqf was lower than Kh_aqt (trajectory 9), 
+#since we prescribed Kv_aqt and due to a high Kh_Kv, this got converted to a Kh_aqt higher than Kh_aqf.
+#This flipper around the elementary effects for N_aqt and f_aqt, which we correct for here.
+ee["old_water"]["N_aqt"][8] = ee["old_water"]["N_aqt"][8]*-1
+ee["old_water"]["f_aqt"][8] = ee["old_water"]["f_aqt"][8]*-1
+
+#
+#ee["offshore_fw"]["alpha"][6] = 0
+
+#%%Calculate Morris metrics
+output = {}
+for var in df.columns:
+    output[var] = pd.DataFrame()
+    output[var]["inputs"] = problem["names"]
+    output[var] = output[var].set_index("inputs")
+    output[var]["mu"] = np.average(ee[var], axis=0)
+    output[var]["mu_star"] = np.average(np.abs(ee[var]), axis=0)
+    output[var]["sigma"] = np.std(ee[var], ddof=1, axis=0)
+    
 #%%Check monotonicity
-monotone=dict([(var, np.abs(output[var]["mu"])/output[var]["mu_star"]) for var in df.columns])
-monotone=pd.DataFrame(monotone, index=convert_texts(output[var]["names"]))
+monotone=dict([(var, (np.abs(output[var]["mu"])/output[var]["mu_star"]).values) for var in df.columns])
+monotone=pd.DataFrame(monotone, index=convert_texts(output[var].index))
 
 #%%Figsizes
 agu_small = (9.5/2.54, 11.5/2.54)
@@ -160,6 +206,15 @@ lookup = dict(zip(order, vars_paper))
 
 monotone = monotone[order]
 
+#%%Groups for inputs
+groups = {"geometry"     : ["l_a", "H_b", "f_H", "alpha", "beta", "phi_f"],
+          "lithology"    : ["f_aqt", "l_conf", "N_aqt", "N_pal", "s_pal"],
+          "hydrogeology"  : ["Kh_aqf", "Kv_aqt", "f_Kh_pal", "Kh_Kv", "R"],
+          "surface_water": ["N_chan", "f_chan", "l_surf_end", "l_tra", "t_tra"],
+          "solute_transport" : ["n", "a_l"]}
+
+#Flip around dictionary
+groups = dict([(new_key, key) for key, values in groups.items() for new_key in values])
 #%%Plot scatter
 sns.set_style("white")
 ncol=3
@@ -168,27 +223,32 @@ nrow=2
 fig = plt.figure(figsize=agu_half)
 gs = GridSpec(nrow, ncol, figure=fig)
 
-ax_locs = list(itertools.product(*([[0,1]]*2)))
+ax_locs = list(product(*([[0,1]]*2)))
 axes_scatter = [fig.add_subplot(gs[i, j]) for i, j in ax_locs]
-ax_mono = fig.add_subplot(gs[:, -1])
+#ax_mono = fig.add_subplot(gs[:, -1])
+ax_mono = fig.add_subplot(gs[1, -1])
 
 sns.despine(right=True, top=True)
 
 texts_all = []
 
+plot_labels = list(product(["plot_y_label", "plot_x_label"], [True, False]))
+plot_labels = list(product(plot_labels[:2], plot_labels[2:]))
+plot_labels = plot_labels[1::2] + plot_labels[::2] #shuffle in the right order
+plot_labels = [dict(d) for d in plot_labels]
+
 for i, var in enumerate(order):
     ax=axes_scatter[i]
-    xs = output[var]["mu_star"]
-    ys = output[var]["sigma"]
-    negativ = output[var]["mu"] < 0
+    output[var]["sign"] = np.where(output[var]["mu"] < 0, "decrease", "increase")
+    output[var] = output[var].assign(group = output[var].index).replace(groups)
     
-    labels = convert_texts(output[var]["names"])
+    labels = convert_texts(output[var].index)
     
-    texts_all.append(labeled_scatter(ax, xs, ys, labels))
+    texts_all.append(labeled_scatter(fig, ax, output[var], labels, legend_out= (var == 'offshore_fw'),
+                                     **plot_labels[i]))
     ax.set_title(lookup[var])
 
 #%%Select what to plot for monotonicity
-
 mask = pd.DataFrame(1, index=monotone.index, columns=monotone.columns)
 for txts, var in zip(texts_all, order):
     for txt in txts:
@@ -196,7 +256,7 @@ for txts, var in zip(texts_all, order):
 
 
 #%%Select what to plot for monotonicity
-texts = list(itertools.chain.from_iterable(texts_all))
+texts = list(chain.from_iterable(texts_all))
 texts = sorted(texts,key=texts.count,reverse=True)
 texts = list(dict.fromkeys(texts)) #Get unique values, and preseverve order (requires a least Python 3.6)
 monotone = monotone.loc[texts]
