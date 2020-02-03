@@ -73,9 +73,9 @@ x_loc=xr.where(onshore, onshore.x, np.nan).max(dim="x")
 x_loc=x_loc.fillna(x_loc.min()) #fillna
 
 #%%Calculate vols and masses
-fw_vols  = xr.where((ds["conc1"] > -1.) & (ds["conc1"] < 1.),  ds["vol"], 0)
+fw_vols  = xr.where((ds["conc1"] > -1.) & (ds["conc1"] < 10.),  ds["vol"], 0)
 fw_vols_offshore = xr.where((fw_vols!=0) & (ds.x > x_loc), fw_vols, 0)
-bw_vols = xr.where((ds["conc1"] > 1.)&(ds["conc1"] < 30.), 
+bw_vols = xr.where((ds["conc1"] > 10.)&(ds["conc1"] < 30.), 
                                ds["vol"], 0)
 bw_vols_onshore = xr.where((bw_vols!=0) & (ds.x < x_loc), bw_vols, 0)
 
