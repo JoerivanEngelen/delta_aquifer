@@ -37,7 +37,8 @@ def lin(x, slope, intercept, clip):
 
 #%%Path management
 datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
-df_path  = os.path.join(datafol, "Reftable.xlsx")
+fnames = ["hydrogeology.csv", "lithology.csv", "geometry.csv", "boundary_conditions.csv"]
+df_paths  = [os.path.join(datafol, "literature", f) for f in fnames]
 out_path = os.path.join(datafol, "..", "example", "scratch_figures")
 
 #%%Figsizes
@@ -47,7 +48,7 @@ agu_whole = (19/2.54, 23/2.54)
 agu_half_vert = (9.5/2.54, 23/2.54)
 
 #%%Handle data
-df = pd.read_excel(df_path, sheet_name="Hydrogeology_Raw", skiprows=[1])
+df = pd.read_csv(df_paths[0], skiprows=[1])
 
 to_keep = df["Aqt_explicit"] == 1
 df['Kaqt_min'] = df['Kaqt_min'].where(to_keep, df['Kaqf_min']/df['Anisotropy_max'])
@@ -60,9 +61,13 @@ hdrglgy = ["Kaqf", "Kaqt", "Recharge", "Anisotropy", "Ss"]
 df_hdrglgy_ls = [get_df_plot(df, var, i) for i, var in enumerate(hdrglgy)]
 df_hdrglgy = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_hdrglgy_ls).reset_index(level=0)
 
+#Kh_aqf values Kelantan unrealistic
+df_hdrglgy = df_hdrglgy.loc[(df_hdrglgy['Delta'] != "Kelantan")]
+
 sheets = ["BC_Raw", "Lithology_Raw", "Geometry_Raw"]
 
-df_ls = list(pd.read_excel(df_path, sheet_name=sheets, skiprows=[1]).values())
+df_ls = [pd.read_csv(p, skiprows=[1], encoding="latin") for p in df_paths[1:]]
+
 df_all = reduce(lambda x, y: pd.merge(x, y, on = 'Delta'), df_ls)
 
 #Filter out disproportionally large L_b values
@@ -144,25 +149,3 @@ plt.savefig(os.path.join(out_path, "input_distributions.png"), dpi=300)
 plt.savefig(os.path.join(out_path, "input_distributions.svg"))
 plt.savefig(os.path.join(out_path, "input_distributions.pdf"))
 plt.close()
-
-#%%Explore relation H_b and N_aqt
-#fig = plt.figure(figsize = agu_small)
-#gs0 = gridspec.GridSpec(1, 1, figure=fig)
-#ax = fig.add_subplot(gs0[0])
-#
-#df_all["logH_b"] = np.log10(df_all["H_b"])
-#sns.regplot(x="logH_b", y="N_aqt", data=df_all, robust=True, ax=ax)
-#
-##Seaborn does not return coefficients to 
-#mean = ax.lines[0]
-#verts = ax.collections[1]._paths[0]._vertices
-##ASSUME: Second half of verts is upper line. Not sure if this is guarenteed.
-#highest_ci = verts[int(verts.shape[0]/2):, :]
-#
-#plt.plot(highest_ci[:, 0], highest_ci[:, 1])
-##plt.plot(highest_ci[:, 0], lin(highest_ci[:, 0], 8/0.95, -15.26, 2.))
-#
-#plt.tight_layout()
-#plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.png"), dpi=300)
-#plt.savefig(os.path.join(df_path, "..", "n_aqt_vs_logH_b.pdf"))
-#plt.close()
