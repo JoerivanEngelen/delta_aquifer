@@ -60,7 +60,7 @@ def convert_texts(texts):
 def labeled_scatter(fig, ax, data, labels, legend_out=True, 
                     plot_y_label=True, plot_x_label=True, 
                     **exceptions):
-    markers={"decrease": "v", "increase": "^"}
+    markers={"negative": "v", "positive": "^"}
     if legend_out == True:
         legend_out = "brief"
     
@@ -255,7 +255,7 @@ exceptions = {"offshore_fw": {"$n$" : 1},
 texts_all = []
 for i, var in enumerate(order):
     ax=axes_scatter[i]
-    output[var]["sign"] = np.where(output[var]["mu"] < 0, "decrease", "increase")
+    output[var]["sign"] = np.where(output[var]["mu"] < 0, "negative", "positive")
     output[var] = output[var].assign(group = output[var].index).replace(groups)
     
     labels = convert_texts(output[var].index)
