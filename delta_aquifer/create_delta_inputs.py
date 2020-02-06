@@ -47,7 +47,13 @@ def discretize_range(df, inp, identifier):
                               sep='_', suffix='\w+').reset_index()
     return(df)
     
-
+def calculate_rs(df, Kv, Kh):
+    r_s=df["H_b"]*(
+            (df["Mud/Total"]/(df["N_aqt"]*Kv)
+              )+(
+                      (1-df["Mud/Total"])*df['Anisotropy']/((df["N_aqt"]+1)*df['Kaqf_max']))
+            )
+    return(r_s)
 #%%Path management
 inp_path = os.path.abspath(resource_filename("delta_aquifer", "../data/Reftable.xlsx"))
 model_inputs = os.path.join(inp_path, "..", "model_inputs.csv")
@@ -112,10 +118,12 @@ hy_nans = hdrglgy.isna().sum(axis=1)
 
 #%%NaNs with the median value to limit amount of runs required
 hdrglgy.loc[:, columns] = hdrglgy.loc[:, columns].fillna(hdrglgy.loc[:, columns].median())
-hdrglgy["Kaqt_min"] = hdrglgy["Kaqt_min"].fillna(hdrglgy["Kaqt_min"].min())
-hdrglgy["Kaqt_max"] = hdrglgy["Kaqt_max"].fillna(hdrglgy["Kaqt_max"].max())
+hdrglgy["Kaqt_min"] = hdrglgy["Kaqt_min"].fillna(hdrglgy["Kaqt_min"].quantile(0.25))
+hdrglgy["Kaqt_max"] = hdrglgy["Kaqt_max"].fillna(hdrglgy["Kaqt_max"].quantile(0.75))
+
 
 #%%Discretize min-max input range and convert this to long format.
+#Comment this out to calculate r_s
 hdrglgy = discretize_range(hdrglgy, "Kaqf", "Delta")
 hdrglgy = discretize_range(hdrglgy, "Kaqt", ["Delta", "Kaqf_type"])
 
@@ -148,6 +156,10 @@ for inp in nanputs:
 #%%Combine dfs
 nans_all = pd.concat([df_nans, hy_nans], axis=1).sum(axis=1)
 df_out = pd.merge(df, hdrglgy, on="Delta")
+
+#%%r_s
+#rs_min = calculate_rs(df_out, df_out["Kaqt_max"], df_out["Kaqf_min"])
+#rs_max = calculate_rs(df_out, df_out["Kaqt_min"], df_out["Kaqf_max"])
 
 #%%Save
 df_out.to_csv(model_inputs)
