@@ -6,7 +6,7 @@ hydrogeological parameterizations and boundary conditions. An explanation of the
 these are based on can be found in the accompanying paper that is currently in the works.
 
 As of currently used to conduct a global sensitivity analysis on the Dutch national cluster (Cartesius):
-
+![SD_i240-263](https://user-images.githubusercontent.com/9744750/73945029-ed143a00-48f3-11ea-8210-537509cb9553.png)
 
 The repository is structured as follows:
 * _analyze_input_.  
