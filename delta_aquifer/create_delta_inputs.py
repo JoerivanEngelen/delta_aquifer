@@ -55,11 +55,14 @@ def calculate_rs(df, Kv, Kh):
             )
     return(r_s)
 #%%Path management
-inp_path = os.path.abspath(resource_filename("delta_aquifer", "../data/Reftable.xlsx"))
-model_inputs = os.path.join(inp_path, "..", "model_inputs.csv")
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+fnames = ["hydrogeology", "lithology", "geometry", "boundary_conditions"]
+df_paths  = [os.path.join(datafol, "literature", f+r".csv") for f in fnames]    
+
+model_inputs = os.path.join(datafol, "model_inputs.csv")
 
 #%%Sheets and parameters to use for models
-sheetnames = ["Geometry_Raw", "Lithology_Raw", "BC_Raw", "Hydrogeology_Raw"]
+
 inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi", "H_b", "H_a/H_b",
           "N_aqt", "Mud/Total", "l_conf", "N_pal", "s_pal", "l_tra", "t_max",
           "N_chan", "l_sal"]
@@ -67,10 +70,11 @@ inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi", "H_b", "H_a/H_b"
 #%%Read data
 sheets = {}
 
-for shtname in sheetnames:
-    sheets[shtname] = pd.read_excel(inp_path, sheet_name = shtname, skiprows=[1])
+for i, f in enumerate(fnames):
+    shtname = os.path.splitext(f)[0]
+    sheets[shtname] = pd.read_csv(df_paths[i], skiprows=[1], encoding="latin")
 
-hdrglgy = sheets["Hydrogeology_Raw"]
+hdrglgy = sheets["hydrogeology"]
 
 #%%Filter cases where reported anisotropies are effective 
 #  anisotropies for the complete groundwater system.
@@ -128,8 +132,8 @@ hdrglgy = discretize_range(hdrglgy, "Kaqf", "Delta")
 hdrglgy = discretize_range(hdrglgy, "Kaqt", ["Delta", "Kaqf_type"])
 
 #%%Merge and filter
-df = sheets[sheetnames[0]]
-for shtname in sheetnames[1:-1]:
+df = sheets[fnames[1]]
+for shtname in fnames[2:]:
     df = pd.merge(df, sheets[shtname], on = ["Delta", "Country"])
 
 df = df.loc[:, inputs]
