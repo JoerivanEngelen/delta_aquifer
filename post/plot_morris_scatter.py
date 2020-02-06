@@ -15,17 +15,18 @@ from glob import glob
 import numpy as np
 from SALib.analyze.morris import analyze, compute_elementary_effects
 from pkg_resources import resource_filename
-#import itertools
-
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
+from collections import defaultdict
 
 from adjustText import adjust_text
 
 from itertools import combinations, product, chain
 
 #%%Functions to parse
+def tree(): return defaultdict(tree)
+
 def get_model_id(file):     
     pattern=r"i([0-9][0-9][0-9])"
     number = int(re.search(pattern, file).group(1))
@@ -57,14 +58,15 @@ def convert_texts(texts):
     return(texts)
 
 def labeled_scatter(fig, ax, data, labels, legend_out=True, 
-                    plot_y_label=True, plot_x_label=True):
+                    plot_y_label=True, plot_x_label=True, 
+                    **exceptions):
     markers={"decrease": "v", "increase": "^"}
     if legend_out == True:
         legend_out = "brief"
     
     sns.scatterplot(x = "mu_star", y = "sigma", style="sign", ax = ax, 
-                    data = data, hue = "group", palette = "Set2", alpha=0.8,
-                    markers = markers, legend=legend_out)
+                    data = data, hue = "group", palette = "Set2", alpha=1.0,
+                    markers = markers, legend=legend_out, s=80)
     
     x_max=np.nanmax(data["mu_star"])
     y_max=np.nanmax(data["sigma"])
@@ -74,7 +76,7 @@ def labeled_scatter(fig, ax, data, labels, legend_out=True,
     ax.set_ylim(bottom=0.0, top=y_max)
     
     x_line = np.linspace(0, x_max)
-    ax.plot(x_line, x_line, ls=":", alpha=0.5)
+    ax.plot(x_line, x_line, ls=":", alpha=0.5, color="k")
     
     if plot_x_label:
         ax.set_xlabel("$\mu *$")
@@ -89,21 +91,30 @@ def labeled_scatter(fig, ax, data, labels, legend_out=True,
     dx=np.diff(np.array(ax.get_xlim()))
     dy=np.diff(np.array(ax.get_ylim()))
     
+    exceptions_off = [key for key, value in exceptions.items() if value==0]
+    exceptions_on = [key for key, value in exceptions.items() if value==1]
+    
     texts=[]
     
     for x, y, label in zip(data["mu_star"], data["sigma"], labels):
-        if x > (0.3 * dx):
+        if (
+                (x > (0.3  * dx)) and (label not in exceptions_off)
+                ) or (
+                (y > (0.41 * dy)) and (label not in exceptions_off)
+                ) or (
+                (label in exceptions_on)
+            ):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
-        elif y > (0.44 * dy):
-            texts.append(ax.text(x, y, label, va="center", ha="center"))
-    
+
     adjust_text(texts, ax=ax, expand_points=(1.7, 2), force_text=(1.0, 1.0),  
                 arrowprops=dict(arrowstyle="wedge", color="k", alpha=0.2, lw=0.1))
     
     if legend_out != False:
         leg = ax.get_legend()
         labels = [t._text for t in leg.texts]
-        fig.legend(leg.legendHandles, labels, loc="upper right")
+        fig.legend(leg.legendHandles, labels, loc='upper left', 
+                   bbox_to_anchor=(0.75, 0.5, 0.25, 0.5), mode="expand",
+                   edgecolor="#ffffff")
         ax.get_legend().remove()
     
     texts = [t._text for t in texts]
@@ -210,33 +221,38 @@ monotone = monotone[order]
 groups = {"geometry"     : ["l_a", "H_b", "f_H", "alpha", "beta", "phi_f"],
           "lithology"    : ["f_aqt", "l_conf", "N_aqt", "N_pal", "s_pal"],
           "hydrogeology"  : ["Kh_aqf", "Kv_aqt", "f_Kh_pal", "Kh_Kv", "R"],
-          "surface_water": ["N_chan", "f_chan", "l_surf_end", "l_tra", "t_tra"],
-          "solute_transport" : ["n", "a_l"]}
+          "surface water": ["N_chan", "f_chan", "l_surf_end", "l_tra", "t_tra"],
+          "solute transport" : ["n", "a_l"]}
 
 #Flip around dictionary
 groups = dict([(new_key, key) for key, values in groups.items() for new_key in values])
-#%%Plot scatter
+#%%Create overall figure outline
 sns.set_style("white")
 ncol=3
 nrow=2
+width_ratios=[2,2,1]
 
 fig = plt.figure(figsize=agu_half)
-gs = GridSpec(nrow, ncol, figure=fig)
+gs = GridSpec(nrow, ncol, figure=fig, width_ratios=width_ratios)
 
 ax_locs = list(product(*([[0,1]]*2)))
 axes_scatter = [fig.add_subplot(gs[i, j]) for i, j in ax_locs]
-#ax_mono = fig.add_subplot(gs[:, -1])
 ax_mono = fig.add_subplot(gs[1, -1])
 
 sns.despine(right=True, top=True)
 
-texts_all = []
-
+#%%Plot scatter
 plot_labels = list(product(["plot_y_label", "plot_x_label"], [True, False]))
 plot_labels = list(product(plot_labels[:2], plot_labels[2:]))
 plot_labels = plot_labels[1::2] + plot_labels[::2] #shuffle in the right order
 plot_labels = [dict(d) for d in plot_labels]
 
+exceptions = {"offshore_fw": {"$n$" : 1},
+              "s_gradient" : {"$f_{aqt}$" : 0},
+              "old_water" : {},
+              "onshore_sw": {}}
+
+texts_all = []
 for i, var in enumerate(order):
     ax=axes_scatter[i]
     output[var]["sign"] = np.where(output[var]["mu"] < 0, "decrease", "increase")
@@ -244,8 +260,11 @@ for i, var in enumerate(order):
     
     labels = convert_texts(output[var].index)
     
+    kwargs = plot_labels[i]
+    kwargs.update(exceptions[var])
+    
     texts_all.append(labeled_scatter(fig, ax, output[var], labels, legend_out= (var == 'offshore_fw'),
-                                     **plot_labels[i]))
+                                     **kwargs))
     ax.set_title(lookup[var])
 
 #%%Select what to plot for monotonicity
@@ -269,7 +288,7 @@ mask.columns = vars_paper
 cmap = sns.light_palette("midnightblue", as_cmap=True, reverse=True)
 g = sns.heatmap(monotone, cmap= cmap, linewidths=.5, ax=ax_mono, mask=mask)
 g.set_yticklabels(g.get_yticklabels(), rotation=0)
-g.set_xticklabels(g.get_xticklabels(), rotation=45)
+g.set_xticklabels(g.get_xticklabels(), rotation=90)
 g.set_title("$\epsilon$")
 
 #%%Save
