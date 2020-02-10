@@ -73,7 +73,6 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
     return(rho_i/dense_ref * head - (rho_i - dense_ref)/dense_ref * head.z)
 
 #%%TODO
-#-extract delr, delc from list or something else
 #-Create workflow (path management)
 
 #%%Path management
@@ -93,12 +92,13 @@ mname =  r.match(os.path.basename(modelfol)).group(1)
 globpath_ucn = os.path.join(modelfol, r"MT3D00[0-9].UCN.p*")
 globpath_hds = os.path.join(modelfol, r"*.hds.p*")
 path_l = os.path.join(modelfol, "seawat_tmp", r"{}{:02d}.list.p000".format(mname.lower(), mod_nr))
-
-paths_ucn = glob(globpath_ucn)
-paths_ucn.sort()
+path_dummy_idf = os.path.join(modelfol, "bas", "ibound_l1.idf")
 
 paths_hds = glob(globpath_hds)
 paths_hds.sort()
+
+paths_ucn = glob(globpath_ucn)
+paths_ucn.sort()
 
 species = parse_species(paths_ucn)
 
@@ -107,7 +107,8 @@ for k, v in zip(species, paths_ucn):
     d1[k].append(v)
 
 #%%Cellsize
-dcell = 1000
+dummy = idf.open(path_dummy_idf)
+dcell = dummy["dx"].values
 
 #%%Read UCN data
 ucn_data = {}
