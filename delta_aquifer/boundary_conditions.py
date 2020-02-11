@@ -256,10 +256,14 @@ def create_channel_mask(d2_ds, N_chan, phi_f=None, L = None, **kwargs):
 
 #%%Hydrogeology
 def calc_riv_conductance(coastline_loc, f_chan=None, N_chan=None, 
-                     dx=None, dy=None, bc_res=None, **kwargs):
+                     dx=None, dy=None, bc_res=None, riv_res=None, **kwargs):
     #Create channels
     base_cond = dx*dy/bc_res
-    chan_cond = base_cond * f_chan
+    if riv_res is not None:
+        riv_cond  = dx*dy/riv_res
+    else:
+        riv_cond = base_cond
+    chan_cond = riv_cond * f_chan
     channel_mask = create_channel_mask(coastline_loc, N_chan, **kwargs)
     conductance = xr.where(channel_mask, chan_cond, base_cond)
     return(conductance, base_cond)
@@ -333,7 +337,7 @@ def recharge(onshore_mask, R):
 
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None, 
-                        bc_res=None, N_chan=None, f_chan=None,
+                        bc_res=None, riv_res=None, N_chan=None, f_chan=None,
                         L_a=None, l_surf_end=None, R=None, 
                         conc_noise=0.01, qt="50%", 
                         figfol=None, ncfol=None, **kwargs):
@@ -374,7 +378,7 @@ def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,
     #Calculate river conductance
     riv_conductance, base_cond = calc_riv_conductance(coastline_loc, 
                     f_chan=f_chan, N_chan=N_chan, 
-                    bc_res=bc_res, **kwargs)
+                    bc_res=bc_res, riv_res=riv_res, **kwargs)
     
     #Combine to dataset
     bcs = xr.Dataset({"sea" : sea_cells, 
