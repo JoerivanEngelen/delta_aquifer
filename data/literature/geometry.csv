@@ -1,4 +1,4 @@
-Delta,Country,L_a,W_a,L_b,L,l_a,l_b,z_b,alpha,beta,gamma,phi,H_a,H_b,H_a/H_b,Ref_H,Remarks
+Delta,Country,L_a,W_a,L_b,L,l_a,l_b,z_b,alpha,beta,gamma,phi_f,H_a,H_b,f_H,Ref_H,Remarks
 ,,(km),(km),(km),(km),(-),(-),(m),rad,rad,rad,pi rad,(m),(m),(-),,
 Kelantan,Malaysia,40,55,800,840,0.047619048,0.952380952,160,2.50E-04,2.00E-04,3.00E-02,1.20E+00,50,250,0.2,"(Sefie et al., 2018)",
 Chao Praya,Thailand,140,125,1500,1640,0.085365854,0.914634146,200,3.00E-05,1.33E-04,3.00E-02,8.40E-01,300,600,0.5,"(Sanford and Buapeng, 1996; Yamanaka et al., 2011)",

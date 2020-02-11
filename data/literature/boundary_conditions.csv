@@ -1,4 +1,4 @@
-Delta,Country,l_tra,t_max,Ref_tra,Remarks_tra,N_chan,l_sal,Remarks_sal,Ref_sal
+Delta,Country,l_tra,t_tra,Ref_tra,Remarks_tra,N_chan,l_surf_end,Remarks_sal,Ref_sal
 ,,(-),(ka),,,(-),(-),,
 Kelantan,Malaysia,0.25,6000,"(Tilmans, 1991)",Inferred from location old beach ridges,1,0,,"(Nienhuis et al., 2020)"
 Chao Praya,Thailand,0.7,6000,"(Sinsakul, 2000)",,1,0.357142857,Named Chao Phya?,"(Savenije, 2012)"

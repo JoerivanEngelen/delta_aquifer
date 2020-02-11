@@ -49,9 +49,9 @@ def discretize_range(df, inp, identifier):
     
 def calculate_rs(df, Kv, Kh):
     r_s=df["H_b"]*(
-            (df["Mud/Total"]/(df["N_aqt"]*Kv)
+            (df["f_aqt"]/(df["N_aqt"]*Kv)
               )+(
-                      (1-df["Mud/Total"])*df['Anisotropy']/((df["N_aqt"]+1)*df['Kaqf_max']))
+                      (1-df["f_aqt"])*df['Anisotropy']/((df["N_aqt"]+1)*df['Kaqf_max']))
             )
     return(r_s)
 #%%Path management
@@ -62,10 +62,9 @@ df_paths  = [os.path.join(datafol, "literature", f+r".csv") for f in fnames]
 model_inputs = os.path.join(datafol, "model_inputs.csv")
 
 #%%Sheets and parameters to use for models
-
-inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi", "H_b", "H_a/H_b",
-          "N_aqt", "Mud/Total", "l_conf", "N_pal", "s_pal", "l_tra", "t_max",
-          "N_chan", "l_sal"]
+inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi_f", "H_b", "f_H",
+          "N_aqt", "f_aqt", "l_conf", "N_pal", "s_pal", "l_tra", "t_tra",
+          "N_chan", "l_surf_end"]
 
 #%%Read data
 sheets = {}
@@ -106,7 +105,7 @@ col_dic = {"Anisotropy": True,
            "n": False,
 #           "Ss": True,
            "Recharge": True,
-           "riv_c": True}
+           "riv_res": True}
 
 columns = col_dic.keys()
 
@@ -131,6 +130,9 @@ hdrglgy["Kaqt_max"] = hdrglgy["Kaqt_max"].fillna(hdrglgy["Kaqt_max"].quantile(0.
 hdrglgy = discretize_range(hdrglgy, "Kaqf", "Delta")
 hdrglgy = discretize_range(hdrglgy, "Kaqt", ["Delta", "Kaqf_type"])
 
+hdrglgy = hdrglgy.rename(columns = {"Kaqf" : "Kh_aqf", "Kaqt" : "Kv_aqt", 
+                          "Recharge" : "R", "Anisotropy" : "Kh_Kv"})
+
 #%%Merge and filter
 df = sheets[fnames[1]]
 for shtname in fnames[2:]:
@@ -145,7 +147,7 @@ df_nans = df.isna().sum(axis=1)
 #%%Fill missing data records
 #Fill NaN in t_max with delta on same coast with
 #roughly similar climate and sediment source
-df.loc["Mahanadi", "t_max"] = df.loc["Krishna", "t_max"] 
+df.loc["Mahanadi", "t_tra"] = df.loc["Krishna", "t_tra"] 
 
 #Create many clay layers and many paleochannels in the GBM delta
 #To mimic chaotic lithology
@@ -153,9 +155,14 @@ df.loc["Ganges-Brahmaputra", "N_aqt"] = 50
 df.loc["Ganges-Brahmaputra", "N_pal"] = 30
 
 #Fill rest of missing data values with median
-nanputs = ["H_a/H_b", "N_aqt", "Mud/Total", "l_conf", "N_pal", "s_pal"]
+nanputs = ["f_H", "N_aqt", "f_aqt", "l_conf", "N_pal", "s_pal"]
 for inp in nanputs:  
     df[inp] = df[inp].fillna(df[inp].median())
+
+#%%
+intputs = ["N_aqt", "N_pal", "N_chan"]
+for inp in intputs:
+    df[inp] = df[inp].astype(np.int64)
 
 #%%Combine dfs
 nans_all = pd.concat([df_nans, hy_nans], axis=1).sum(axis=1)
