@@ -50,7 +50,7 @@ def get_ic(bcs, geo, C_f=None, C_s=None, approx_init=False, deep_salt=None,
         these initial salinities.
     
     deep_salt : float
-        If not None, initially everything below this depth is 
+        If not None, initially everything below this depth is salt
     """
     riv_stage_2d = bcs["riv_stage"].max(dim="z").isel(time=0, drop=True)
     shd = riv_stage_2d.fillna(bcs["sea_level"].isel(time=0, drop=True)) * geo["IBOUND"]

@@ -81,15 +81,21 @@ class Synthetic(object):
         self.geo = self.geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
         self.bcs = self.bcs.dropna("x", how="all", subset=["riv_stage", "sea"]).dropna("y", how="all", subset=["riv_stage", "sea"])
 
-    def _create_initial_conditions(self):
+    def _create_initial_conditions(self, init_salt=False):
         print("...creating initial conditions...")
-        if self.min_sea_level <= self.geo.z.min():
+        if init_salt:
+            salt_depth = 1000. #Set to depth at which salt begins way above 
+                              #surface level so that everything is definitely salt
+        else:
+            salt_depth = self.min_sea_level #This was used in the global sensitivity analysis
+        
+        if salt_depth <= self.geo.z.min():
             self.approx_init = False
         else:
             self.approx_init = True
         
         self.shd, self.sconc = ic.get_ic(self.bcs, self.geo, approx_init=self.approx_init, 
-                               deep_salt=self.min_sea_level, **self.pars)
+                               deep_salt=salt_depth, **self.pars)
    
     def _calculate_dimensionless_numbers(self, pars, ncfol):
         print("...calculating dimensionless numbers...")
@@ -160,14 +166,14 @@ class Synthetic(object):
         self.bcs["rch_conc"] = xr.DataArray(data=[self.pars["C_f"]]*len(self.species), 
                                  coords=dict(species=self.species), dims=["species"])
     
-    def prepare(self):
+    def prepare(self, init_salt=False):
         """Prepare all the necessary steps to have a working model and
         save the bcs for post-processing.
         """
         print("...starting preparation...")
         self._half_model()
         self._clip_empty_cells()
-        self._create_initial_conditions()
+        self._create_initial_conditions(init_salt=init_salt)
         self._calculate_dimensionless_numbers(self.pars, self.ncfol)
         self._prepare_time()
         self._save_inputs()
