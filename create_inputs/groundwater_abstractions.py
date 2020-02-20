@@ -5,7 +5,6 @@ Created on Fri Feb 14 11:56:56 2020
 @author: engelen
 """
 
-from delta_aquifer import geo_util as gu
 from delta_aquifer import geometry as gm
 import xarray as xr
 import rasterio as rio
@@ -149,8 +148,6 @@ for delta, da in das.items():
                         dims=["x", "y"])
     re_das[delta] = Regridder(method="multilinear").regrid(da, like) #Flux is in m/m2/year, so can use multilinear interpolation
 
-#TODO: Check if total sum of the flux of the regridded raster is similar
-
 #%%Clip shapes (Probably better not to do in a later stage, but useful for testing to see what's going on.)
 #ras_shapes = dict([(
 #        delta, spat.rasterize(gdf.loc[[delta]], da.isel(time=-1))
@@ -268,7 +265,6 @@ for delta, da in model_data.items():
 
 #%%Clip out delta
 print("...clipping...")
-
 for delta, da in warp_data.items():
     targgrid["x"], targgrid["y"] = gm.get_targgrid(dcell, dcell,
                 df.loc[delta, "L_a"], df.loc[delta, "phi_f"]/2)
