@@ -75,8 +75,8 @@ par["L"] = par["L"] * 1000 #Module needs L in m instead of km
 
 #%%Determine discretization
 par["dx"] = 1000
-par["dx"] = par["dx"].where(par["L"] > 130., 500)
-par["dx"] = par["dx"].where(par["L"] < 400., 2000)
+par["dx"] = par["dx"].where(par["L"] > 130_000., 500)
+par["dx"] = par["dx"].where(par["L"] < 400_000., 2000)
 
 par["dy"] = par["dx"]
 
