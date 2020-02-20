@@ -87,6 +87,7 @@ deg2Rad = np.pi/180.
 print("...reading...")
 ds = xr.open_dataset(path)
 points = gpd.read_file(path_shp).drop(columns = ["id"])
+points = points[points["Type"] != "shelf"]
 
 #%%For easy checking NetCdfs in qgis:
 if save_2D_nc:
