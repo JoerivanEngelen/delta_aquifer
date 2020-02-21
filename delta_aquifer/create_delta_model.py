@@ -54,7 +54,7 @@ ncfol  = os.path.join(model_fol, mname, "input", "data")
 os.makedirs(figfol, exist_ok=True)
 os.makedirs(ncfol,  exist_ok=True)
 
-datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 
 spratt = os.path.join(datafol, "spratt2016.txt")
 

@@ -29,9 +29,9 @@ ncfol  = os.path.join(model_fol, mname, "input", "data")
 os.makedirs(figfol, exist_ok=True)
 os.makedirs(ncfol,  exist_ok=True)
 
-datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "sensitivity_analysis")))
 
-spratt = os.path.join(datafol, "spratt2016.txt")
+spratt = os.path.join(datafol, "..", "spratt2016.txt")
 
 #%%Parameters
 fixpars = pd.read_csv(os.path.join(datafol, "fixed_pars.csv"), index_col=0).iloc[[0]]

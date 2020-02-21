@@ -28,10 +28,12 @@ def aqtds_depth(H_b):
 
 
 #%%Path management
-traj_real_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_real.csv"))
-traj_id_path   = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
-fixed_pars_path = os.path.abspath(resource_filename("delta_aquifer", "../data/fixed_pars.csv"))
-fig_out_path = os.path.abspath(resource_filename("delta_aquifer", "../data/morris_inp_dist.png"))
+datafol = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "sensitivity_analysis")))    
+
+traj_real_path  = os.path.join(datafol, "traj_real.csv")
+traj_id_path    = os.path.join(datafol, "traj_id.csv")
+fixed_pars_path = os.path.join(datafol, "fixed_pars.csv")
+fig_out_path    = os.path.join(datafol, "morris_inp_dist.png")
 
 #%%Morris parameters
 lev = 4

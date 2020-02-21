@@ -55,7 +55,7 @@ def calculate_rs(df, Kv, Kh):
             )
     return(r_s)
 #%%Path management
-datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 fnames = ["hydrogeology", "lithology", "geometry", "boundary_conditions"]
 df_paths  = [os.path.join(datafol, "literature", f+r".csv") for f in fnames]    
 

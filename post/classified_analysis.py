@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 #%%Path management
-datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "sensitivity_analysis")))
 
 class_path = os.path.join(datafol, "model_classification.csv")
 traj_id_path  = os.path.join(datafol, "traj_id.csv")
