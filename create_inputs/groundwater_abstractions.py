@@ -17,6 +17,9 @@ from imod.prepare import Regridder
 import imod
 import numpy as np
 
+import os
+from pkg_resources import resource_filename
+
 def assign_i_coordinate(da, dim, i_dim):
     """Assign dependent index coordinate to keep track of row or column nrs in
     selections
@@ -71,11 +74,14 @@ def get_targgrid(dcell, L_a, phi_f, da):
     
 
 #%%Path management
-#Path to annual groundwater abstractions data here
-path = r"g:\Global_Data\PCR-GLOB_output\2019\totalGroundwaterAbstraction_annuaTot_output.nc"
-path_shp = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\geometry\delta_points.shp"
+#Path to annual groundwater abstractions data here. File too large to incorporate in git repo now
+path_ann_abs = r"g:\Global_Data\PCR-GLOB_output\2019\totalGroundwaterAbstraction_annuaTot_output.nc"
+path_2D_nc = os.path.join(path_ann_abs, "..", "totalGroundwaterAbstraction_{}.nc")
 
-path_2D_nc = r"g:\Global_Data\PCR-GLOB_output\2019\totalGroundwaterAbstraction_{}.nc"
+datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
+path_shp = os.path.join(datafol, "geometry", "delta_points.shp")
+
+path_out = os.path.join(datafol, "..", "..", "30_deltas_abs")
 
 #%%Options
 save_2D_nc = False #Save seperate rasters
@@ -85,7 +91,7 @@ deg2Rad = np.pi/180.
 
 #%%Read
 print("...reading...")
-ds = xr.open_dataset(path)
+ds = xr.open_dataset(path_ann_abs)
 points = gpd.read_file(path_shp).drop(columns = ["id"])
 points = points[points["Type"] != "shelf"]
 
@@ -274,4 +280,8 @@ for delta, da in warp_data.items():
     warp_data[delta] = warp_data[delta] * like
     warp_data[delta] = warp_data[delta].fillna(0.0)
 
-#%%
+#%%Save
+print("...saving...")
+for delta, da in warp_data.items():
+    path_nc = os.path.join(path_out, "{}.nc".format(delta))
+    da.to_netcdf(path_nc)
