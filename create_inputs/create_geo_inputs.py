@@ -9,6 +9,9 @@ from delta_aquifer import geo_util as gu
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import os
+
+from pkg_resources import resource_filename
 
 def sel_delta(gdf, delta):
     return(gdf.loc[gdf["Delta"]==delta])
@@ -45,7 +48,10 @@ def azi_to_angle(azi, threshold=180.):
     return((azi+threshold) % 360 - threshold)
 
 #%%Path management
-path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\geometry\delta_points.shp"
+datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas"))) 
+
+path = os.path.join(datafol, "geometry", "delta_points.shp")
+outf = os.path.join(datafol, "geometry.csv")
 
 #%%Read shapefile
 delta_p = gpd.read_file(path)
@@ -71,3 +77,10 @@ df["dx"] = df["dx"].where(df["L"] > 130_000., 500)
 df["dx"] = df["dx"].where(df["L"] < 400_000., 2000)
 
 df["dy"] = df["dx"]
+
+#%%Calculate relative lengths
+df["l_a"] = df["L_a"]/df["L"]
+df["l_b"] = df["L_b"]/df["L"]
+
+#%%Save
+df.to_csv(outf)
