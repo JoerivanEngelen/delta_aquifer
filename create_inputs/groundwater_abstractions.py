@@ -80,6 +80,7 @@ path_2D_nc = os.path.join(path_ann_abs, "..", "totalGroundwaterAbstraction_{}.nc
 
 datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 path_shp = os.path.join(datafol, "geometry", "delta_points.shp")
+path_gm  = os.path.join(datafol, "geometry.csv")
 
 path_out = os.path.join(datafol, "..", "..", "30_deltas_abs")
 
@@ -94,6 +95,7 @@ print("...reading...")
 ds = xr.open_dataset(path_ann_abs)
 points = gpd.read_file(path_shp).drop(columns = ["id"])
 points = points[points["Type"] != "shelf"]
+geom = pd.read_csv(path_gm)
 
 #%%For easy checking NetCdfs in qgis:
 if save_2D_nc:
@@ -213,14 +215,13 @@ points_trans["xt"], points_trans["yt"] = gm._pol2cart(points_trans["r"], points_
 
 #%%Interpolate to grid created for delta
 print("...interpolating...")
-#TODO implement rule that specifies dcell
-dcell = 1000.
-
 model_data = {}
 
 for delta, da in re_das.items():
+    dcell = geom.loc[delta, "dx"]
+    assert(dcell == geom.loc[delta, "dy"])
+    
     targgrid = {}
-
     targgrid["x"], targgrid["y"] = get_targgrid(dcell,
             df.loc[delta, "L_a"], df.loc[delta, "phi_f"],
             da)
@@ -273,6 +274,8 @@ for delta, da in model_data.items():
 #%%Clip out delta
 print("...clipping...")
 for delta, da in warp_data.items():
+    dcell = geom.loc[delta, "dx"]
+    
     targgrid["x"], targgrid["y"] = gm.get_targgrid(dcell, dcell,
                 df.loc[delta, "L_a"], df.loc[delta, "phi_f"]/2)
     coords = {"x" : targgrid["x"][0], "y" : targgrid["y"][:, 0]}
