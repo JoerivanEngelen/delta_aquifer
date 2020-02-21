@@ -82,7 +82,7 @@ datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..",
 path_shp = os.path.join(datafol, "geometry", "delta_points.shp")
 path_gm  = os.path.join(datafol, "geometry.csv")
 
-path_out = os.path.join(datafol, "..","..", "..", "Data", "30_deltas_abs")
+folder_out = os.path.join(datafol, "abstractions")
 
 #%%Options
 save_2D_nc = False #Save seperate rasters
@@ -296,5 +296,5 @@ for delta, da in warp_data.items():
 #%%Save
 print("...saving...")
 for delta, da in warp_data.items():
-    path_nc = os.path.join(path_out, "{}.nc".format(delta))
+    path_nc = os.path.join(folder_out, "{}.nc".format(delta))
     da.to_netcdf(path_nc)
