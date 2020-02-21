@@ -64,10 +64,10 @@ def get_targgrid(dcell, L_a, phi_f, da):
     y_max = np.max([da["yt"].max().values, np.max(targgrid["y"])])
     y_min = np.min([da["yt"].min().values, np.min(targgrid["y"])])   
     
-    x_max = np.round(x_max, -3) + 0.5*dcell
+    x_max = gm._round2cell(x_max, dcell) + 0.5*dcell
     x_out = np.arange(0.5 * dcell, x_max+1, dcell)
-    y_max = np.round(y_max, -3) + 0.5*dcell
-    y_min = np.round(y_min, -3) - 0.5*dcell
+    y_max = gm._round2cell(y_max, dcell) + 0.5*dcell
+    y_min = gm._round2cell(y_min, dcell) - 0.5*dcell
     y_out = np.arange(y_min, y_max+1, dcell)
     return(np.meshgrid(x_out, y_out))
     
@@ -82,7 +82,7 @@ datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..",
 path_shp = os.path.join(datafol, "geometry", "delta_points.shp")
 path_gm  = os.path.join(datafol, "geometry.csv")
 
-path_out = os.path.join(datafol, "..", "..", "30_deltas_abs")
+path_out = os.path.join(datafol, "..","..", "..", "Data", "30_deltas_abs")
 
 #%%Options
 save_2D_nc = False #Save seperate rasters
@@ -95,7 +95,7 @@ print("...reading...")
 ds = xr.open_dataset(path_ann_abs)
 points = gpd.read_file(path_shp).drop(columns = ["id"])
 points = points[points["Type"] != "shelf"]
-geom = pd.read_csv(path_gm)
+geom = pd.read_csv(path_gm, index_col=0)
 
 #%%For easy checking NetCdfs in qgis:
 if save_2D_nc:
@@ -280,8 +280,11 @@ for delta, da in warp_data.items():
                 df.loc[delta, "L_a"], df.loc[delta, "phi_f"]/2)
     coords = {"x" : targgrid["x"][0], "y" : targgrid["y"][:, 0]}
     like = xr.DataArray(np.ones(targgrid["x"].shape), coords=coords, dims=["y", "x"])
-    warp_data[delta] = warp_data[delta] * like
+    da = da.sortby(da.y) #Ensure y is monotonically increasing
+    warp_data[delta] = da * like
     warp_data[delta] = warp_data[delta].fillna(0.0)
+
+    
 
 #%%Save
 print("...saving...")
