@@ -140,6 +140,7 @@ bnds["maxy"] -= np.min(ds.dy).values
 
 var = "total_groundwater_abstraction"
 ds[var] = ds[var].fillna(0.0)
+ds = ds.assign_coords(time = pd.to_datetime(ds.time.values).year)
 
 das = dict([(delta, ds[var].sel(x = slice(b["minx"], b["maxx"]),
                                 y = slice(b["maxy"], b["miny"]))
@@ -155,7 +156,9 @@ for delta, da in das.items():
     y = np.arange(bnds.loc[delta]["maxy"], bnds.loc[delta]["miny"], step=-0.0083333336)
     like = xr.DataArray(None, coords={"x" : x, "y" : y}, 
                         dims=["x", "y"])
+    
     re_das[delta] = Regridder(method="multilinear").regrid(da, like) #Flux is in m/m2/year, so can use multilinear interpolation
+    
 
 #%%Clip shapes (Probably better not to do in a later stage, but useful for testing to see what's going on.)
 #ras_shapes = dict([(
@@ -228,15 +231,17 @@ for delta, da in re_das.items():
     
     poldata = {}
     poldata["x"], poldata["y"] = da.xt.values.T, da.yt.values.T
-    poldata["abstraction"] = da.isel(time=-1).values
-    nan_idx = np.isnan(poldata["abstraction"])
+    for t in da.time.values:
+        poldata[str(t)] = da.sel(time=t).values
+    nan_idx = np.isnan(poldata[str(t)])
     
-    griddata = gm.pol2griddata(poldata,nan_idx, targgrid)
-    coords = {"x" : griddata["x"][0], "y" : griddata["y"][:, 0]}
+    griddata = gm.pol2griddata(poldata, nan_idx, targgrid)
+    coords = {"x" : griddata["x"][0], "y" : griddata["y"][:, 0], "time" : da.time}
     
-    #TODO: Interpolate all timesteps instead of just the last one 
-    model_data[delta] = xr.DataArray(data=griddata["abstraction"].T, 
-              coords=coords, dims=["x", "y"])
+    data = np.stack([griddata[str(t)] for t in da.time.values])
+    
+    model_data[delta] = xr.DataArray(data=data, 
+              coords=coords, dims=["time", "y", "x"])
 
     #Assign coordinates which we use for the control points
     model_data[delta] = assign_i_coordinate(model_data[delta], "x", "ix")
@@ -262,14 +267,17 @@ print("...warping...")
 warp_data = {}
 
 for delta, da in model_data.items():
-    data = model_data[delta].drop(labels=["ix", "iy"]).transpose("y", "x") #imod-python does not want other dimensions
+    data = model_data[delta].drop(labels=["ix", "iy"]).transpose("time", "y", "x") #imod-python does not want other dimensions
     data = data.assign_coords(y=data.y*-1) #Flip y-coorindates
-    dst = xr.full_like(data,np.nan)
-    warp_data[delta] = xr.full_like(data,np.nan)
+    dsts = [xr.full_like(data,np.nan).sel(time=t) for t in data.time]
     src_crs = dst_crs = rio.crs.CRS.from_epsg(32630)
-    dst_transform = imod.util.transform(dst)
-    warp_data[delta].values, _ = rio.warp.reproject(data.values, dst.values, src_crs=src_crs, 
-             dst_crs=dst_crs, dst_transform=dst_transform, gcps=gcps[delta])
+    dst_transform = imod.util.transform(dsts[0])
+    
+    for i, t in enumerate(data.time): 
+        dsts[i].values, _ = rio.warp.reproject(data.sel(time=t).values, dsts[i].values, src_crs=src_crs, 
+                 dst_crs=dst_crs, dst_transform=dst_transform, gcps=gcps[delta])
+    
+    warp_data[delta] = xr.concat(dsts, dim="time")
 
 #%%Clip out delta
 print("...clipping...")
@@ -281,10 +289,9 @@ for delta, da in warp_data.items():
     coords = {"x" : targgrid["x"][0], "y" : targgrid["y"][:, 0]}
     like = xr.DataArray(np.ones(targgrid["x"].shape), coords=coords, dims=["y", "x"])
     da = da.sortby(da.y) #Ensure y is monotonically increasing
+
     warp_data[delta] = da * like
     warp_data[delta] = warp_data[delta].fillna(0.0)
-
-    
 
 #%%Save
 print("...saving...")
