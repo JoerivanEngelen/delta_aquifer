@@ -143,6 +143,9 @@ def _rho_min_max(interface, rho):
     rho_min = np.nanmin(np.where(np.max(rho_ct, axis=1) > cutoff, np.max(rho_ct, axis=1), np.nan))
     return(rho_min, rho_max)
 
+def _round2cell(v, dcell):
+    return(np.round(v/dcell, 0)*dcell)
+
 #%%Main functions: Geometry
 def create_crosssection(l_a, alpha, beta, gamma, H_b, f_H, L, n_inp):
     d1 = {}
@@ -183,9 +186,9 @@ def create_2D_top_bot(phi, d1, n_inp):
 def get_targgrid(dx, dy, L, phi_max):
     x_edge, y_edge = _pol2cart(L, phi_max)
 
-    x_max = np.round(L, -3) + 0.5*dx
+    x_max = _round2cell(L, dx) + 0.5*dx
     x_out = np.arange(0.5 * dx, x_max+1, dx)
-    y_max = np.round(y_edge, -3) + 0.5*dy
+    y_max = _round2cell(y_edge, dy) + 0.5*dy
     y_out = np.arange(-y_max, y_max+1, dy)
     return(np.meshgrid(x_out, y_out))
 
