@@ -140,8 +140,7 @@ hdrglgy = hdrglgy.rename(columns = {"Kaqf" : "Kh_aqf", "Kaqt" : "Kv_aqt",
 #%%Merge and filter
 
 df = sheets[1]
-for sheet in sheets[2:]:
-#    sheet = sheet.replace({'Doñana' : 'Donana'})  
+for sheet in sheets[2:]: 
     df = pd.merge(df, sheet, on = ["Delta"]) #Nakdong dropped in merging, since too small, too little data.
 
 df = df.loc[:, inputs]
