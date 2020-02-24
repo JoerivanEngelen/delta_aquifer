@@ -65,29 +65,17 @@ par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
 fixed_pars = pd.DataFrame(fixed_pars, index=par.index)
 par = pd.concat([par, fixed_pars], axis=1)
 
-#%%Clip off all ofshore >200 km
-L_b = par["L"]*(1-par["l_a"])
-L_a = par["L"]*par["l_a"]
-L_b = L_b.clip(upper=200.)
-
-par["L"] = L_a + L_b
-par["L"] = par["L"] * 1000 #Module needs L in m instead of km
-
-#%%Determine discretization
-par["dx"] = 1000
-par["dx"] = par["dx"].where(par["L"] > 130_000., 500)
-par["dx"] = par["dx"].where(par["L"] < 400_000., 2000)
-
-par["dy"] = par["dx"]
-
 #%%Set ts
 ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
-               8000, 7000, 6000, 5000,  4000, 3000, 2000, 1000, 0,])
+               8000, 7000, 6000, 5000,  4000, 3000, 2000, 1000])
 
-ts = np.concatenate((np.arange(125000, 30000, -8000), ts)) / 1000.
-    
-#%%TODO
-#Groundwater extractions last 50 years
+ts = np.concatenate((np.arange(125000, 30000, -8000), ts))  #Add Pleistocene
+ts = np.concatenate((ts, np.arange(50, -1, -5)))            #Add Anthropocene
+ts = ts / 1000.
+
+#%%Groundwater exstractions last 50 years
+import xarray as xr
+wel = xr.open_dataset()
 
 #%%Solver settings
 hclose = 2e-4
@@ -98,6 +86,6 @@ rclose = par["dx"] * par["dy"] * hclose * ic.c2dens(par["C_f"])
 
 #%%Create synthetic model
 M = Model.Synthetic(par.loc[sim_nr].to_dict(), ts, hclose, rclose, figfol, ncfol, spratt)
-M.prepare(init_salt = True)   
+M.prepare(init_salt = True, half_model=False)   
 
 M.write_model(model_fol, mname, write_first_only=write_first_only)
