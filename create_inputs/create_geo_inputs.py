@@ -83,4 +83,6 @@ df["l_a"] = df["L_a"]/df["L"]
 df["l_b"] = df["L_b"]/df["L"]
 
 #%%Save
+df = df.reset_index().rename(columns = {"index" : "Delta"})
+
 df.to_csv(outf)
