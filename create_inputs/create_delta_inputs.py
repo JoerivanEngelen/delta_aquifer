@@ -57,7 +57,8 @@ def calculate_rs(df, Kv, Kh):
 #%%Path management
 datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 fnames = ["hydrogeology", "lithology", "geometry", "boundary_conditions"]
-df_paths  = [os.path.join(datafol, "literature", f+r".csv") for f in fnames]    
+df_paths  = [os.path.join(datafol, "..", "literature", f+r".csv") for f in fnames]    
+df_paths.append(os.path.join(datafol, "geometry.csv"))
 
 model_inputs = os.path.join(datafol, "model_inputs.csv")
 
@@ -67,13 +68,12 @@ inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi_f", "H_b", "f_H",
           "N_chan", "l_surf_end"]
 
 #%%Read data
-sheets = {}
+sheets = []
 
-for i, f in enumerate(fnames):
-    shtname = os.path.splitext(f)[0]
-    sheets[shtname] = pd.read_csv(df_paths[i], skiprows=[1], encoding="latin")
+for df_path in df_paths:
+    sheets.append(pd.read_csv(df_path, skiprows=[1], encoding="latin"))
 
-hdrglgy = sheets["hydrogeology"]
+hdrglgy = sheets[0]
 
 #%%Filter cases where reported anisotropies are effective 
 #  anisotropies for the complete groundwater system.
@@ -134,9 +134,9 @@ hdrglgy = hdrglgy.rename(columns = {"Kaqf" : "Kh_aqf", "Kaqt" : "Kv_aqt",
                           "Recharge" : "R", "Anisotropy" : "Kh_Kv"})
 
 #%%Merge and filter
-df = sheets[fnames[1]]
-for shtname in fnames[2:]:
-    df = pd.merge(df, sheets[shtname], on = ["Delta", "Country"])
+df = sheets[1]
+for sheet in sheets[2:]:
+    df = pd.merge(df, sheet, on = ["Delta", "Country"])
 
 df = df.loc[:, inputs]
 df = df.set_index("Delta").drop("Nakdong") #Too small, too little data
