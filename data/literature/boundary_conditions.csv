@@ -14,7 +14,7 @@ Burdekin,Australia,1,10000,"(Fielding et al., 2006)",,2,0,"Could find nothing on
 Fraser,Canada,1,10000,"(Clague et al., 1983)",,2,0,,"(Nienhuis et al., 2020)"
 Llobregat,Spain,0.9,10900,"(Lafuerza et al., 2005)",,1,0,,"(Nienhuis et al., 2020)"
 Jakarta,Indonesia,0.337837838,6500,"(Hehanussa, 1980; Kloosterman, 1989)",,6,0,,"(Nienhuis et al., 2020)"
-Doñana,Spain,1,6900,"(Rodríguez-Ramírez et al., 1996)",,2,0,"Tidal factor above 1, but L low (0.4 km)","(Nienhuis et al., 2020)"
+Donana,Spain,1,6900,"(Rodríguez-Ramírez et al., 1996)",,2,0,"Tidal factor above 1, but L low (0.4 km)","(Nienhuis et al., 2020)"
 Mahanadi,India,0.5,NaN,"(Mahalik et al., 1996)",,5,0,,"(Chakrapani & Subramanian, 1999)"
 Vistula,Poland,0,0,"(Makowska, 1991)","Current coastline closest in the Holocene, Pleistocene 125000 BP 50% transgression",2,0,,"(Nienhuis et al., 2020)"
 Mekong,Vietnam,1,8000,"(Tamura et al., 2009)",,4,0.181818182,,"(Nguyen et al., 2006)"

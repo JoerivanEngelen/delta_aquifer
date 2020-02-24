@@ -71,7 +71,11 @@ inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi_f", "H_b", "f_H",
 sheets = []
 
 for df_path in df_paths:
-    sheets.append(pd.read_csv(df_path, skiprows=[1], encoding="latin"))
+    if "30_deltas" in os.path.abspath(df_path):
+        skiprows=None
+    else:
+        skiprows=[1]
+    sheets.append(pd.read_csv(df_path, skiprows=skiprows, encoding="latin"))
 
 hdrglgy = sheets[0]
 
@@ -114,7 +118,7 @@ for col in columns:
 
 #Guadalfeo aquifer adjacent to Donana
 #so we take the inputs from that area
-hdrglgy.rename(index={'Guadalfeo':'Doñana'},inplace=True)
+hdrglgy.rename(index={'Guadalfeo':'Donana'},inplace=True)
 
 #Count NaNs as this is a measure of uncertainty
 hy_nans = hdrglgy.isna().sum(axis=1)
@@ -134,12 +138,14 @@ hdrglgy = hdrglgy.rename(columns = {"Kaqf" : "Kh_aqf", "Kaqt" : "Kv_aqt",
                           "Recharge" : "R", "Anisotropy" : "Kh_Kv"})
 
 #%%Merge and filter
+
 df = sheets[1]
 for sheet in sheets[2:]:
-    df = pd.merge(df, sheet, on = ["Delta", "Country"])
+#    sheet = sheet.replace({'Doñana' : 'Donana'})  
+    df = pd.merge(df, sheet, on = ["Delta"]) #Nakdong dropped in merging, since too small, too little data.
 
 df = df.loc[:, inputs]
-df = df.set_index("Delta").drop("Nakdong") #Too small, too little data
+df = df.set_index("Delta")
 
 #Count NaNs as this is a measure of uncertainty
 df_nans = df.isna().sum(axis=1)
