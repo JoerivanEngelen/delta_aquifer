@@ -63,7 +63,7 @@ df_paths.append(os.path.join(datafol, "geometry.csv"))
 model_inputs = os.path.join(datafol, "model_inputs.csv")
 
 #%%Sheets and parameters to use for models
-inputs = ["Delta", "L", "l_a", "alpha", "beta", "gamma", "phi_f", "H_b", "f_H",
+inputs = ["Delta", "L", "l_a", "dx", "dy", "alpha", "beta", "gamma", "phi_f", "H_b", "f_H",
           "N_aqt", "f_aqt", "l_conf", "N_pal", "s_pal", "l_tra", "t_tra",
           "N_chan", "l_surf_end"]
 
