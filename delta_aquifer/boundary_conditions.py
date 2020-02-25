@@ -368,7 +368,7 @@ def _correct_times(wel, bcs):
 def _wel_to_dataframe(wel):
     df_wel = wel.to_dataframe().reset_index()
     df_wel = df_wel.dropna(axis=0, subset=["Q"]).reset_index(drop=True)
-    df_wel = df_wel[["x", "y", "layer", "z", "Q"]]    
+    df_wel = df_wel[["time", "x", "y", "layer", "z", "Q"]]    
     return(df_wel)
 
 def create_wells(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
