@@ -150,11 +150,11 @@ class Synthetic(object):
         print("...combining boundary conditions...")
         sea = (self.bcs["sea"]==1)
         self.bcs["heads"] = xr.where(sea, self.bcs["sea_level"], self.bcs["riv_stage"])
-        self.bcs = self.bcs.drop_vars("riv_stage")
+        self.bcs = self.bcs.drop("riv_stage")
         self.bcs["conc"]  = xr.where(sea, self.bcs["sea_conc"] , self.bcs["riv_conc"])
-        self.bcs = self.bcs.drop_vars(["riv_conc", "sea_conc"])
+        self.bcs = self.bcs.drop(["riv_conc", "sea_conc"])
         self.bcs["cond"]  = xr.where(sea, self.bcs["sea_cond"] , self.bcs["riv_cond"])
-        self.bcs = self.bcs.drop_vars(["riv_cond", "sea_cond"])
+        self.bcs = self.bcs.drop(["riv_cond", "sea_cond"])
         
 
     def _add_species(self):
