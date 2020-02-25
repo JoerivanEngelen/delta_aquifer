@@ -77,9 +77,11 @@ class Synthetic(object):
         problematic due to the RCB algorithms completely leaving out usused rows and columns
         """
         print("...clipping off empty cells...")
-        self.geo["active"] = self.geo["IBOUND"].where(self.geo["IBOUND"]==1.)
-        self.geo = self.geo.dropna("x", how="all", subset=["active"]).dropna("y", how="all", subset=["active"])
-        self.bcs = self.bcs.dropna("x", how="all", subset=["riv_stage", "sea"]).dropna("y", how="all", subset=["riv_stage", "sea"])
+        active_plan = self.geo["IBOUND"].max(dim="z")
+        active_plan = active_plan.where(active_plan==1.).dropna("x", how="all").dropna("y", how="all")
+        
+        self.geo = self.geo.sel(x=active_plan.x, y=active_plan.y)
+        self.bcs = self.bcs.sel(x=active_plan.x, y=active_plan.y)
 
     def _create_initial_conditions(self, init_salt=False):
         print("...creating initial conditions...")
@@ -206,7 +208,7 @@ class Synthetic(object):
     def __get_ic_submod(self, mod_nr, geo_mod):
         """Select correct initial conditions"""
         if mod_nr == 0:
-            active=(geo_mod["active"]==1)
+            active=(geo_mod["IBOUND"]==1)
             starting_head = xr.where(active,   self.shd, -9999.0)
             starting_conc = xr.where(active, self.sconc, -9999.0)
             
