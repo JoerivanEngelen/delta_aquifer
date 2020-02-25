@@ -20,7 +20,7 @@ import cftime
 from pkg_resources import resource_filename
 
 class Synthetic(object):
-    def __init__(self, pars, ts, hclose, rclose, figfol, ncfol, spratt):
+    def __init__(self, pars, ts, hclose, rclose, figfol, ncfol, spratt, abstraction_path=None):
         self.hclose = hclose
         self.rclose = rclose
         self.ts = ts
@@ -29,7 +29,7 @@ class Synthetic(object):
         self.prepared = False
         
         d1, L_a = self.__initiate_geo(figfol)
-        self.__initiate_bcs(spratt, d1, L_a, figfol)
+        self.__initiate_bcs(spratt, abstraction_path, d1, L_a, figfol)
         self.__dynamize_geology()
         self.geo = geometry.create_Kh(self.geo, **self.pars)
     
@@ -43,12 +43,13 @@ class Synthetic(object):
         
         return(d1, L_a)
 
-    def __initiate_bcs(self, spratt, d1, L_a, figfol):
+    def __initiate_bcs(self, spratt, abstraction_path, d1, L_a, figfol):
         """Initiate boundary conditions"""
         print("...initiating boundary conditions...")
-        self.bcs, self.min_sea_level = bc.boundary_conditions(
+        self.bcs, self.min_sea_level, self.wel = bc.boundary_conditions(
                 spratt, self.ts, self.geo, d1, conc_noise = 0.05,
-                L_a=L_a, figfol=figfol, ncfol=None, **self.pars)
+                L_a=L_a, abstraction_path = abstraction_path,
+                figfol=figfol, ncfol=None, **self.pars)
 
     def __dynamize_geology(self):
         """Create dynamic geology"""

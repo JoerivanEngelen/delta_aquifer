@@ -56,7 +56,8 @@ os.makedirs(ncfol,  exist_ok=True)
 
 datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 
-spratt = os.path.join(datafol, "spratt2016.txt")
+spratt = os.path.join(datafol, "..", "spratt2016.txt")
+abstraction_f = os.path.join(datafol, "abstractions", "{}.nc")
 
 #%%Read inputs
 par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
@@ -65,27 +66,31 @@ par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
 fixed_pars = pd.DataFrame(fixed_pars, index=par.index)
 par = pd.concat([par, fixed_pars], axis=1)
 
+#%%Select simulation parameters
+sim_par = par.loc[sim_nr]
 #%%Set ts
 ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
                8000, 7000, 6000, 5000,  4000, 3000, 2000, 1000])
 
 ts = np.concatenate((np.arange(125000, 30000, -8000), ts))  #Add Pleistocene
-ts = np.concatenate((ts, np.arange(50, -1, -5)))            #Add Anthropocene
+anthro_years = np.arange(55, -1, -5)
+
+ts = np.concatenate((ts, anthro_years))                     #Add Anthropocene
 ts = ts / 1000.
 
 #%%Groundwater exstractions last 50 years
-import xarray as xr
-wel = xr.open_dataset()
+abstraction_path = abstraction_f.format(sim_par["Delta"])
 
 #%%Solver settings
 hclose = 2e-4
 
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
-rclose = par["dx"] * par["dy"] * hclose * ic.c2dens(par["C_f"])
+rclose = sim_par["dx"] * sim_par["dy"] * hclose * ic.c2dens(sim_par["C_f"])
 
 #%%Create synthetic model
-M = Model.Synthetic(par.loc[sim_nr].to_dict(), ts, hclose, rclose, figfol, ncfol, spratt)
-M.prepare(init_salt = True, half_model=False)   
+M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol, 
+                    spratt, abstraction_path=abstraction_path)
+#M.prepare(init_salt = True, half_model=True)   
 
-M.write_model(model_fol, mname, write_first_only=write_first_only)
+#M.write_model(model_fol, mname, write_first_only=write_first_only)

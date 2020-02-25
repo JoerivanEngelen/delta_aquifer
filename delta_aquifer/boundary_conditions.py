@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import os
+import scipy.stats as stats
 if os.name == "posix":
     import matplotlib 
     matplotlib.use('agg')
@@ -310,7 +311,7 @@ def correct_salinity_intrusion(l_surf_end, dhdx):
 def estuary_profile_slope(intrusion_rho, coastline_rho, C_s, C_f):
     """Create linear salinity profile for the estuary,
     
-    dumbing down the Savenije equation from 3 parameters to 1 parameter
+    simplifying the Savenije equation from 3 parameters to 1 parameter
     
     """
     return((C_s - C_f)/(coastline_rho - intrusion_rho))
@@ -335,8 +336,64 @@ def salinity_profile(rhos_2d, intrusion_rho, coastline_rho, outer_ridge, C_s, C_
 def recharge(onshore_mask, R):
     return(onshore_mask * R)
 
+#%%Wells
+def exponential(z, lambd=0.3, a=15):
+    q_scale = lambd * np.exp(lambd*z/a)
+    q_scale = xr.where(z<0, q_scale, 0.)
+    q_scale = q_scale/q_scale.sum(dim="z")
+    return(q_scale)
+
+def abstraction_with_z(geo):
+    model = exponential
+    
+    depth = (geo.z-geo["tops"])
+    depth = depth.where(geo["IBOUND"]==1.)
+    
+    return(model(depth))
+
+def _resample_Nyear(wel, N=5):
+    import datetime
+    dates = [datetime.datetime(y, 1, 1) for y in wel.time]
+    wel = wel.assign_coords(time=dates)                     #xarray resample requires datetime coordinate for resampling
+    wel = wel.isel(time=slice(len(dates)%N, None))          #Trim off leading years that are not part of a full N year period
+    wel = wel.resample(time="{}AS".format(N)).mean()
+    return(wel)    
+
+def _correct_times(wel, bcs):
+    #TODO: this now assumes that the user has set the Anthropocene years correctly...
+    #Should check for that
+    times = bcs.time.isel(time=slice(-len(wel.time), None))
+    return(wel.assign_coords(time=times))
+
+def _wel_to_dataframe(wel):
+    df_wel = wel.to_dataframe.reset_index()
+    df_wel = df_wel.dropna(axis=0, subset=["Q"]).reset_index(drop=True)
+    df_wel = df_wel[["x", "y", "layer", "z", "Q"]]    
+    return(df_wel)
+
+def create_wells(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
+
+    wel = xr.open_dataset(abstraction_path)
+    
+    #Force abstraction name to be Q
+    name = list(wel.keys())[0]
+    wel = wel.rename({name : "Q"})
+    
+    wel = _resample_Nyear(wel)
+    wel = _correct_times(wel, bcs)
+    wel = wel * abstraction_with_z(geo) #Convert to 4D array, to account for depth
+    
+    #Unit conversions
+    wel["Q"] = wel["Q"] * dx * dy #m/year to m3/year
+    wel["Q"] = wel["Q"] / 365.25 #m3/year to m3/d
+    
+    df_wel = _wel_to_dataframe(wel)
+    
+    return(df_wel)
+
 #%%Master function
 def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None, 
+                        abstraction_path = None, 
                         bc_res=None, riv_res=None, N_chan=None, f_chan=None,
                         L_a=None, l_surf_end=None, R=None, 
                         conc_noise=0.01, qt="50%", 
@@ -407,6 +464,11 @@ def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,
     #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")
     
+    if abstraction_path is not None:
+        wel = create_wells(abstraction_path, geo, bcs, **kwargs)
+    else:
+        wel = None
+    
     if ncfol is not None:
         #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
         time = bcs["time"] 
@@ -417,7 +479,7 @@ def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,
         #Switch back to time in ka again
         bcs["time"] = time
     
-    return(bcs, min_sea_level)
+    return(bcs, min_sea_level, wel)
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol, ext=".png"):
