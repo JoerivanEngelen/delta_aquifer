@@ -243,8 +243,6 @@ class Synthetic(object):
             
             m = imod.wq.SeawatModel(mname_sub, check=None)
             
-            #TODO: Refer to model0 for static idfs: IBOUND, ICBUND. Can save 1000 idfs.
-            #Does not work for IBOUND?
             bottoms = xr.DataArray(self.topbot[1:], 
                                    {"layer": self.geo.layer}, 
                                    ("layer"))
