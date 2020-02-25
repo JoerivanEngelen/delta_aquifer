@@ -339,7 +339,7 @@ def recharge(onshore_mask, R):
 #%%Wells
 def exponential(z, lambd=0.3, a=15):
     q_scale = lambd * np.exp(lambd*z/a)
-    q_scale = xr.where(z<0, q_scale, 0.)
+    q_scale = xr.where(z<0, q_scale, np.nan) #Set to nan as these cells can then be dropped later.
     q_scale = q_scale/q_scale.sum(dim="z")
     return(q_scale)
 
@@ -348,7 +348,7 @@ def abstraction_with_z(geo):
     
     depth = (geo.z-geo["tops"])
     depth = depth.where(geo["IBOUND"]==1.)
-    
+
     return(model(depth))
 
 def _resample_Nyear(wel, N=5):
@@ -366,7 +366,7 @@ def _correct_times(wel, bcs):
     return(wel.assign_coords(time=times))
 
 def _wel_to_dataframe(wel):
-    df_wel = wel.to_dataframe.reset_index()
+    df_wel = wel.to_dataframe().reset_index()
     df_wel = df_wel.dropna(axis=0, subset=["Q"]).reset_index(drop=True)
     df_wel = df_wel[["x", "y", "layer", "z", "Q"]]    
     return(df_wel)
