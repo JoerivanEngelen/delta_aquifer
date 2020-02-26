@@ -333,7 +333,7 @@ class Synthetic(object):
             directory = os.path.join(model_fol, mname)
         #    results_dir = os.path.join(directory, mname_sub, "results")
             
-            m.write(directory = directory)
+            m.write(directory = directory, directstop=True)
             
             if (write_first_only==True) & (mod_nr == 0):
                 break    
