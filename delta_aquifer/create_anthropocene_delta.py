@@ -94,3 +94,12 @@ M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol,
 #M.prepare(init_salt = True, half_model=True)   
 
 #M.write_model(model_fol, mname, write_first_only=write_first_only)
+
+#%%Test
+w = M.wel
+w1 = w.loc[w["time"] == 0.0025]["Q"].sum()*365.25/(sim_par["dx"]*sim_par["dy"])
+
+import xarray as xr
+a = xr.open_dataset(abstraction_path)["__xarray_dataarray_variable__"]
+onshore = (np.isnan(M.bcs.sea.max(dim="z")) & (M.geo["IBOUND"]==1.))
+a1 = a.sel(time=2014).where(onshore).sum()
