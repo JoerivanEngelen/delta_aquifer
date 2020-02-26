@@ -73,7 +73,7 @@ sim_par = par.loc[sim_nr]
 #%%Set ts
 ts = np.arange(55, -1, -5)
 ts = ts / 1000.
-sim_par["t_tra"] /= 1000 
+sim_par.at["t_tra"] = sim_par["t_tra"] / 1000 
 
 #%%Groundwater exstractions last 50 years
 abstraction_path = abstraction_f.format(sim_par["Delta"])

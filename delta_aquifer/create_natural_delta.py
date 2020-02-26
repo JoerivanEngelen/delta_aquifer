@@ -76,7 +76,7 @@ ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
 ts = np.concatenate((np.arange(125000, 30000, -8000), ts))  #Add Pleistocene
 
 #Transform to ka
-sim_par["t_tra"] /= 1000 #should be in ka, not in years BP
+sim_par.at["t_tra"] = sim_par["t_tra"] / 1000  #should be in ka, not in years BP
 ts = ts / 1000.
 
 #%%Solver settings
