@@ -29,6 +29,8 @@ class Synthetic(object):
         self.prepared = False
         
         d1, L_a = self.__initiate_geo(figfol)
+        self.d1 = d1
+        self.L_a = L_a
         self.__initiate_bcs(spratt, abstraction_path, d1, L_a, figfol)
         self.__dynamize_geology()
         self.geo = geometry.create_Kh(self.geo, **self.pars)
