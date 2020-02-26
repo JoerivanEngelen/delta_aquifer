@@ -39,11 +39,13 @@ fixed_pars = {"t_start" : 12,
 if len(sys.argv) > 1: #For local, interactive testing purposes.
     model_fol  = sys.argv[1]
     sim_nr = int(sys.argv[2])
+    init_path = sys.argv[3]
     write_first_only=False
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
     sim_nr = 80
+    init_path = r""
     write_first_only=True
     
 mname = "RD_i{:03d}".format(sim_nr)
@@ -69,17 +71,16 @@ par = pd.concat([par, fixed_pars], axis=1)
 #%%Select simulation parameters
 sim_par = par.loc[sim_nr]
 #%%Set ts
-ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
-               8000, 7000, 6000, 5000,  4000, 3000, 2000, 1000])
-
-ts = np.concatenate((np.arange(125000, 30000, -8000), ts))  #Add Pleistocene
-anthro_years = np.arange(55, -1, -5)
-
-ts = np.concatenate((ts, anthro_years))                     #Add Anthropocene
+ts = np.arange(55, -1, -5)
 ts = ts / 1000.
 
 #%%Groundwater exstractions last 50 years
 abstraction_path = abstraction_f.format(sim_par["Delta"])
+
+#%%Read inits
+import xarray as xr
+inits = xr.open_dataset(init_path)
+#TODO: Mirror inits, because halfed models not suitable for assymetric abstraction distributions
 
 #%%Solver settings
 hclose = 2e-4
@@ -91,7 +92,7 @@ rclose = sim_par["dx"] * sim_par["dy"] * hclose * ic.c2dens(sim_par["C_f"])
 #%%Create synthetic model
 M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol, 
                     spratt, abstraction_path=abstraction_path)
-#M.prepare(init_salt = True, half_model=True)   
+#M.prepare(init_salt = inits, half_model=False)   
 
 #M.write_model(model_fol, mname, write_first_only=write_first_only)
 
