@@ -43,7 +43,7 @@ if len(sys.argv) > 1: #For local, interactive testing purposes.
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 80
+    sim_nr = 153
     write_first_only=True
     
 mname = "RD_i{:03d}".format(sim_nr)
@@ -75,6 +75,8 @@ ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
 
 ts = np.concatenate((np.arange(125000, 30000, -8000), ts))  #Add Pleistocene
 
+#Transform to ka
+sim_par["t_tra"] /= 1000 #should be in ka, not in years BP
 ts = ts / 1000.
 
 #%%Solver settings
