@@ -338,16 +338,19 @@ def recharge(onshore_mask, R):
 
 #%%Wells
 def exponential(z, lambd=0.3, a=15):
+    #TODO: Find more realistic relationship between Q and depth, 
+    #because this exponential curve is not valid in most cases
     q_scale = lambd * np.exp(lambd*z/a)
     q_scale = xr.where(z<0, q_scale, np.nan) #Set to nan as these cells can then be dropped later.
     q_scale = q_scale/q_scale.sum(dim="z")
     return(q_scale)
 
-def abstraction_with_z(geo):
+def abstraction_with_z(geo, sea):
     model = exponential
     
     depth = (geo.z-geo["tops"])
-    depth = depth.where(geo["IBOUND"]==1.)
+    onshore = (np.isnan(sea.max(dim="z")) & (geo["IBOUND"]==1.))
+    depth = depth.where(onshore)
 
     return(model(depth))
 
@@ -381,7 +384,8 @@ def create_wells(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
     
     wel = _resample_Nyear(wel)
     wel = _correct_times(wel, bcs)
-    wel = wel * abstraction_with_z(geo) #Convert to 4D array, to account for depth
+    wel = wel * abstraction_with_z(geo, 
+                                   bcs["sea"].sel(time=wel.time)) #Convert to 4D array, to account for depth
     
     #Unit conversions
     wel["Q"] = wel["Q"] * dx * dy #m/year to m3/year
