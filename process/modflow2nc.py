@@ -138,7 +138,7 @@ df_btm = pattern2df(r"   MODEL LAYER BOTTOM EL. =", path_l)
 
 topbots = pd.concat([df_top[6], df_btm[5]]).reset_index(drop=True)
 
-z = (topbots[1:].values + topbots[:1].values)/2
+z = (topbots[1:].values + topbots[:-1].values)/2
 dz=topbots[:-1].values - topbots[1:].values
 layer = np.arange(len(z))+1
 #%%Calculate times
