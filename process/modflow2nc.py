@@ -81,7 +81,7 @@ if len(sys.argv) > 1:
     mod_nr = int(sys.argv[2])  
 else:
     ##For Testing
-    modelfol = r"g:\test_UCN\SD_i242_nr00"
+    modelfol = r"g:\test_UCN\RD_i153_nr00"
     mod_nr = 0
 
 run_path=os.path.join(modelfol, "*{}.run".format(mod_nr))
@@ -122,8 +122,15 @@ hds_data = [flopy.utils.binaryfile.HeadFile(path).get_alldata() for path in path
 
 #%%Parse listfile to extract subdomains
 df_pks = pattern2df(r" p\d{03} :", path_l)
-df_mod = df_pks.loc[:, :10] #Overlap 1 cell for implicit solvers
+df_mod = df_pks.loc[:, :8] #Overlap 1 cell for implicit solvers
 df_mt  = df_pks.loc[:, 10:] #Overlap 2 cells for advection package
+
+#Convert FORTRAN 1-based indexing to Python 0-based indexing
+df_mod.loc[:, [5,6]] -= 1
+df_mod.loc[:, [7,8]] -= 1
+
+df_mt.loc[:, [13, 14]] -= 1
+df_mt.loc[:, [15, 16]] -= 1
 
 #%%Parse listfile for other coordinates...
 df_top = pattern2df(r" TOP ELEVATION OF LAYER 1 =", path_l)
@@ -140,7 +147,8 @@ times = flopy.utils.binaryfile.UcnFile(paths_ucn[0]).times
 years = start_year + np.round(np.array(times)/365.25, 0)
 years = [cftime.DatetimeProlepticGregorian(year, 1, 1) for year in years]
 
-#%%Calculate coordinates
+#%%Calculate proxy coordinates
+#These are only used with concatenation
 x = [idrange2coord(i, j+1, dcell) for i, j in df_mt[[13, 14]].values]
 y = [idrange2coord(i, j+1, dcell) for i, j in df_mt[[15, 16]].values]
 
@@ -161,6 +169,11 @@ da_all = xr.concat(da_all, dim="species").assign_coords(species = list(ucn_data.
 da_hds = combine_all(das_h)
 da_hds = da_hds.where(da_hds<1e20)
 
+#Override coordinates with coordinates dummy idf, because we cannot infer from the UCN and .hds file
+#which rows/columns had been removed during dropna when creating the model
+da_all = da_all.assign_coords(x=dummy.x, y=dummy.y)
+da_hds = da_hds.assign_coords(x=dummy.x, y=dummy.y)
+
 #%%Assign some extra metadata for iMOD-python
 da_all = add_metadata(da_all, z, dz, dcell)
 da_hds = add_metadata(da_hds, z, dz, dcell)
@@ -170,8 +183,11 @@ da_all = xr.where(np.isfinite(da_all), da_all, -9999)
 da_hds = da_hds.where(da_hds<1e20, 1e30)
 
 #%%Save inits
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), da_hds.isel(time=-1))
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), da_all.isel(time=-1), 
+shead = da_hds.isel(time=-1)
+sconc = da_all.isel(time=-1)
+
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), shead)
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), sconc, 
          pattern = r"{name}_{time:%Y%m%d%H%M%S}_c{species}_l{layer}{extension}")
 
 #%%Split species into seperate variables
