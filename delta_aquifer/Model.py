@@ -174,7 +174,7 @@ class Synthetic(object):
         self.bcs["rch_conc"] = xr.DataArray(data=[self.pars["C_f"]]*len(self.species), 
                                  coords=dict(species=self.species), dims=["species"])
     
-    def prepare(self, init_salt=False, half_model=True):
+    def prepare(self, init_salt=False, half_model=True, max_sublen=8000):
         """Prepare all the necessary steps to have a working model and
         save the bcs for post-processing.
         """
@@ -184,7 +184,7 @@ class Synthetic(object):
         self._clip_empty_cells()
         self._create_initial_conditions(init_salt=init_salt)
         self._calculate_dimensionless_numbers(self.pars, self.ncfol)
-        self._prepare_time()
+        self._prepare_time(max_sublen=max_sublen)
         self._save_inputs()
         self._swap_dims_and_sort()
         self._combine_bcs()
