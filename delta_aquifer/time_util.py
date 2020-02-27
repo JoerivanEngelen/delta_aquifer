@@ -87,10 +87,11 @@ def find_cumsum_splits(ls, max_sum):
     
     return list(zip(*split_ls))
 
-def subdivide_time(t, max_perlen):
-    #NOTE THIS FUNCTION DOES NOT WORK IF perlen > max_perlen
+def subdivide_time(t, max_sublen):
+    #NOTE THIS FUNCTION DOES NOT WORK IF perlen > max_sublen
     perlens = t[1:] - t[:-1]
-    splits, comb_perlens = find_cumsum_splits(perlens, max_perlen)
+    assert(np.all(np.abs(perlens)<=max_sublen))
+    splits, comb_perlens = find_cumsum_splits(perlens, max_sublen)
     
     sub_t = split_list(t, list(splits)+[len(perlens)])
     first_el = np.array([sub[0] for sub in sub_t])

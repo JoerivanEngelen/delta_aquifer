@@ -112,7 +112,7 @@ class Synthetic(object):
             
         dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
 
-    def _prepare_time(self, max_perlen=8000):
+    def _prepare_time(self, max_sublen=8000):
         #Time management
         print("...preparing times...")
         self.start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
@@ -123,7 +123,7 @@ class Synthetic(object):
         
         
         sub_ts, sub_ends, sub_splits = time_util.subdivide_time(
-                t_kyear[-(len(self.bcs.time)+1):], max_perlen
+                t_kyear[-(len(self.bcs.time)+1):], max_sublen
                 )
         self.time_sub = {"ts_sub" : sub_ts,
                          "ends" : sub_ends,
