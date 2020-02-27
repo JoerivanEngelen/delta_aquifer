@@ -112,12 +112,11 @@ class Synthetic(object):
             
         dimless.to_csv(os.path.join(ncfol, "dimless.csv"))
 
-    def _prepare_time(self):
+    def _prepare_time(self, max_perlen=8000):
         #Time management
         print("...preparing times...")
         self.start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
         t_kyear = -1 * (self.ts * 1000 - self.ts[0] * 1000)
-        max_perlen = 8000
         
         #Adapt the times of bcs and geo
         time_util.num2date_ds(t_kyear[-len(self.bcs.time):], self.bcs, self.geo)
@@ -231,9 +230,9 @@ class Synthetic(object):
         
         return(starting_head, starting_conc)
 
-    def write_model(self, model_fol, mname, write_first_only=False):
+    def write_model(self, model_fol, mname, write_first_only=False, max_perlen=1000.):
         if self.prepared == False:
-            raise ValueError("Warning have to prepare the model first. Please call Synthetic.prepare() first")
+            raise ValueError("Model has not been prepared. Please call Synthetic.prepare() first")
         splitted_t = enumerate(zip(self.time_sub["splits"][:-1], self.time_sub["splits"][1:]))
         for mod_nr, (i_start, i_end) in splitted_t:
             print(".........processing model nr. {}..........".format(mod_nr))
@@ -323,7 +322,7 @@ class Synthetic(object):
                                             save_budget_idf=True)
             
             n_timesteps_p1 = 10
-            time_util.time_discretization(m, 1000., 
+            time_util.time_discretization(m, max_perlen, 
                                           endtime=endtime,
                                           n_timesteps_p1=n_timesteps_p1,
                                           timestep_multiplier=7.,
