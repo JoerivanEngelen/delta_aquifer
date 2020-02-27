@@ -48,32 +48,6 @@ programmableFilter1.PythonPath = ''
 
 # show data in view
 programmableFilter1Display = Show(programmableFilter1, renderView1)
-# trace defaults for the display properties.
-programmableFilter1Display.Representation = 'Outline'
-programmableFilter1Display.ColorArrayName = [None, '']
-programmableFilter1Display.OSPRayScaleArray = 'conc1'
-programmableFilter1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-programmableFilter1Display.SelectOrientationVectors = 'v'
-programmableFilter1Display.ScaleFactor = 19800.0
-programmableFilter1Display.SelectScaleArray = 'None'
-programmableFilter1Display.GlyphType = 'Arrow'
-programmableFilter1Display.GlyphTableIndexArray = 'None'
-programmableFilter1Display.DataAxesGrid = 'GridAxesRepresentation'
-programmableFilter1Display.PolarAxes = 'PolarAxesRepresentation'
-programmableFilter1Display.GaussianRadius = 9900.0
-programmableFilter1Display.SetScaleArray = ['POINTS', 'conc1']
-programmableFilter1Display.ScaleTransferFunction = 'PiecewiseFunction'
-programmableFilter1Display.OpacityArray = ['POINTS', 'conc1']
-programmableFilter1Display.OpacityTransferFunction = 'PiecewiseFunction'
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-programmableFilter1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-programmableFilter1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-programmableFilter1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
 
 # hide data in view
 Hide(netCDFReader1, renderView1)
