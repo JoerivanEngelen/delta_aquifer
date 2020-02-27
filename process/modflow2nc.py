@@ -170,7 +170,7 @@ da_all = xr.where(np.isfinite(da_all), da_all, -9999)
 da_hds = da_hds.where(da_hds<1e20, 1e30)
 
 #%%Save inits
-idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "starting_head"), da_hds.isel(time=-1))
+idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "bas", "head"), da_hds.isel(time=-1))
 idf.save(os.path.join(modelfol, "..", mname+"{:02d}".format(mod_nr+1), "btn", "conc"), da_all.isel(time=-1), 
          pattern = r"{name}_{time:%Y%m%d%H%M%S}_c{species}_l{layer}{extension}")
 
