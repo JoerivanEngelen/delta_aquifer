@@ -53,8 +53,11 @@ Hide(netCDFReader1, renderView1)
 renderView1.Update()
 
 #Get z
-z_min, z_max = programmableFilter1.GetDataInformation().GetBounds()[4:]
+bounds = programmableFilter1.GetDataInformation().GetBounds()
+z_min, z_max = bounds[4:]
 dz = z_max - z_min
+
+print(bounds)
 
 zscale = 4000. / math.sqrt(dz)
 
