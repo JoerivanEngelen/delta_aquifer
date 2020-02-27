@@ -208,5 +208,7 @@ ds.time.encoding["calendar"] = r"proleptic_gregorian"
 
 ds = ds.swap_dims({"layer" : "z"})
 
-ds.to_netcdf(os.path.join(modelfol, "results_{:03d}.nc".format(mod_nr)),
+os.makedirs(os.path.join(modelfol, "results"), exist_ok=True)
+
+ds.to_netcdf(os.path.join(modelfol, "results", "results_{:03d}.nc".format(mod_nr)),
                  unlimited_dims=["time"])
