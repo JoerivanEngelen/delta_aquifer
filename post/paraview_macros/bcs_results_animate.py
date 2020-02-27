@@ -31,40 +31,6 @@ renderView1.ViewSize = [1003, 853]
 renderView1.Background = [0.43137254901960786, 0.43137254901960786, 0.43137254901960786]
 
 
-# create a new 'Calculator'
-calculator1 = Calculator(Input=netCDFReader1)
-calculator1.ResultArrayName = 'v'
-calculator1.Function = '(-1*vx)*iHat+(1*vy)*jHat+(1*vz)*kHat'
-
-# show data in view
-calculator1Display = Show(calculator1, renderView1)
-# trace defaults for the display properties.
-calculator1Display.Representation = 'Outline'
-calculator1Display.ColorArrayName = [None, '']
-calculator1Display.OSPRayScaleArray = 'conc1'
-calculator1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-calculator1Display.SelectOrientationVectors = 'v'
-calculator1Display.ScaleFactor = 19800.0
-calculator1Display.SelectScaleArray = 'None'
-calculator1Display.GlyphType = 'Arrow'
-calculator1Display.GlyphTableIndexArray = 'None'
-calculator1Display.DataAxesGrid = 'GridAxesRepresentation'
-calculator1Display.PolarAxes = 'PolarAxesRepresentation'
-calculator1Display.GaussianRadius = 9900.0
-calculator1Display.SetScaleArray = ['POINTS', 'conc1']
-calculator1Display.ScaleTransferFunction = 'PiecewiseFunction'
-calculator1Display.OpacityArray = ['POINTS', 'conc1']
-calculator1Display.OpacityTransferFunction = 'PiecewiseFunction'
-
-# init the 'PiecewiseFunction' selected for 'OSPRayScaleFunction'
-calculator1Display.OSPRayScaleFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-calculator1Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-calculator1Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 100.0, 1.0, 0.5, 0.0]
-
 # hide data in view
 Hide(netCDFReader1, renderView1)
 
@@ -72,7 +38,7 @@ Hide(netCDFReader1, renderView1)
 renderView1.Update()
 
 # create a new 'Programmable Filter'
-programmableFilter1 = ProgrammableFilter(Input=calculator1)
+programmableFilter1 = ProgrammableFilter(Input=netCDFReader1)
 
 # Properties modified on programmableFilter1
 programmableFilter1.Script='inp = self.GetInput()\ndims = inp.GetDimensions()\next = inp.GetExtent()\n\noup = self.GetOutput()\noup.SetDimensions(dims[0]+1, dims[1]+1, dims[2]+1)\noup.SetExtent(ext[0], ext[1]+1, ext[2], ext[3]+1, ext[4], ext[5]+1)\n\nN=inp.GetPointData().GetNumberOfArrays()\n\nfor i in range(N):\n    data = inp.GetPointData().GetAbstractArray(i)\n    oup.GetCellData().AddArray(data)\n\n'
@@ -81,13 +47,13 @@ programmableFilter1.RequestUpdateExtentScript = ''
 programmableFilter1.PythonPath = ''
 
 # hide data in view
-Hide(calculator1, renderView1)
+Hide(netCDFReader1, renderView1)
 
 # update the view to ensure updated data information
 renderView1.Update()
 
 #Get z
-z_min, z_max = calculator1.GetDataInformation().GetBounds()[4:]
+z_min, z_max = netCDFReader1.GetDataInformation().GetBounds()[4:]
 dz = z_max - z_min
 
 zscale = 4000. / math.sqrt(dz)
