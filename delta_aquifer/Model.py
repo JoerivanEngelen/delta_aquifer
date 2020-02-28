@@ -28,7 +28,7 @@ class Synthetic(object):
     pars : dict
         dictionary with all the parameters necessary to run a model
     
-    pars : list of floats
+    ts : list of floats
         list with timesteps in ka (note that there is some inconsistency with times in this package...)
     
     hclose : float
