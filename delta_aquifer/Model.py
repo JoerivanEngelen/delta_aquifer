@@ -135,16 +135,26 @@ class Synthetic(object):
         self.bcs.to_netcdf(os.path.join(self.ncfol, "bcs.nc"))
         self.bcs = self.bcs.drop(["lith"])
 
-    def _swap_dims_and_sort(self):
+    def _rev_dims(self, da, *dims):
+        """Reverse dims, 
+        alternative to all the slow sortby actions that slowed this package down previously
+        """
+        
+        kwargs = dict([(dim, da[dim][::-1]) for dim in dims])
+        return(da.reindex(**kwargs))
+
+    def _swap_and_reverse_dims(self):
         """extra processing to make iMOD-python accept these DataArrays
         and follow the .IDF format.
         """
-        print("...swapping dimensions and sorting...")
-        self.geo = self.geo.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-        self.bcs = self.bcs.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
-        self.shd = self.shd.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+        print("...swapping dimensions and reversing...")
+        
+        self.geo = self._rev_dims(self.geo.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
+        self.bcs = self._rev_dims(self.bcs.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
+        self.shd = self._rev_dims(self.shd.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
+        
         if self.approx_init==True:
-            self.sconc = self.sconc.swap_dims({"z" : "layer"}).drop("z").sortby("layer").sortby("y", ascending=False)
+            self.sconc = self._rev_dims(self.sconc.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
 
     def _combine_bcs(self):
         """Combine river and sea, as in the end we put both in the GHB anyway.
@@ -186,7 +196,7 @@ class Synthetic(object):
         self._calculate_dimensionless_numbers(self.pars, self.ncfol)
         self._prepare_time(max_sublen=max_sublen)
         self._save_inputs()
-        self._swap_dims_and_sort()
+        self._swap_and_reverse_dims()
         self._combine_bcs()
         self._add_species()
         self.prepared=True
