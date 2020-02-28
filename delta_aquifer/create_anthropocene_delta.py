@@ -46,7 +46,7 @@ else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
     sim_nr = 153
-    init_path = r"g:\test_UCN\results\synth_RD_i153_m24_7666720"
+    init_path = r"g:\test_UCN\results\synth_RD_i153_m24_7666720" #Note that z-values in this example wrong
     write_first_only=True
     
 mname = "RD_i{:03d}".format(sim_nr)
@@ -128,7 +128,7 @@ onshore = M.geo["topsys"]>1
 
 #%%Continue processing model
 
-#M.prepare(init_salt = inits, half_model=False)   
+#M.prepare()   
 
 #M.write_model(model_fol, mname, write_first_only=write_first_only)
 
@@ -136,7 +136,6 @@ onshore = M.geo["topsys"]>1
 w = M.wel
 w1 = w.loc[w["time"] == 0.0025]["Q"].sum()*365.25/(sim_par["dx"]*sim_par["dy"])
 
-import xarray as xr
 a = xr.open_dataset(abstraction_path)["__xarray_dataarray_variable__"]
 onshore = (np.isnan(M.bcs.sea.max(dim="z")) & (M.geo["IBOUND"]==1.))
 a1 = a.sel(time=2014).where(onshore).sum()
