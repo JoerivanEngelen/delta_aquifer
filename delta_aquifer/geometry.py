@@ -388,10 +388,15 @@ def create_lith(d3, d2_grid, N_aqt, pal_mask):
     
     pal_nr = 3
     for i in range(N_aqt):
-        #The other clay layer are assigned a number exceeding conf_nr
+        #The other clay layer are assigned a number exceeding pal_nr
         clay_nr = 1 + pal_nr + i
         in_clayer = (d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])
-        d3["lith"] = xr.where(in_clayer & (~pal_mask[i]), clay_nr, d3["lith"])
+        d3["lith"] = xr.where(in_clayer, clay_nr, d3["lith"])
+    
+    d3["aqt"] = d3["lith"].copy() #Save backup of aquitards numbers without paleochannels
+    
+    for i in range(N_aqt):
+        in_clayer = (d3.z<d2_grid["ct%d"%i])&(d3.z>d2_grid["cb%d"%i])
         d3["lith"] = xr.where(in_clayer & (pal_mask[i]),  pal_nr , d3["lith"])
     return(d3)
 
