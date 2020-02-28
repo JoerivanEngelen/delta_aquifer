@@ -73,7 +73,12 @@ class Synthetic(object):
         if (self.pars["N_chan"] % 2) == 1:
             y_loc = self.bcs.y.isel(y=0)
             self.bcs["riv_cond"].loc[dict(y = y_loc)] = self.bcs["riv_cond"].loc[dict(y = y_loc)]/2
-    
+
+    def _half_da_to_full(self, da):
+        """Convert halved da back to a symmetrical full da along the y dimension
+        """
+        return(xr.concat([da, self._mirror_dims(da, "y")], dim="y"))
+        
     def _clip_empty_cells(self):
         """Cut off unused x and y cells 
         otherwise writing the initial conditions for the next model run is 
@@ -86,8 +91,23 @@ class Synthetic(object):
         self.geo = self.geo.sel(x=active_plan.x, y=active_plan.y)
         self.bcs = self.bcs.sel(x=active_plan.x, y=active_plan.y)
 
+    def _read_initial_conditions(self, init_salt, half2full=False):
+        """Read initial conditions, init_salt should be a path
+        """
+        assert(type(init_salt)==str)
+        
+        inits = xr.open_dataset(init_salt).isel(time=-1)
+        if half2full:
+            inits = self._half_da_to_full(inits)
+        
+        self.shd = inits["head"]
+        self.sconc = xr.concat(
+                [inits["conc1"], inits["conc2"]], 
+                "species").assign_coords(species=[1,2])
+
     def _create_initial_conditions(self, init_salt=False):
         print("...creating initial conditions...")
+        assert(type(init_salt)==bool)
         if init_salt:
             salt_depth = 1000. #Set to depth at which salt begins way above 
                               #surface level so that everything is definitely salt
@@ -176,7 +196,7 @@ class Synthetic(object):
         self.bcs = self.bcs.drop(["riv_cond", "sea_cond"])
         
 
-    def _add_species(self):
+    def _add_species(self, assign_init_species=True):
         """Add extra species to keep track of the initial salt"""
         print("...adding species...")
         self.species = [1,2]
@@ -185,27 +205,60 @@ class Synthetic(object):
                 ((self.bcs["conc"].species == 2) & (np.isfinite(self.bcs["conc"].sel(species=2)))), 
                 0., self.bcs["conc"])
         
-        self.sconc = self.sconc.expand_dims(species=self.species)
-        self.sconc = xr.where(((self.sconc.species == 2) & (self.sconc.sel(species=2)>1.0)), 1.0, self.sconc)
+        if assign_init_species:
+            self.sconc = self.sconc.expand_dims(species=self.species)
+            self.sconc = xr.where(((self.sconc.species == 2) & (self.sconc.sel(species=2)>1.0)), 1.0, self.sconc)
         
         self.bcs["rch_conc"] = xr.DataArray(data=[self.pars["C_f"]]*len(self.species), 
                                  coords=dict(species=self.species), dims=["species"])
     
-    def prepare(self, init_salt=False, half_model=True, max_sublen=8000):
+    def prepare(self, init_salt=False, init_half2full=False, half_model=True, max_sublen=8000):
         """Prepare all the necessary steps to have a working model and
         save the bcs for post-processing.
+        
+        init_salt : bool or str
+            if str, should be the path to a NetCDF with inital conditions; 
+            
+            if bool, sets whether to start entirely initially salt or not. Note
+            that False does not mean initially fresh, but instead the locatino of the
+            interface is calculated based on the ghyben-herzberg approximation
+        
+        init_half2full : bool
+            Sets whether to mirror read initial conditions along the y dimension
+            Creates symmetrical initial conditions, useful to convert data 
+            calculated with a halved model to initial conditions for a full model.
+        
+        half_model : bool
+            Whether to half the model over the y-dimension, useful for 
+            symmetrical models to save computational times
+        
+        max_sublen : int
+            Maximum amount of years that should not be exceeded by a sub model.
+            
+            E.g. if set to 4000 years, splits one model of 12000 years into 
+            3 consecutive models of 4000 years.
+            
         """
         print("...starting preparation...")
+        
+        if max_sublen>8000:
+            raise ValueError("The iMOD calendar cannot handle model extents longer than 8000 years")
+        
         if half_model:
             self._half_model()
         self._clip_empty_cells()
-        self._create_initial_conditions(init_salt=init_salt)
+        if type(init_salt) == str:
+            self._read_initial_conditions(init_salt, half2full=init_half2full)
+            assign_init_species=False
+        else:
+            self._create_initial_conditions(init_salt=init_salt)
+            assign_init_species=True
         self._calculate_dimensionless_numbers(self.pars, self.ncfol)
         self._prepare_time(max_sublen=max_sublen)
         self._save_inputs()
         self._swap_and_reverse_dims()
         self._combine_bcs()
-        self._add_species()
+        self._add_species(assign_init_species=assign_init_species)
         self.prepared=True
 
     def __get_timesteps_submod(self, mod_nr):
