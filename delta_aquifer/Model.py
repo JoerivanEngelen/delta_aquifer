@@ -20,8 +20,57 @@ import cftime
 from pkg_resources import resource_filename
 
 class Synthetic(object):
-#%%Initialize
-    def __init__(self, pars, ts, hclose, rclose, figfol, ncfol, spratt, abstraction_path=None):
+    """Synthetic model object
+    
+    ----------
+    Parameters
+    ----------
+    pars : dict
+        dictionary with all the parameters necessary to run a model
+    
+    pars : list of floats
+        list with timesteps in ka (note that there is some inconsistency with times in this package...)
+    
+    hclose : float
+        hclose convergence criterium for SEAWAT
+    
+    rclose : float
+        rclose convergence criterium for SEAWAT
+    
+    figfol : str
+        path to folder where figures can be dumped
+    
+    ncfol : str
+        path to folder where model input can be saved as NetCDF
+        useful for post-processing.
+    
+    sl_curve : str
+        path to txtfile with sea level curve
+    
+    -------
+    Options
+    -------
+        init_salt : bool or str
+            if str, should be the path to a NetCDF with inital conditions; 
+            
+            if bool, sets whether to start entirely initially salt or not. Note
+            that False does not mean initially fresh, but instead the locatino of the
+            interface is calculated based on the ghyben-herzberg approximation
+        
+        init_half2full : bool
+            Sets whether to mirror read initial conditions along the y dimension
+            Creates symmetrical initial conditions, useful to convert data 
+            calculated with a halved model to initial conditions for a full model.
+        
+        half_model : bool
+            Whether to half the model over the y-dimension, useful for 
+            symmetrical models to save computational times
+    """
+    
+    #%%Initialize
+    def __init__(self, pars, ts, hclose, rclose, figfol, ncfol, sl_curve, 
+                 half_model=False, init_salt=False, init_half2full=False, 
+                 abstraction_path=None):
         self.hclose = hclose
         self.rclose = rclose
         self.ts = ts
@@ -32,9 +81,19 @@ class Synthetic(object):
         d1, L_a = self.__initiate_geo(figfol)
         self.d1 = d1
         self.L_a = L_a
-        self.__initiate_bcs(spratt, abstraction_path, d1, L_a, figfol)
+        self.__initiate_bcs(sl_curve, abstraction_path, d1, L_a, figfol)
         self.__dynamize_geology()
         self.geo = geometry.create_Kh(self.geo, **self.pars)
+
+        if half_model:
+            self._half_model()
+        self._clip_empty_cells()
+        if type(init_salt) == str:
+            self._read_initial_conditions(init_salt, half2full=init_half2full)
+            self.assign_init_species=False
+        else:
+            self._create_initial_conditions(init_salt=init_salt)
+            self.assign_init_species=True
     
     def __initiate_geo(self, figfol):
         """Initiate geometry & geology"""
@@ -46,11 +105,11 @@ class Synthetic(object):
         
         return(d1, L_a)
 
-    def __initiate_bcs(self, spratt, abstraction_path, d1, L_a, figfol):
+    def __initiate_bcs(self, sl_curve, abstraction_path, d1, L_a, figfol):
         """Initiate boundary conditions"""
         print("...initiating boundary conditions...")
         self.bcs, self.min_sea_level, self.wel = bc.boundary_conditions(
-                spratt, self.ts, self.geo, d1, conc_noise = 0.05,
+                sl_curve, self.ts, self.geo, d1, conc_noise = 0.05,
                 L_a=L_a, abstraction_path = abstraction_path,
                 figfol=figfol, ncfol=None, **self.pars)
 
@@ -64,7 +123,6 @@ class Synthetic(object):
         is_bc = ((self.bcs["sea"]==1) | (self.bcs["river"]==1))
         self.geo = geometry.erosion_aquitards(self.geo, is_bc, self.bcs)
 
-#%%Prepare functions
 
     def _half_model(self):
         """Cut model in half to speed up calculations"""
@@ -124,6 +182,8 @@ class Synthetic(object):
         
         self.shd, self.sconc = ic.get_ic(self.bcs, self.geo, approx_init=self.approx_init, 
                                deep_salt=salt_depth, **self.pars)
+
+#%%Prepare functions
    
     def _calculate_dimensionless_numbers(self, pars, ncfol):
         print("...calculating dimensionless numbers...")
@@ -208,7 +268,7 @@ class Synthetic(object):
                 ((self.bcs["conc"].species == 2) & (np.isfinite(self.bcs["conc"].sel(species=2)))), 
                 0., self.bcs["conc"])
         
-        if assign_init_species:
+        if self.assign_init_species:
             self.sconc = self.sconc.expand_dims(species=self.species)
             self.sconc = xr.where(((self.sconc.species == 2) & (self.sconc.sel(species=2)>1.0)), 1.0, self.sconc)
         
@@ -218,22 +278,6 @@ class Synthetic(object):
     def prepare(self, init_salt=False, init_half2full=False, half_model=True, max_sublen=8000):
         """Prepare all the necessary steps to have a working model and
         save the bcs for post-processing.
-        
-        init_salt : bool or str
-            if str, should be the path to a NetCDF with inital conditions; 
-            
-            if bool, sets whether to start entirely initially salt or not. Note
-            that False does not mean initially fresh, but instead the locatino of the
-            interface is calculated based on the ghyben-herzberg approximation
-        
-        init_half2full : bool
-            Sets whether to mirror read initial conditions along the y dimension
-            Creates symmetrical initial conditions, useful to convert data 
-            calculated with a halved model to initial conditions for a full model.
-        
-        half_model : bool
-            Whether to half the model over the y-dimension, useful for 
-            symmetrical models to save computational times
         
         max_sublen : int
             Maximum amount of years that should not be exceeded by a sub model.
@@ -247,21 +291,12 @@ class Synthetic(object):
         if max_sublen>8000:
             raise ValueError("The iMOD calendar cannot handle model extents longer than 8000 years")
         
-        if half_model:
-            self._half_model()
-        self._clip_empty_cells()
-        if type(init_salt) == str:
-            self._read_initial_conditions(init_salt, half2full=init_half2full)
-            assign_init_species=False
-        else:
-            self._create_initial_conditions(init_salt=init_salt)
-            assign_init_species=True
         self._calculate_dimensionless_numbers(self.pars, self.ncfol)
         self._prepare_time(max_sublen=max_sublen)
         self._save_inputs()
         self._swap_and_reverse_dims()
         self._combine_bcs()
-        self._add_species(assign_init_species=assign_init_species)
+        self._add_species()
         self.prepared=True
 
 #%%Sub model functions
