@@ -10,6 +10,7 @@ import pandas as pd
 from delta_aquifer import Model
 from delta_aquifer import initial_conditions as ic
 import os, sys
+from glob import glob
 
 from pkg_resources import resource_filename
 
@@ -44,8 +45,8 @@ if len(sys.argv) > 1: #For local, interactive testing purposes.
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 80
-    init_path = r""
+    sim_nr = 153
+    init_path = r"g:\test_UCN\results\synth_RD_i153_m24_7666720"
     write_first_only=True
     
 mname = "RD_i{:03d}".format(sim_nr)
@@ -60,6 +61,10 @@ datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "
 
 spratt = os.path.join(datafol, "..", "spratt2016.txt")
 abstraction_f = os.path.join(datafol, "abstractions", "{}.nc")
+
+init_f = glob(os.path.join(init_path, "results_[0-9][0-9][0-9].nc"))
+init_f.sort()
+init_f = init_f[-1]
 
 #%%Read inputs
 par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
@@ -80,8 +85,22 @@ abstraction_path = abstraction_f.format(sim_par["Delta"])
 
 #%%Read inits
 import xarray as xr
-inits = xr.open_dataset(init_path)
-#TODO: Mirror inits, because halfed models not suitable for assymetric abstraction distributions
+
+def _rev_dims(da, *dims):
+    """Reverse dims, 
+    alternative to all the slow sortby actions that slowed this package down previously
+    """
+    
+    kwargs = dict([(dim, da[dim][::-1]) for dim in dims])
+    return(da.reindex(**kwargs))
+
+def _mirror_dims(da, *dims):
+    kwargs = dict([(dim , da[dim]*-1) for dim in dims])
+    mirror = da.assign_coords(**kwargs)
+    return(_rev_dims(mirror, *dims))
+
+inits = xr.open_dataset(init_f).isel(time=-1)
+inits = xr.concat([inits, _mirror_dims(inits, "y")], dim="y")
 
 #%%Solver settings
 hclose = 2e-4
@@ -92,7 +111,23 @@ rclose = sim_par["dx"] * sim_par["dy"] * hclose * ic.c2dens(sim_par["C_f"])
 
 #%%Create synthetic model
 M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol, 
-                    spratt, abstraction_path=abstraction_path)
+                    spratt, abstraction_path=abstraction_path, init_salt = init_f, 
+                    init_half2full=True, half_model=False)
+
+#%%Depth 
+import xarray as xr
+
+lith = M.geo["aqt"]
+
+aqf_nrs = xr.full_like(lith, 0, dtype=np.int64) #This step not necessary if this issue gets fixed https://github.com/pydata/xarray/issues/2017
+axis = dict(axis = aqf_nrs.get_axis_num("z"))
+aqf_nrs.values = np.flip(np.maximum.accumulate(np.flip(lith.values, **axis), **axis), **axis) #Flipping to do a reverse accumulate
+aqf_nrs = xr.where(M.geo["Kh"].isel(time=-1)==(sim_par["Kh_aqf"]), aqf_nrs, np.nan)
+
+onshore = M.geo["topsys"]>1
+
+#%%Continue processing model
+
 #M.prepare(init_salt = inits, half_model=False)   
 
 #M.write_model(model_fol, mname, write_first_only=write_first_only)
