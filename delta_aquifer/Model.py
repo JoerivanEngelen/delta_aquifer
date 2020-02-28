@@ -143,18 +143,25 @@ class Synthetic(object):
         kwargs = dict([(dim, da[dim][::-1]) for dim in dims])
         return(da.reindex(**kwargs))
 
+    def _mirror_dims(self, da, *dims):
+        kwargs = dict([(dim , da[dim]*-1) for dim in dims])
+        mirror = da.assign_coords(**kwargs)
+        return(self._rev_dims(mirror, *dims))
+
     def _swap_and_reverse_dims(self):
         """extra processing to make iMOD-python accept these DataArrays
         and follow the .IDF format.
         """
         print("...swapping dimensions and reversing...")
         
-        self.geo = self._rev_dims(self.geo.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
-        self.bcs = self._rev_dims(self.bcs.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
-        self.shd = self._rev_dims(self.shd.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
+        swap = {"z" : "layer"}
+        
+        self.geo = self._rev_dims(self.geo.swap_dims(swap).drop("z"), "layer", "y")
+        self.bcs = self._rev_dims(self.bcs.swap_dims(swap).drop("z"), "layer", "y")
+        self.shd = self._rev_dims(self.shd.swap_dims(swap).drop("z"), "layer", "y")
         
         if self.approx_init==True:
-            self.sconc = self._rev_dims(self.sconc.swap_dims({"z" : "layer"}).drop("z"), "layer", "y")
+            self.sconc = self._rev_dims(self.sconc.swap_dims(swap).drop("z"), "layer", "y")
 
     def _combine_bcs(self):
         """Combine river and sea, as in the end we put both in the GHB anyway.
