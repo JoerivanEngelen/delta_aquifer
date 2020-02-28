@@ -20,6 +20,7 @@ import cftime
 from pkg_resources import resource_filename
 
 class Synthetic(object):
+#%%Initialize
     def __init__(self, pars, ts, hclose, rclose, figfol, ncfol, spratt, abstraction_path=None):
         self.hclose = hclose
         self.rclose = rclose
@@ -62,6 +63,8 @@ class Synthetic(object):
         #Pleistocene erosion model
         is_bc = ((self.bcs["sea"]==1) | (self.bcs["river"]==1))
         self.geo = geometry.erosion_aquitards(self.geo, is_bc, self.bcs)
+
+#%%Prepare functions
 
     def _half_model(self):
         """Cut model in half to speed up calculations"""
@@ -261,6 +264,8 @@ class Synthetic(object):
         self._add_species(assign_init_species=assign_init_species)
         self.prepared=True
 
+#%%Sub model functions
+
     def __get_timesteps_submod(self, mod_nr):
         ts_mod = self.time_sub["ts_sub"][mod_nr]+self.start_year
         sub_end = self.time_sub["ends"][mod_nr]+self.start_year
@@ -299,6 +304,8 @@ class Synthetic(object):
                                          dims=["species"])
         
         return(starting_head, starting_conc)
+
+#%%Write
 
     def write_model(self, model_fol, mname, write_first_only=False, max_perlen=1000.):
         if self.prepared == False:
