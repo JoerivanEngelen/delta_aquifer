@@ -275,7 +275,7 @@ class Synthetic(object):
         self.bcs["rch_conc"] = xr.DataArray(data=[self.pars["C_f"]]*len(self.species), 
                                  coords=dict(species=self.species), dims=["species"])
     
-    def prepare(self, init_salt=False, init_half2full=False, half_model=True, max_sublen=8000):
+    def prepare(self, max_sublen=8000):
         """Prepare all the necessary steps to have a working model and
         save the bcs for post-processing.
         
