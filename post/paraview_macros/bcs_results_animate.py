@@ -58,11 +58,13 @@ renderView1.Update()
 
 #Get z
 bounds = programmableFilter1.GetDataInformation().GetBounds()
-z_min, z_max = bounds[4:]
+x_min, x_max, y_min, y_max, z_min, z_max = bounds
+dx = x_max - x_min
 dz = z_max - z_min
 
 print(bounds)
 
+xscale = 10. / math.sqrt(dx/1000.)
 zscale = 4000. / math.sqrt(dz)
 
 # create a new 'Transform'
@@ -70,7 +72,7 @@ transform1 = Transform(Input=programmableFilter1)
 transform1.Transform = 'Transform'
 
 # Properties modified on transform1.Transform
-transform1.Transform.Scale = [1.0, 1.0, zscale]
+transform1.Transform.Scale = [xscale, xscale, zscale]
 
 # show data in view
 transform1Display = Show(transform1, renderView1)
@@ -200,7 +202,7 @@ Hide3DWidgets(proxy=transform2.Transform)
 
 # Properties modified on transform2.Transform
 transform2.Transform.Translate = [100.0, -1000.0, 1.0]
-transform2.Transform.Scale = [1.0, 1.0, zscale]
+transform2.Transform.Scale = [xscale, xscale, zscale]
 
 # hide data in view
 Hide(programmableFilter2, renderView1)
