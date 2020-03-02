@@ -60,9 +60,6 @@ abs_Nile["Screen_Mid"] = (abs_Nile["Screen_Top"] + abs_Nile["Screen_Bottom"])/2
 abs_Nile = abs_Nile[abs_Nile["Screen_Mid"] < 1000.]
 abs_Nile = abs_Nile.dropna(subset=["Irrigation", "Drinking", "Industrial", "Conjunctive_Use"])
 
-args_Nile = abs_Nile, "Screen_Mid", 321, "Irrigation", "Drinking", "Industrial", "Conjunctive_Use"
-Q_sum_depth_Nile = get_Q_per_depth(*args_Nile, method=sum_Q_per_depth,)
-
 #%%Prepare data Mekong
 import xarray as xr
 
@@ -97,6 +94,10 @@ z_select = z.sel(x=xr.DataArray(abs_Mekong["X"], coords = {"index" : abs_Mekong.
       layer=xr.DataArray(abs_Mekong["layer"], dims="index"), method="nearest")
 
 abs_Mekong["z"] = z_select.values *-1
+
+#%%Process data for analysis
+args_Nile = abs_Nile, "Screen_Mid", 321, "Irrigation", "Drinking", "Industrial", "Conjunctive_Use"
+Q_sum_depth_Nile   = get_Q_per_depth(*args_Nile, method=sum_Q_per_depth)
 
 args_Mekong = abs_Mekong, "z", 641, "Q"
 Q_sum_depth_Mekong = get_Q_per_depth(*args_Mekong, method=sum_Q_per_depth)
