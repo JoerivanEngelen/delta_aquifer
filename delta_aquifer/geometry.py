@@ -420,6 +420,21 @@ def create_Kh(d3, Kh_aqf=0., Kv_aqt=0., f_Kh_pal=0., Kh_Kv=0., **kwargs):
     d3["Kh"] = xr.where(d3["lith"]==3, Kh_pal,  d3["Kh"])
     d3["Kh"] = xr.where(d3["lith"]>3,  Kh_aqt,  d3["Kh"])
     return(d3)
+    
+def calculate_aqf_nrs(geo, Kh_aqf=None, **pars):
+    lith = geo["aqt"]
+    
+    #This step not necessary if this issue gets fixed https://github.com/pydata/xarray/issues/2017
+    aqf_nrs = xr.full_like(lith, 0, dtype=np.int64)
+    
+    axis = dict(axis = aqf_nrs.get_axis_num("z"))
+    
+    #Flipping to do a reverse accumulate
+    aqf_nrs.values = np.flip(np.maximum.accumulate(np.flip(lith.values, **axis), **axis), **axis) 
+    
+    #Select aquifers, not aquitards
+    aqf_nrs = xr.where(geo["Kh"].isel(time=-1)==(Kh_aqf), aqf_nrs, np.nan)
+    return(aqf_nrs)
 
 #%%Sedimentation/Erosion
 def dynamic_confining_layer(d3, sea, t_tra):
