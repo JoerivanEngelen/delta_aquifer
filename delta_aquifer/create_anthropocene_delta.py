@@ -45,11 +45,11 @@ if len(sys.argv) > 1: #For local, interactive testing purposes.
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 153
-    init_path = r"g:\test_UCN\results\synth_RD_i153_m24_7666720" #Note that z-values in this example wrong
+    sim_nr = 161
+    init_path = r"g:\30_deltas\synth_RD_i161_m24_7667400" #Note that z-values in this example wrong
     write_first_only=True
     
-mname = "RD_i{:03d}".format(sim_nr)
+mname = "AD_i{:03d}".format(sim_nr)
 
 figfol = os.path.join(model_fol, mname, "input", "figures")
 ncfol  = os.path.join(model_fol, mname, "input", "data")
@@ -83,25 +83,6 @@ sim_par.at["t_tra"] = sim_par["t_tra"] / 1000
 #%%Groundwater exstractions last 50 years
 abstraction_path = abstraction_f.format(sim_par["Delta"])
 
-#%%Read inits
-import xarray as xr
-
-def _rev_dims(da, *dims):
-    """Reverse dims, 
-    alternative to all the slow sortby actions that slowed this package down previously
-    """
-    
-    kwargs = dict([(dim, da[dim][::-1]) for dim in dims])
-    return(da.reindex(**kwargs))
-
-def _mirror_dims(da, *dims):
-    kwargs = dict([(dim , da[dim]*-1) for dim in dims])
-    mirror = da.assign_coords(**kwargs)
-    return(_rev_dims(mirror, *dims))
-
-inits = xr.open_dataset(init_f).isel(time=-1)
-inits = xr.concat([inits, _mirror_dims(inits, "y")], dim="y")
-
 #%%Solver settings
 hclose = 2e-4
 
@@ -114,18 +95,6 @@ M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol,
                     spratt, abstraction_path=abstraction_path, init_salt = init_f, 
                     init_half2full=True, half_model=False)
 
-#%%Depth 
-import xarray as xr
-
-lith = M.geo["aqt"]
-
-aqf_nrs = xr.full_like(lith, 0, dtype=np.int64) #This step not necessary if this issue gets fixed https://github.com/pydata/xarray/issues/2017
-axis = dict(axis = aqf_nrs.get_axis_num("z"))
-aqf_nrs.values = np.flip(np.maximum.accumulate(np.flip(lith.values, **axis), **axis), **axis) #Flipping to do a reverse accumulate
-aqf_nrs = xr.where(M.geo["Kh"].isel(time=-1)==(sim_par["Kh_aqf"]), aqf_nrs, np.nan)
-
-onshore = M.geo["topsys"]>1
-
 #%%Continue processing model
 
 #M.prepare()   
@@ -133,9 +102,9 @@ onshore = M.geo["topsys"]>1
 #M.write_model(model_fol, mname, write_first_only=write_first_only)
 
 #%%Test
-w = M.wel
-w1 = w.loc[w["time"] == 0.0025]["Q"].sum()*365.25/(sim_par["dx"]*sim_par["dy"])
-
-a = xr.open_dataset(abstraction_path)["__xarray_dataarray_variable__"]
-onshore = (np.isnan(M.bcs.sea.max(dim="z")) & (M.geo["IBOUND"]==1.))
-a1 = a.sel(time=2014).where(onshore).sum()
+#w = M.wel
+#w1 = w.loc[w["time"] == 0.0025]["Q"].sum()*365.25/(sim_par["dx"]*sim_par["dy"])
+#
+#a = xr.open_dataset(abstraction_path)["__xarray_dataarray_variable__"]
+#onshore = (np.isnan(M.bcs.sea.max(dim="z")) & (M.geo["IBOUND"]==1.))
+#a1 = a.sel(time=2014).where(onshore).sum()
