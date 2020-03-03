@@ -78,7 +78,7 @@ class Synthetic(object):
         d1, L_a = self.__initiate_geo(figfol)
         self.d1 = d1
         self.L_a = L_a
-        self.__initiate_bcs(sl_curve, abstraction_path, d1, L_a, figfol)
+        self.__initiate_bcs(sl_curve, d1, L_a, figfol)
         self.__dynamize_geology()
         self.geo = geometry.create_Kh(self.geo, **self.pars)
 
@@ -92,6 +92,11 @@ class Synthetic(object):
             self._create_initial_conditions(init_salt=init_salt)
             self.assign_init_species=True
     
+        if abstraction_path is not None:
+            self.wel = bc.create_wells(abstraction_path, self.geo, self.bcs, 
+                                       self.sconc.sel(species=1), 
+                                       figfol=figfol, **self.pars)
+    
     def __initiate_geo(self, figfol):
         """Initiate geometry & geology"""
         print("...initiating geometry & geology...")
@@ -102,12 +107,12 @@ class Synthetic(object):
         
         return(d1, L_a)
 
-    def __initiate_bcs(self, sl_curve, abstraction_path, d1, L_a, figfol):
+    def __initiate_bcs(self, sl_curve, d1, L_a, figfol):
         """Initiate boundary conditions"""
         print("...initiating boundary conditions...")
-        self.bcs, self.min_sea_level, self.wel = bc.boundary_conditions(
+        self.bcs, self.min_sea_level = bc.boundary_conditions(
                 sl_curve, self.ts, self.geo, d1, conc_noise = 0.05,
-                L_a=L_a, abstraction_path = abstraction_path,
+                L_a=L_a,
                 figfol=figfol, ncfol=None, **self.pars)
 
     def __dynamize_geology(self):
@@ -140,7 +145,7 @@ class Synthetic(object):
     def _clip_empty_cells(self):
         """Cut off unused x and y cells 
         otherwise writing the initial conditions for the next model run is 
-        problematic due to the RCB algorithms completely leaving out usused rows and columns
+        problematic due to the RCB algorithms completely leaving out unsused rows and columns
         """
         print("...clipping off empty cells...")
         active_plan = self.geo["IBOUND"].max(dim="z")
