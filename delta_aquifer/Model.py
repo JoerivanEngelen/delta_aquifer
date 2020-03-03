@@ -9,15 +9,12 @@ import numpy as np
 import pandas as pd
 from delta_aquifer import geometry, time_util, hydro_util
 from delta_aquifer import boundary_conditions as bc
-from delta_aquifer import non_convergence as ncg
 from delta_aquifer import initial_conditions as ic
-import os, sys
+import os
 
 import imod
 import xarray as xr
 import cftime
-
-from pkg_resources import resource_filename
 
 class Synthetic(object):
     """Synthetic model object
@@ -442,7 +439,6 @@ class Synthetic(object):
                                           transport_initial_timestep=100.)
             
             directory = os.path.join(model_fol, mname)
-        #    results_dir = os.path.join(directory, mname_sub, "results")
             
             m.write(directory = directory, directstop=True)
             
