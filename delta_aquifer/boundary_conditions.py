@@ -18,6 +18,8 @@ if os.name == "posix":
 else:
     import matplotlib.pyplot as plt
 from delta_aquifer import geometry
+import seaborn as sns
+from itertools import product
 
 #%%Override xarray function with this hack that does not work with NaNs 
 #This hack probably only works within this context.
@@ -337,23 +339,6 @@ def recharge(onshore_mask, R):
     return(onshore_mask * R)
 
 #%%Wells
-def exponential(z, lambd=0.3, a=15):
-    #TODO: Find more realistic relationship between Q and depth, 
-    #because this exponential curve is not valid in most cases
-    q_scale = lambd * np.exp(lambd*z/a)
-    q_scale = xr.where(z<0, q_scale, np.nan) #Set to nan as these cells can then be dropped later.
-    q_scale = q_scale/q_scale.sum(dim="z")
-    return(q_scale)
-
-def abstraction_with_z(geo, sea):
-    model = exponential
-    
-    depth = (geo.z-geo["tops"])
-    onshore = (np.isnan(sea.max(dim="z")) & (geo["IBOUND"]==1.))
-    depth = depth.where(onshore)
-
-    return(model(depth))
-
 def _resample_Nyear(wel, N=5):
     import datetime
     dates = [datetime.datetime(y, 1, 1) for y in wel.time]
@@ -374,7 +359,10 @@ def _wel_to_dataframe(wel):
     df_wel = df_wel[["time", "x", "y", "layer", "z", "Q"]]    
     return(df_wel)
 
-def create_wells(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
+def create_well_field(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
+    """Read and process PCR-GLOBWB abstraction data and read into planar well
+    field. Still has to be assigned a depth.
+    """
 
     wel = xr.open_dataset(abstraction_path)
     
@@ -384,20 +372,62 @@ def create_wells(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
     
     wel = _resample_Nyear(wel)
     wel = _correct_times(wel, bcs)
-    wel = wel * abstraction_with_z(geo, 
-                                   bcs["sea"].sel(time=wel.time)) #Convert to 4D array, to account for depth
     
     #Unit conversions
     wel["Q"] = wel["Q"] * dx * dy #m/year to m3/year
     wel["Q"] = wel["Q"] / 365.25 #m3/year to m3/d
     
-    df_wel = _wel_to_dataframe(wel)
+    return(wel)
+
+def find_pumpable_water(geo, sal):
+    """Find onshore water that is below 5 g TDS/l
+    """
+
+    onshore = geo["topsys"]>1
+    pumpable = (sal>-9000)&((sal<5.))
+    pumpable = (pumpable & onshore)
+
+#    pumpable = _rev_dims(pumpable, "z", "y") #Not necessary in Model object?
     
-    return(df_wel)
+    pumpable = pumpable.assign_coords(z = geo.z) #This is necessary in Model object (Some roundoff errors with float z)
+    return(pumpable)
+
+def get_pump_aqf_nr(aqf_nrs, pumpable):
+    """Get first aquifer where pumping is possible 
+    """
+    return(aqf_nrs.where(pumpable).min(dim="z"))
+
+def get_pump_z(aqf_nrs, pump_aqf_nr):
+    """From an aquifer number, get corresponding z for pumping
+    """
+    pump_loc = (aqf_nrs == pump_aqf_nr)
+    pump_loc = pump_loc.where(pump_loc)
+    pump_z = pump_loc * aqf_nrs.z
+    pump_z = (pump_z.min(dim="z") - 20.)
+    return(pump_z)
+
+def get_wel_ds(wel, pump_z, pump_aqf_nr):
+    wel["well_z"] = pump_z.sel(y=wel.y, x=wel.x)
+    wel["aqf_nr"] = pump_aqf_nr.sel(y=wel.y, x=wel.x)
+    wel["Q"] = wel["Q"].where(~np.isnan(wel["well_z"]))
+    return(wel)
+
+def create_wells(abstraction_path, geo, bcs, sal, fig_folder=None, **kwargs):
+    wf = create_well_field(abstraction_path, geo, bcs, **kwargs)
+    aqf_nrs = geometry.calculate_aqf_nrs(geo, **kwargs)
+    pumpable = find_pumpable_water(geo, sal)
+    pump_aqf_nr = get_pump_aqf_nr(aqf_nrs, pumpable)
+    pump_z = get_pump_z(aqf_nrs, pump_aqf_nr)
+    
+    wel = get_wel_ds(wf.sel(x=wf.x[1:]), pump_z, pump_aqf_nr)
+    
+    if fig_folder is not None:
+        plot_wel_groups(wel, kwargs["Delta"], fig_folder)
+    
+    return(wel)
 
 #%%Master function
-def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None, 
-                        abstraction_path = None, 
+def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,  
                         bc_res=None, riv_res=None, N_chan=None, f_chan=None,
                         L_a=None, l_surf_end=None, R=None, 
                         conc_noise=0.01, qt="50%", 
@@ -468,11 +498,6 @@ def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,
     #Put dimensions in right order
     bcs = bcs.transpose("time", "z", "y", "x")
     
-    if abstraction_path is not None:
-        wel = create_wells(abstraction_path, geo, bcs, **kwargs)
-    else:
-        wel = None
-    
     if ncfol is not None:
         #Paraview only accepts monotonically increasing times, we have a decreasing one, so has to be changed.
         time = bcs["time"] 
@@ -483,7 +508,7 @@ def boundary_conditions(sl_curve, ts, geo, d1, C_s=None, C_f=None,
         #Switch back to time in ka again
         bcs["time"] = time
     
-    return(bcs, min_sea_level, wel)
+    return(bcs, min_sea_level)
 
 #%%Plotting functions
 def plot_sea_level_curve(sea_level, df, ts, qt, figfol, ext=".png"):
@@ -495,3 +520,71 @@ def plot_sea_level_curve(sea_level, df, ts, qt, figfol, ext=".png"):
     ax.invert_xaxis()
     plt.savefig(os.path.join(figfol, "sea_level_curve%s"%ext))
     plt.close()
+
+def _prepare_wel_for_groupby(wel):
+    wel_gb = wel.copy()
+    
+    #We have to supply sentinel values as groupby_bins in current version of xarray (0.14.0)
+    #cannot handle NaNs (and values laying outside bin range)
+    wel_gb["well_z"] = wel_gb["well_z"].fillna(10)
+    wel_gb["aqf_nr"] = wel_gb["aqf_nr"].fillna(-1)
+    wel_gb["Q"] = wel_gb["Q"].fillna(0)
+    
+    wel_gb = wel_gb.rename({"well_z" : "well_depth"})
+    wel_gb["well_depth"] = wel_gb["well_depth"] * -1 
+    
+    wel_gb = wel_gb.isel(time=-1)
+    return(wel_gb)
+
+def group_Q(wel_gb, relative=True):
+    def sel2df(da, d):
+        return(da["Q"].sel(**d).to_dataframe()["Q"])
+    
+    step = 20
+    max_depth = wel_gb["well_depth"].max()
+    groupby_depth = wel_gb.groupby_bins("well_depth", np.arange(-step, max_depth+step+1, step))
+    groupby_aqf = wel_gb.groupby("aqf_nr")
+
+    #remove first element, because NaN's are stored here
+    ddep = dict(well_depth_bins = slice(1, None))
+    daqf = dict(aqf_nr    = slice(1, None)) 
+
+    cols = ["sum", "count"]
+    keys = ["depth", "aqf"]
+    Q_groups = dict([(key, pd.DataFrame(columns = cols)) for key in keys])
+    Q_groups["depth"]["sum"]   = sel2df(groupby_depth.sum(), ddep)
+    Q_groups["depth"]["count"] = sel2df(groupby_depth.count(), ddep)
+    Q_groups["aqf"]["sum"]     = sel2df(groupby_aqf.sum(), daqf)
+    Q_groups["aqf"]["count"]   = sel2df(groupby_aqf.count(), daqf)
+    
+    if relative == True:
+        Q_groups = dict([(key, 
+                          value/value.sum(axis=0)
+                          ) for key, value in Q_groups.items()])
+    
+    return(Q_groups)
+
+def plot_group(df_group, xlabel, ylabel, fig_path):
+    sns.set()
+    df_group.plot(kind="barh")
+    ax = plt.gca()
+    ax.invert_yaxis()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    plt.tight_layout()
+    plt.savefig(fig_path, dpi=300)
+    plt.close()
+
+def plot_wel_groups(wel, delta, fig_folder):
+    wel_gb = _prepare_wel_for_groupby(wel)
+    q_groups = group_Q(wel_gb)
+    
+    x_lab_d = {"count" : "rel number of wells (-)", 
+               "sum" : "rel GW abstracted (-)"}
+    y_lab_d = {"depth" : "well depth (m)", 
+               "aqf" : "aquifer nr"}
+    
+    fig_path = os.path.join(fig_folder, "{}_Model_{}_{}.png")
+    
+    for m, v in product(x_lab_d.keys(), y_lab_d.keys()):
+        plot_group(q_groups[v][m], x_lab_d[m], y_lab_d[v], fig_path.format(delta, v, m))
