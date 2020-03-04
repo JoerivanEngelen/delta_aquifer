@@ -21,7 +21,7 @@ from delta_aquifer import geometry
 import seaborn as sns
 from itertools import product
 
-#%%Override xarray function with this hack that does not work with NaNs 
+#%%Override xarray function that does not work with NaNs with this hack 
 #This hack probably only works within this context.
 
 def _unique_value_groups(ar, sort=True):
@@ -383,11 +383,19 @@ def find_pumpable_water(geo, sal):
     """Find onshore water that is below 5 g TDS/l
     """
 
+    def _rev_dims(da, *dims):
+        """Reverse dims, 
+        alternative to all the slow sortby actions that slowed this package down previously
+        """
+        
+        kwargs = dict([(dim, da[dim][::-1]) for dim in dims])
+        return(da.reindex(**kwargs))
+
     onshore = geo["topsys"]>1
     pumpable = (sal>-9000)&((sal<5.))
     pumpable = (pumpable & onshore)
 
-#    pumpable = _rev_dims(pumpable, "z", "y") #Not necessary in Model object?
+    pumpable = _rev_dims(pumpable, "z", "y") #Not necessary in Model object?
     
     pumpable = pumpable.assign_coords(z = geo.z) #This is necessary in Model object (Some roundoff errors with float z)
     return(pumpable)
@@ -412,7 +420,7 @@ def get_wel_ds(wel, pump_z, pump_aqf_nr):
     wel["Q"] = wel["Q"].where(~np.isnan(wel["well_z"]))
     return(wel)
 
-def create_wells(abstraction_path, geo, bcs, sal, fig_folder=None, **kwargs):
+def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     wf = create_well_field(abstraction_path, geo, bcs, **kwargs)
     aqf_nrs = geometry.calculate_aqf_nrs(geo, **kwargs)
     pumpable = find_pumpable_water(geo, sal)
@@ -421,8 +429,8 @@ def create_wells(abstraction_path, geo, bcs, sal, fig_folder=None, **kwargs):
     
     wel = get_wel_ds(wf.sel(x=wf.x[1:]), pump_z, pump_aqf_nr)
     
-    if fig_folder is not None:
-        plot_wel_groups(wel, kwargs["Delta"], fig_folder)
+    if figfol is not None:
+        plot_wel_groups(wel, kwargs["Delta"], figfol)
     
     return(wel)
 
@@ -575,7 +583,7 @@ def plot_group(df_group, xlabel, ylabel, fig_path):
     plt.savefig(fig_path, dpi=300)
     plt.close()
 
-def plot_wel_groups(wel, delta, fig_folder):
+def plot_wel_groups(wel, delta, figfol):
     wel_gb = _prepare_wel_for_groupby(wel)
     q_groups = group_Q(wel_gb)
     
@@ -584,7 +592,7 @@ def plot_wel_groups(wel, delta, fig_folder):
     y_lab_d = {"depth" : "well depth (m)", 
                "aqf" : "aquifer nr"}
     
-    fig_path = os.path.join(fig_folder, "{}_Model_{}_{}.png")
+    fig_path = os.path.join(figfol, "{}_Model_{}_{}.png")
     
     for m, v in product(x_lab_d.keys(), y_lab_d.keys()):
         plot_group(q_groups[v][m], x_lab_d[m], y_lab_d[v], fig_path.format(delta, v, m))
