@@ -400,7 +400,7 @@ def find_pumpable_water(geo, sal):
     pumpable = pumpable.assign_coords(z = geo.z) #This is necessary in Model object (Some roundoff errors with float z)
     return(pumpable)
 
-def get_pump_aqf(aqfrs, pumpable, check_aqf_fully=False):
+def get_pump_aqf(aqfrs, pumpable):
     """Get first aquifer where pumping is possible 
     
     Parameters
@@ -410,31 +410,23 @@ def get_pump_aqf(aqfrs, pumpable, check_aqf_fully=False):
     
     pumpable : DataArray (bool)
         indicate which cells are pumpable
-        
-    check_aqf_fully : bool
-        Check with depth if the aquifer is safely pumpable. 
-        Makes algorithm slower with increasing amount of aquifers
-        Otherwise just check in which aquifer there is a cell that is pumpable.
     
     """
-    if not check_aqf_fully:
-        return(aqfrs.where(pumpable).min(dim="z"))
+    aqf_nrs = np.unique(aqfrs)
+    aqf_nrs = aqf_nrs[~np.isnan(aqf_nrs)] #xarray has no pd.unique equivalent
+    da_ls = []
     
-    else:
-        aqf_nrs = np.unique(aqfrs)
-        aqf_nrs = aqf_nrs[~np.isnan(aqf_nrs)] #xarray has no pd.unique equivalent
-        
-        da_ls = []
-        ds = xr.Dataset({"pumpable" : pumpable.drop("time"), "aqfrs" : aqfrs.fillna(0)})
-        ds_gb = ds.groupby("aqfrs")
-        for aqf_nr, ds_aqf in ds_gb:
-            if aqf_nr == 0:
-                continue
-            aqf_nrs.append(aqf_nr)
-             #Perhaps all this unstacking slows things down too much. Takes 1 min
-            da_ls.append(ds_aqf["pumpable"].unstack("stacked_z_y_x").all(dim="z"))
-        
-        return(xr.concat(da_ls, dim="aqf_nrs").assign_coords({"aqf_nrs" : aqf_nrs}))
+    for aqf_nr in aqf_nrs:
+        #Warning, da.all of an allNaN slice returns True. 
+        #This causes cells on the coastal slope to be considered pumpable
+        da = pumpable.where(aqfrs==aqf_nr)
+        all_nan = np.isnan(da).all(dim="z")
+        da_ls.append(da.all(dim="z").where(~all_nan)) 
+    
+    aqf_pumpable = xr.concat(da_ls, dim="aqf_nrs").assign_coords({"aqf_nrs" : aqf_nrs})
+    aqf_pumpable = aqf_pumpable.where(aqf_pumpable) * aqf_pumpable["aqf_nrs"]    
+    
+    return(aqf_pumpable.min(dim="aqf_nrs"))
 
 def get_pump_z(aqfrs, pump_aqf_nr):
     """From an aquifer number, get corresponding z for pumping
