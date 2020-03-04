@@ -395,22 +395,53 @@ def find_pumpable_water(geo, sal):
     pumpable = (sal>-9000)&((sal<5.))
     pumpable = (pumpable & onshore)
 
-    pumpable = _rev_dims(pumpable, "z", "y") #Not necessary in Model object?
+    pumpable = _rev_dims(pumpable, "z", "y")
     
     pumpable = pumpable.assign_coords(z = geo.z) #This is necessary in Model object (Some roundoff errors with float z)
     return(pumpable)
 
-def get_pump_aqf_nr(aqf_nrs, pumpable):
+def get_pump_aqf(aqfrs, pumpable, check_aqf_fully=False):
     """Get first aquifer where pumping is possible 
+    
+    Parameters
+    ----------
+    aqfrs : DataArray (integer)
+        array with locations of aquifers (numbered)
+    
+    pumpable : DataArray (bool)
+        indicate which cells are pumpable
+        
+    check_aqf_fully : bool
+        Check with depth if the aquifer is safely pumpable. 
+        Makes algorithm slower with increasing amount of aquifers
+        Otherwise just check in which aquifer there is a cell that is pumpable.
+    
     """
-    return(aqf_nrs.where(pumpable).min(dim="z"))
+    if not check_aqf_fully:
+        return(aqfrs.where(pumpable).min(dim="z"))
+    
+    else:
+        aqf_nrs = np.unique(aqfrs)
+        aqf_nrs = aqf_nrs[~np.isnan(aqf_nrs)] #xarray has no pd.unique equivalent
+        
+        da_ls = []
+        ds = xr.Dataset({"pumpable" : pumpable.drop("time"), "aqfrs" : aqfrs.fillna(0)})
+        ds_gb = ds.groupby("aqfrs")
+        for aqf_nr, ds_aqf in ds_gb:
+            if aqf_nr == 0:
+                continue
+            aqf_nrs.append(aqf_nr)
+             #Perhaps all this unstacking slows things down too much. Takes 1 min
+            da_ls.append(ds_aqf["pumpable"].unstack("stacked_z_y_x").all(dim="z"))
+        
+        return(xr.concat(da_ls, dim="aqf_nrs").assign_coords({"aqf_nrs" : aqf_nrs}))
 
-def get_pump_z(aqf_nrs, pump_aqf_nr):
+def get_pump_z(aqfrs, pump_aqf_nr):
     """From an aquifer number, get corresponding z for pumping
     """
-    pump_loc = (aqf_nrs == pump_aqf_nr)
+    pump_loc = (aqfrs == pump_aqf_nr)
     pump_loc = pump_loc.where(pump_loc)
-    pump_z = pump_loc * aqf_nrs.z
+    pump_z = pump_loc * aqfrs.z
     pump_z = (pump_z.min(dim="z") - 20.)
     return(pump_z)
 
@@ -422,10 +453,10 @@ def get_wel_ds(wel, pump_z, pump_aqf_nr):
 
 def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     wf = create_well_field(abstraction_path, geo, bcs, **kwargs)
-    aqf_nrs = geometry.calculate_aqf_nrs(geo, **kwargs)
+    aqfrs = geometry.calculate_aqfrs(geo, **kwargs)
     pumpable = find_pumpable_water(geo, sal)
-    pump_aqf_nr = get_pump_aqf_nr(aqf_nrs, pumpable)
-    pump_z = get_pump_z(aqf_nrs, pump_aqf_nr)
+    pump_aqf_nr = get_pump_aqf(aqfrs, pumpable)
+    pump_z = get_pump_z(aqfrs, pump_aqf_nr)
     
     wel = get_wel_ds(wf.sel(x=wf.x[1:]), pump_z, pump_aqf_nr)
     
