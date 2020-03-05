@@ -86,7 +86,7 @@ def find_cumsum_splits(ls, max_sum):
             comb_sum=p
     
     if split_ls == []:
-        split_ls.append((i+1, comb_sum))
+        split_ls.append((i+2, comb_sum))
     
     return list(zip(*split_ls))
 
