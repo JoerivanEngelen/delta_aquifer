@@ -167,7 +167,7 @@ class Synthetic(object):
         """
         assert(type(init_salt)==str)
         
-        inits = xr.open_dataset(init_salt).isel(time=-1)
+        inits = xr.open_dataset(init_salt).isel(time=-1).drop("time")
         if half2full:
             inits = self._half_da_to_full(inits)
         
