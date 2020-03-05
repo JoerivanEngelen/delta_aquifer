@@ -85,6 +85,9 @@ def find_cumsum_splits(ls, max_sum):
             split_ls.append((i+1,comb_sum))
             comb_sum=p
     
+    if split_ls == []:
+        split_ls.append((i+1, comb_sum))
+    
     return list(zip(*split_ls))
 
 def subdivide_time(t, max_sublen):
@@ -94,6 +97,7 @@ def subdivide_time(t, max_sublen):
     splits, comb_perlens = find_cumsum_splits(perlens, max_sublen)
     
     sub_t = split_list(t, list(splits)+[len(perlens)])
+    sub_t = [s for s in sub_t if s.size != 0] #filter empty lists created if no submodels are needed
     first_el = np.array([sub[0] for sub in sub_t])
     starts, ends = first_el[:-1], first_el[1:]
     
