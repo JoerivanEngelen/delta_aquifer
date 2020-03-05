@@ -74,6 +74,7 @@ class Synthetic(object):
         self.ncfol = ncfol
         self.pars = pars
         self.prepared = False
+        self.wel = None
         
         d1, L_a = self.__initiate_geo(figfol)
         self.d1 = d1
@@ -96,6 +97,10 @@ class Synthetic(object):
             self.wel = bc.create_wells(abstraction_path, self.geo, self.bcs, 
                                        self.sconc.sel(species=1), 
                                        figfol=figfol, **self.pars)
+            
+            self._assign_layers_to_wel()
+
+            
     
     def __initiate_geo(self, figfol):
         """Initiate geometry & geology"""
@@ -125,6 +130,9 @@ class Synthetic(object):
         is_bc = ((self.bcs["sea"]==1) | (self.bcs["river"]==1))
         self.geo = geometry.erosion_aquitards(self.geo, is_bc, self.bcs)
 
+    def _assign_layers_to_wel(self):
+        self.wel["layer"] = pd.cut(self.wel["well_z"], self.topbot[::-1],
+                labels=self.geo.layer.values).astype(np.int64)
 
     def _half_model(self):
         """Cut model in half to speed up calculations"""
@@ -203,7 +211,8 @@ class Synthetic(object):
         self.start_year = 1999 #Must be minimum 1900 for iMOD-SEAWAT
         t_kyear = -1 * (self.ts * 1000 - self.ts[0] * 1000)
         
-        #Adapt the times of bcs and geo
+        #Adapt the times of bcs and geo, this is only used for save_inputs
+        #In the writing process time will be overrided again by sub_ts
         time_util.num2date_ds(t_kyear[-len(self.bcs.time):], self.bcs, self.geo)
         
         
@@ -233,6 +242,15 @@ class Synthetic(object):
         mirror = da.assign_coords(**kwargs)
         return(self._rev_dims(mirror, *dims))
 
+    def revert_dim_for_iMOD(self, da):
+        dx = da.x[1]-da.x[0]
+        dy = da.y[1]-da.y[0]
+        dlayer = da.layer[1] - da.layer[0]
+        
+        revert = ["x", dx < 0,], ["y", dy > 0,],["layer", dlayer < 0]
+        args = [dim for dim, rev in revert if rev]
+        return(self._rev_dims(da, *args))
+
     def _swap_and_reverse_dims(self):
         """extra processing to make iMOD-python accept these DataArrays
         and follow the .IDF format.
@@ -241,12 +259,12 @@ class Synthetic(object):
         
         swap = {"z" : "layer"}
         
-        self.geo = self._rev_dims(self.geo.swap_dims(swap).drop("z"), "layer", "y")
-        self.bcs = self._rev_dims(self.bcs.swap_dims(swap).drop("z"), "layer", "y")
-        self.shd = self._rev_dims(self.shd.swap_dims(swap).drop("z"), "layer", "y")
+        self.geo = self.revert_dim_for_iMOD(self.geo.swap_dims(swap).drop("z"))
+        self.bcs = self.revert_dim_for_iMOD(self.bcs.swap_dims(swap).drop("z"))
+        self.shd = self.revert_dim_for_iMOD(self.shd.swap_dims(swap).drop("z"))
         
-        if self.approx_init==True:
-            self.sconc = self._rev_dims(self.sconc.swap_dims(swap).drop("z"), "layer", "y")
+        if self.sconc.size > 1: #Can be a scalar
+            self.sconc = self.revert_dim_for_iMOD(self.sconc.swap_dims(swap).drop("z"))
 
     def _combine_bcs(self):
         """Combine river and sea, as in the end we put both in the GHB anyway.
