@@ -321,7 +321,7 @@ class Synthetic(object):
 
 #%%Sub model functions
 
-    def __get_timesteps_submod(self, mod_nr):
+    def _get_timesteps_submod(self, mod_nr):
         ts_mod = self.time_sub["ts_sub"][mod_nr]+self.start_year
         sub_end = self.time_sub["ends"][mod_nr]+self.start_year
         
@@ -360,6 +360,11 @@ class Synthetic(object):
         
         return(starting_head, starting_conc)
 
+    def _correct_wel_time(self, timesteps_mod):
+            t_wel = (self.ts[:-1] + self.ts[1:])/2
+            self.wel["time"] = self.wel["time"].replace(dict(zip(t_wel, timesteps_mod)))        
+            assert(np.all(pd.unique(self.wel["time"])==timesteps_mod))
+
 #%%Write
 
     def write_model(self, model_fol, mname, write_first_only=False, max_perlen=1000.):
@@ -369,8 +374,12 @@ class Synthetic(object):
         for mod_nr, (i_start, i_end) in splitted_t:
             print(".........processing model nr. {}..........".format(mod_nr))
             
-            timesteps_mod, endtime = self.__get_timesteps_submod(mod_nr)
+            timesteps_mod, endtime = self._get_timesteps_submod(mod_nr)
 
+            if self.wel is not None:
+                self._correct_wel_time(timesteps_mod)
+                wel = self.wel #TODO: Make sure wells can be split up as well
+            
             bcs_mod, geo_mod = [da.isel(time=slice(i_start, i_end)).assign_coords(
                     time = timesteps_mod) for da in [self.bcs, self.geo]]
                     
@@ -424,6 +433,11 @@ class Synthetic(object):
             
             m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
                                                      concentration=self.bcs["rch_conc"])
+            if self.wel is not None:
+                m["wel"] = imod.wq.Well(wel.index.to_list,
+                                        wel["x"], wel["y"],
+                                        wel["Q"], layer=wel["layer"],
+                                        time=wel["time"].to_list())
             
             m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                          max_iter=1000, 
@@ -452,6 +466,8 @@ class Synthetic(object):
             m["oc"] = imod.wq.OutputControl(save_head_idf=True, 
                                             save_concentration_idf=True, 
                                             save_budget_idf=True)
+            
+            self.model = m
             
             n_timesteps_p1 = 10
             time_util.time_discretization(m, max_perlen, 
