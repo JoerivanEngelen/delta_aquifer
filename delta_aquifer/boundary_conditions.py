@@ -455,6 +455,10 @@ def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     if figfol is not None:
         plot_wel_groups(wel, kwargs["Delta"], figfol)
     
+    wel = wel.to_dataframe().dropna(
+            axis=0, subset=["well_z"]
+            ).reset_index()
+    
     return(wel)
 
 #%%Master function
