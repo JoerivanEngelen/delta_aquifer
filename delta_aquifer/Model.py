@@ -433,11 +433,11 @@ class Synthetic(object):
             
             m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
                                                      concentration=self.bcs["rch_conc"])
-            if self.wel is not None:
-                m["wel"] = imod.wq.Well(wel.index.to_list,
-                                        wel["x"], wel["y"],
-                                        wel["Q"], layer=wel["layer"],
-                                        time=wel["time"].to_list())
+#            if self.wel is not None:
+#                m["wel"] = imod.wq.Well(wel.index.to_list(),
+#                                        wel["x"].to_list(), wel["y"].to_list(),
+#                                        wel["Q"].to_list(), layer=wel["layer"].to_list(),
+#                                        time=wel["time"].to_list())
             
             m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                          max_iter=1000, 
@@ -479,7 +479,9 @@ class Synthetic(object):
             
             directory = os.path.join(model_fol, mname)
             
-            m.write(directory = directory, directstop=True)
+            m.write(directory = directory, 
+                    result_dir = os.path.join(directory, "results"), 
+                    directstop=True)
             
             if (write_first_only==True) & (mod_nr == 0):
                 break    
