@@ -21,6 +21,8 @@ from delta_aquifer import geometry
 import seaborn as sns
 from itertools import product
 
+xr.set_options()
+
 #%%Override xarray function that does not work with NaNs with this hack 
 #This hack probably only works within this context.
 
@@ -228,14 +230,18 @@ def river_3d(
     
     assert type(sea_level) == xr.core.dataarray.DataArray
     assert type(geo) == xr.core.dataarray.Dataset
+
+    top_active_layer = xr.where(geo["IBOUND"]==1, geo.layer, np.nan).min(dim="z")
     
     h_grid, dhdx, outer_ridge = river_grid(geo, sea_level, coastline_rho)
     h_grid = xr.Dataset({"h_grid" : h_grid})
     z_bins = _mid_to_binedges(geo["z"].values)
 
     h_grid = h_grid.groupby_bins("h_grid", z_bins, labels=geo.layer).apply(_dumb).rename({"h_grid_bins" : "h_l"})
+    h_grid = h_grid.sortby("x").sortby("y")
 
-    top_active_layer = xr.where(geo["IBOUND"]==1, geo.layer, np.nan).min(dim="z")
+    #Needed for xarray > 0.15
+    h_grid, top_active_layer = xr.align(h_grid, top_active_layer, join="outer")
 
     #Ensure river layer does not exceed IBOUND.
     h_grid["h_l"] = xr.where(h_grid["h_l"] < top_active_layer, top_active_layer, h_grid["h_l"]) 
