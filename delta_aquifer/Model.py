@@ -433,11 +433,11 @@ class Synthetic(object):
             
             m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
                                                      concentration=self.bcs["rch_conc"])
-#            if self.wel is not None:
-#                m["wel"] = imod.wq.Well(wel.index.to_list(),
-#                                        wel["x"].to_list(), wel["y"].to_list(),
-#                                        wel["Q"].to_list(), layer=wel["layer"].to_list(),
-#                                        time=wel["time"].to_list())
+            if self.wel is not None:
+                m["wel"] = imod.wq.Well(wel["name"].to_list(),
+                                        wel["x"].to_list(), wel["y"].to_list(),
+                                        wel["Q"].to_list(), layer=wel["layer"].to_list(),
+                                        time=wel["time"].to_list())
             
             m["pksf"] = imod.wq.ParallelKrylovFlowSolver(
                                                          max_iter=1000, 
