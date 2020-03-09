@@ -376,6 +376,7 @@ def create_well_field(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
     name = list(wel.keys())[0]
     wel = wel.rename({name : "Q"})
     
+    #Resample and ensure time consistency with rest of bcs
     wel = _resample_Nyear(wel)
     wel = _correct_times(wel, bcs)
     
@@ -434,18 +435,22 @@ def get_pump_aqf(aqfrs, pumpable):
     
     return(aqf_pumpable.min(dim="aqf_nrs"))
 
-def get_pump_z(aqfrs, pump_aqf_nr):
+def get_pump_z(aqfrs, pump_aqf_nr, confining_layer):
     """From an aquifer number, get corresponding z for pumping
     """
     pump_loc = (aqfrs == pump_aqf_nr)
     pump_loc = pump_loc.where(pump_loc)
-    pump_z = pump_loc * aqfrs.z
-    pump_z = (pump_z.min(dim="z") - 20.)
+    pump_z = (pump_loc * aqfrs.z).min(dim="z")
+    
+    #Extraction wells 20 m for any underneath a clayer
+    pump_z = xr.where((pump_aqf_nr==1) & (~confining_layer), pump_z, pump_z-20)
+    
     return(pump_z)
 
 def get_wel_ds(wel, pump_z, pump_aqf_nr):
-    wel["well_z"] = pump_z.sel(y=wel.y, x=wel.x)
-    wel["aqf_nr"] = pump_aqf_nr.sel(y=wel.y, x=wel.x)
+    wel, pump_z, pump_aqf_nr = xr.align(wel, pump_z, pump_aqf_nr) #Force inner join
+    wel["well_z"] = pump_z
+    wel["aqf_nr"] = pump_aqf_nr
     wel["Q"] = wel["Q"].where(~np.isnan(wel["well_z"]))
     return(wel)
 
@@ -454,9 +459,12 @@ def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     aqfrs = geometry.calculate_aqfrs(geo, **kwargs)
     pumpable = find_pumpable_water(geo, sal)
     pump_aqf_nr = get_pump_aqf(aqfrs, pumpable)
-    pump_z = get_pump_z(aqfrs, pump_aqf_nr)
     
-    wel = get_wel_ds(wf.sel(x=wf.x[1:]), pump_z, pump_aqf_nr)
+    confining_layer = (geo["aqt"]==2).max(dim="z")
+    
+    pump_z = get_pump_z(aqfrs, pump_aqf_nr, confining_layer)
+    
+    wel = get_wel_ds(wf, pump_z, pump_aqf_nr)
     
     if figfol is not None:
         plot_wel_groups(wel, kwargs["Delta"], figfol)
@@ -464,6 +472,8 @@ def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     wel = wel.to_dataframe().dropna(
             axis=0, subset=["well_z"]
             ).reset_index()
+    
+    wel["name"] = "well"
     
     return(wel)
 
