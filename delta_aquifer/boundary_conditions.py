@@ -629,7 +629,9 @@ def plot_group(df_group, xlabel, ylabel, fig_path):
 def plot_wel_groups(wel, delta, figfol):
     wel_gb = _prepare_wel_for_groupby(wel)
     q_groups = group_Q(wel_gb)
-    
+
+    data_path = os.path.join(figfol, "..", "data", "well_dist_{}.csv")
+
     x_lab_d = {"count" : "rel number of wells (-)", 
                "sum" : "rel GW abstracted (-)"}
     y_lab_d = {"depth" : "well depth (m)", 
@@ -637,5 +639,12 @@ def plot_wel_groups(wel, delta, figfol):
     
     fig_path = os.path.join(figfol, "{}_Model_{}_{}.png")
     
+    df_d = {"depth" : pd.DataFrame(),
+            "aqf"   : pd.DataFrame()}
+    
     for m, v in product(x_lab_d.keys(), y_lab_d.keys()):
         plot_group(q_groups[v][m], x_lab_d[m], y_lab_d[v], fig_path.format(delta, v, m))
+        df_d[v]["{}".format(m)] = q_groups[v][m]
+    
+    for key, df in df_d.items():
+        df.to_csv(data_path.format(key))
