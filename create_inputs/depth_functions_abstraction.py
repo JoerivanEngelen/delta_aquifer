@@ -32,7 +32,7 @@ def get_Q_per_aqf(df, *Q_cols, func=sum_Q_per_group):
     Q_per_aqf /= Q_per_aqf.values.sum()    
     return(Q_per_aqf)
     
-def get_Q_per_depth(df, depth_col, max_depth, *Q_cols, func=sum_Q_per_group):
+def get_Q_per_depth(df, depth_col, max_depth, *Q_cols, func=sum_Q_per_group, scale=True):
     assign_bin_depths(df, depth_col, max_depth)
     
     Q_per_depth = func(df, "depth (m)", *Q_cols)
@@ -40,7 +40,8 @@ def get_Q_per_depth(df, depth_col, max_depth, *Q_cols, func=sum_Q_per_group):
     mid_depth = bin_to_mids(Q_per_depth.index)
 
     #Scale
-    Q_per_depth /= Q_per_depth.values.sum()
+    if scale==True:
+        Q_per_depth /= Q_per_depth.values.sum()
     
     #For some reason I had to reindex it twice befire the actual index was assigned
     Q_per_depth = Q_per_depth.reindex(mid_depth)
@@ -83,11 +84,19 @@ d = {"aqf_name" : ['QH', 'QP3', 'QP2-3', 'QP23', 'QP1', 'N22', 'N21', 'N13'],
 
 lookup_df = pd.DataFrame(d).set_index("aqf_name")
 
+#Filter names
+filter_ipfs=True
+
+if filter_ipfs:
+    M_ipfs = [ipf for ipf in M_ipfs if "2015" not in ipf]
+    M_ipfs = [ipf for ipf in M_ipfs if "_HCMC" not in ipf]
+
 names = [os.path.splitext(os.path.basename(ipf))[0] for ipf in M_ipfs]
 abs_Mekong = [imod.ipf.read(ipf) for ipf in M_ipfs]
 abs_Mekong = pd.concat([df.assign(name=names[i]) for i, df in enumerate(abs_Mekong)])
 abs_Mekong = abs_Mekong.reset_index(drop = True)
-abs_Mekong = abs_Mekong.drop(columns = ["Aquifer", "Year"])
+if not filter_ipfs:
+    abs_Mekong = abs_Mekong.drop(columns = ["Aquifer", "Year"])
 abs_Mekong["aquifer"] = abs_Mekong["name"].str.replace("2015", "")
 abs_Mekong["aquifer"] = abs_Mekong["aquifer"].str.replace("_HCMC", "")
 abs_Mekong["layer"] = abs_Mekong["aquifer"].replace(lookup_df.to_dict()["layer"])
@@ -120,10 +129,16 @@ Q_sum_depth_Nile     = get_Q_per_depth(*args_Nile, func=sum_Q_per_group)
 Q_count_depth_Nile   = get_Q_per_depth(*args_Nile, func=count_Q_per_group)
 #Q_sum_aqf_Nile       = get_Q_per_aqf(abs_Nile, *args_Nile[3:], func=sum_Q_per_group)
 
+Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
+print(Nile_Q.sum()/497038.69440162915)
+
 args_Mekong = abs_Mekong, "z", 641, "Q"
 Q_sum_depth_Mekong   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group)
 Q_count_depth_Mekong = get_Q_per_depth(*args_Mekong, func=count_Q_per_group)
 Q_sum_aqf_Mekong     = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_per_group)
+
+Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
+print(Mekong_Q.sum()/879522.3821543201)
 
 #%%Testing
 a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
