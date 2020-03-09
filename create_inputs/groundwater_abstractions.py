@@ -111,9 +111,9 @@ df = pd.DataFrame(index = deltas, columns = ["L_a", "phi_f", "azi_mid", "dist_mi
 
 for delta in deltas:
     dist, azi = cgi.get_azi_and_distance(points, delta)
-    df.loc[delta, "L_a"]     = np.average(dist)
-    df.loc[delta, "phi_f"]   = cgi.calculate_phi_f(azi)
-    df.loc[delta, "azi_mid"] = np.sort(cgi.azi_to_angle(azi))[1]
+    df.loc[delta, "L_a"]      = np.average(dist)
+    df.loc[delta, "phi_f"]    = cgi.calculate_phi_f(azi)
+    df.loc[delta, "azi_mid"]  = np.sort(cgi.azi_to_angle(azi))[1]
     df.loc[delta, "dist_mid"] = np.sort(dist)[1]
     df.loc[delta, "geometry"] = Polygon(cgi.sel_delta(points, delta)["geometry"].values)
 
