@@ -44,7 +44,7 @@ else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
     sim_nr = 153
-    write_first_only=True
+    write_first_only=False
     
 mname = "RD_i{:03d}".format(sim_nr)
 
