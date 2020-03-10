@@ -477,7 +477,7 @@ class Synthetic(object):
                                           max_n_transport_timestep=999_999,
                                           transport_initial_timestep=100.)
             
-            directory = os.path.join(model_fol, mname)
+            directory = os.path.join(model_fol, mname, mname_sub)
             
             m.write(directory = directory, 
                     result_dir = os.path.join(directory, "results"), 
