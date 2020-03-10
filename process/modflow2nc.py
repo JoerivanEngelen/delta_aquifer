@@ -72,9 +72,6 @@ def calc_fresh_water_head(head, conc, dense_ref=1000., denselp=0.7143):
     rho_i = dense_ref+conc*denselp
     return(rho_i/dense_ref * head - (rho_i - dense_ref)/dense_ref * head.z)
 
-#%%TODO
-#-Create workflow (path management)
-
 #%%Path management
 if len(sys.argv) > 1:
     modelfol  = sys.argv[1]
