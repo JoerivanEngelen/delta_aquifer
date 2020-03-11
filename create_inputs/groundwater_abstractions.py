@@ -95,7 +95,7 @@ print("...reading...")
 ds = xr.open_dataset(path_ann_abs)
 points = gpd.read_file(path_shp).drop(columns = ["id"])
 points = points[points["Type"] != "shelf"]
-geom = pd.read_csv(path_gm, index_col=0)
+geom = pd.read_csv(path_gm, index_col=0).set_index("Delta")
 
 #%%For easy checking NetCdfs in qgis:
 if save_2D_nc:
