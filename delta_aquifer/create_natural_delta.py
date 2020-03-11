@@ -88,7 +88,7 @@ rclose = sim_par["dx"] * sim_par["dy"] * hclose * ic.c2dens(sim_par["C_f"])
 
 #%%Create synthetic model
 M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol, 
-                    spratt)
-M.prepare(init_salt = True, half_model=True)   
+                    spratt, init_salt = True, half_model=True)
+M.prepare()   
 
 M.write_model(model_fol, mname, write_first_only=write_first_only)
