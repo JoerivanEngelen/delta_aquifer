@@ -40,13 +40,13 @@ fixed_pars = {"t_start" : 12,
 if len(sys.argv) > 1: #For local, interactive testing purposes.
     model_fol  = sys.argv[1]
     sim_nr = int(sys.argv[2])
-    init_path = sys.argv[3]
+    init_fol = sys.argv[3]
     write_first_only=False
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 161
-    init_path = r"g:\30_deltas\synth_RD_i161_m24_7667400" #Note that z-values in this example wrong
+    sim_nr = 217
+    init_fol = r"g:\30_deltas" #Note that z-values in this example wrong
     write_first_only=True
     
 mname = "AD_i{:03d}".format(sim_nr)
@@ -61,6 +61,13 @@ datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "
 
 spratt = os.path.join(datafol, "..", "spratt2016.txt")
 abstraction_f = os.path.join(datafol, "abstractions", "{}.nc")
+
+init_path = os.path.join(init_fol, "synth_RD_i{}_m24_*".format(sim_nr))
+
+n_results = len(glob(init_path))
+
+if n_results != 1:
+    raise ValueError("Should be 1 folder, instead got {} folders".format(n_results))
 
 init_f = glob(os.path.join(init_path, "results_[0-9][0-9][0-9].nc"))
 init_f.sort()
@@ -96,15 +103,7 @@ M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol,
                     init_half2full=True, half_model=False)
 
 #%%Continue processing model
+M.prepare()   
 
-#M.prepare()   
-
-#M.write_model(model_fol, mname, write_first_only=write_first_only)
-
-#%%Test
-#w = M.wel
-#w1 = w.loc[w["time"] == 0.0025]["Q"].sum()*365.25/(sim_par["dx"]*sim_par["dy"])
-#
-#a = xr.open_dataset(abstraction_path)["__xarray_dataarray_variable__"]
-#onshore = (np.isnan(M.bcs.sea.max(dim="z")) & (M.geo["IBOUND"]==1.))
-#a1 = a.sel(time=2014).where(onshore).sum()
+#TODO Add support in iMOD-python for directstop=True
+M.write_model(model_fol, mname, write_first_only=write_first_only)
