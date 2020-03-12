@@ -473,7 +473,13 @@ def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
             axis=0, subset=["well_z"]
             ).reset_index()
     
-    wel["name"] = "well"
+    wel["name"] = "w"
+    wel = wel.reset_index().set_index(["x", "y", "time"]).sort_index()
+    
+    for i, (ind, df) in enumerate(wel.groupby(level=[0, 1])):
+        wel.loc[(ind[0], ind[1], slice(None, None)), "name"] = "w%d"%i
+    
+    wel = wel.reset_index().sort_values("index")
     
     return(wel)
 
