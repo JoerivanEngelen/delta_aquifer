@@ -67,7 +67,12 @@ def _calc_apex(l_a, alpha, L):
 def _calc_shelf_edge(l_b, beta, L):
     return(-L * l_b * np.tan(beta))
 
-def _calc_1D_top_bot(l_a, alpha, beta, gamma, L, H_b, f_H, x): 
+def _calc_1D_top_bot(l_a, alpha, beta, gamma, L, H_b, f_H, x):
+    """Onshore is determined based on where the coastal shelf and coastal slope
+    intersect. Everywhere where the coastal slope is higher than the coastal shelf is 
+    shelf. This leads to quite some non-intuitive code unfortunately for very
+    thick systems, as here the coastal slope never exceeds the shelf.
+    """
     top = np.zeros(x.shape)
     
     L_ab_old = 0
@@ -85,12 +90,18 @@ def _calc_1D_top_bot(l_a, alpha, beta, gamma, L, H_b, f_H, x):
         
         ab_cells = top_ab < top_slope
         
-        L_ab = x[ab_cells][-1]
+        if np.all(ab_cells==False):
+            L_ab = L
+        else:
+            L_ab = x[ab_cells][-1]
     
     c_cells = ~ab_cells
     
-    top[ab_cells] = top_ab[ab_cells]
-    top[c_cells] = top_slope[c_cells]
+    if np.all(c_cells): #For deep systems : We don't want a coastal slope everywhere, should be all shelf
+        top = top_ab
+    else:
+        top[ab_cells] = top_ab[ab_cells]
+        top[c_cells] = top_slope[c_cells]
     
     L_a = L_ab * l_a
     
@@ -542,7 +553,10 @@ def get_geometry(l_a=None,   alpha=None,  beta=None,   gamma=None,   L=None,
     d3 = create_3d_grid(d2_grid, d1, nz)
     d3 = create_lith(d3, d2_grid, N_aqt, pal_mask)
     
-    z_shelf_edge = d1["top"][~d1["slope"]][-1]
+    if np.all(d1["slope"]==True):
+        z_shelf_edge = d1["top"][-1]
+    else:
+        z_shelf_edge = d1["top"][~d1["slope"]][-1]
     d3["edges"] = get_edges(d3["IBOUND"], d2_grid["tops"], z_shelf_edge)
     d3["topsys"], d3["tops"], d3["bots"] = d2_grid["topsys"], d2_grid["tops"], d2_grid["bots"]    
 
