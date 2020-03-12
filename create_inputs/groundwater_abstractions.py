@@ -297,4 +297,4 @@ for delta, da in warp_data.items():
 print("...saving...")
 for delta, da in warp_data.items():
     path_nc = os.path.join(folder_out, "{}.nc".format(delta))
-    da.to_netcdf(path_nc)
+    da.to_netcdf(path_nc, unlimited_dims=["time"])
