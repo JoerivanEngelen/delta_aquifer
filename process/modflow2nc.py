@@ -33,7 +33,7 @@ def find_line(pattern, header):
 
 def pattern2df(pattern, path_listfile):
     with open(path_listfile) as listfile:
-        header = islice(listfile, 0, 20000)
+        header = islice(listfile, 0, 30000)
         lines = find_line(pattern, header)
     return(fwf2df(lines))
 
@@ -78,7 +78,7 @@ if len(sys.argv) > 1:
     mod_nr = int(sys.argv[2])  
 else:
     ##For Testing
-    modelfol = r"g:\test_UCN\RD_i153_nr00"
+    modelfol = r"g:\test_UCN\AD_i153_nr00"
     mod_nr = 0
 
 run_path=os.path.join(modelfol, "*{}.run".format(mod_nr))
