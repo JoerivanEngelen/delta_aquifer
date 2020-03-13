@@ -10,9 +10,7 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 
-from glob import glob
 import os
-import imod
 
 def assign_bin_depths(df, depth_col, max_depth):
     df["depth (m)"] = pd.cut(df[depth_col], np.arange(0, max_depth, 20), duplicates="drop")
@@ -66,15 +64,18 @@ figure_folder   = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Del
 #%%Read
 abs_Nile = pd.read_csv(path_Nile)
 abs_Mekong = pd.read_csv(path_Mekong)
-abs_Mississippi = pd.read_excel(path_Mississippi)
+N_Missi= pd.read_excel(path_Mississippi)
 
 #%%Prepare data Nile
 abs_Nile["Zmid"] = abs_Nile["Zmid"] * -1
 abs_Nile["Q"] = abs_Nile["Q"] * -1
 
 #%%Prepare data Mississippi
-miss_index = pd.IntervalIndex.from_arrays(left  = abs_Mississippi["LowDepth"], 
-                                     right = abs_Mississippi["HighDepth"])
+miss_index = pd.IntervalIndex.from_arrays(left  = N_Missi["LowDepth"], 
+                                          right = N_Missi["HighDepth"])
+
+N_Missi["z"] = miss_index.mid
+N_Missi = N_Missi.loc[N_Missi["z"] < 500.]
 
 #%%Process data for analysis
 args_Nile = abs_Nile, "Zmid", 261, "Q"
@@ -93,6 +94,9 @@ Q_sum_aqf_Mekong     = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_pe
 Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
 print(Mekong_Q.sum()/879522.3821543201)
 
+args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the count
+Q_count_Mississippi = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group)
+
 #%%Testing
 a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
 
@@ -104,3 +108,4 @@ hbar_plot_df(Q_count_depth_Nile, "rel number of wells (-)", os.path.join(figure_
 hbar_plot_df(Q_sum_depth_Mekong, "rel GW abstracted (-)", os.path.join(figure_folder, "Mekong_sum.png"))
 hbar_plot_df(Q_count_depth_Mekong, "rel number of wells (-)", os.path.join(figure_folder, "Mekong_count.png"))
 hbar_plot_df(Q_sum_aqf_Mekong,  "rel GW abstracted (-)", os.path.join(figure_folder, "Mekong_sum_aqf.png"))
+hbar_plot_df(Q_count_Mississippi, "rel number of wells (-)", os.path.join(figure_folder, "Mississippi_count.png"))
