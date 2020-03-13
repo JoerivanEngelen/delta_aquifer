@@ -58,73 +58,26 @@ def hbar_plot_df(df, xlabel, path_out):
     plt.close()    
 
 #%%Path management
-path_Nile = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Nile_Delta\Data\Well_Data\Extractions_All.xlsx"
-path_Mekong_folder = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mekong\Voor_joeri\VERSION_1"
+path_Nile = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Nile\Nile_wells.csv"
+path_Mekong = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mekong\Wells_Mekong.csv"
+path_Mississippi = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mississippi\miss_wells.xlsx"
 figure_folder   = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\depth_abstractions"
 
-M_ipfs = glob(os.path.join(path_Mekong_folder, "WEL", "*.IPF"))
-M_bots = glob(os.path.join(path_Mekong_folder, "BOT", "*.IDF"))
-M_tops = glob(os.path.join(path_Mekong_folder, "TOP", "*.IDF"))
-
 #%%Read
-abs_Nile = pd.read_excel(path_Nile)
+abs_Nile = pd.read_csv(path_Nile)
+abs_Mekong = pd.read_csv(path_Mekong)
+abs_Mississippi = pd.read_excel(path_Mississippi)
 
 #%%Prepare data Nile
-abs_Nile["Screen_Mid"] = (abs_Nile["Screen_Top"] + abs_Nile["Screen_Bottom"])/2
+abs_Nile["Zmid"] = abs_Nile["Zmid"] * -1
+abs_Nile["Q"] = abs_Nile["Q"] * -1
 
-abs_Nile = abs_Nile[abs_Nile["Screen_Mid"] < 1000.]
-abs_Nile = abs_Nile.dropna(subset=["Irrigation", "Drinking", "Industrial", "Conjunctive_Use"])
-
-#%%Prepare data Mekong
-import xarray as xr
-
-d = {"aqf_name" : ['QH', 'QP3', 'QP2-3', 'QP23', 'QP1', 'N22', 'N21', 'N13'],
-     "layer"  : [3, 5, 7, 7, 9, 11, 13, 15],
-     "aqf_nr" : [1, 2, 3, 3, 4, 5, 6, 7]}
-
-lookup_df = pd.DataFrame(d).set_index("aqf_name")
-
-#Filter names
-filter_ipfs=True
-
-if filter_ipfs:
-    M_ipfs = [ipf for ipf in M_ipfs if "2015" not in ipf]
-    M_ipfs = [ipf for ipf in M_ipfs if "_HCMC" not in ipf]
-
-names = [os.path.splitext(os.path.basename(ipf))[0] for ipf in M_ipfs]
-abs_Mekong = [imod.ipf.read(ipf) for ipf in M_ipfs]
-abs_Mekong = pd.concat([df.assign(name=names[i]) for i, df in enumerate(abs_Mekong)])
-abs_Mekong = abs_Mekong.reset_index(drop = True)
-if not filter_ipfs:
-    abs_Mekong = abs_Mekong.drop(columns = ["Aquifer", "Year"])
-abs_Mekong["aquifer"] = abs_Mekong["name"].str.replace("2015", "")
-abs_Mekong["aquifer"] = abs_Mekong["aquifer"].str.replace("_HCMC", "")
-abs_Mekong["layer"] = abs_Mekong["aquifer"].replace(lookup_df.to_dict()["layer"])
-abs_Mekong["aqf_nr"] = abs_Mekong["aquifer"].replace(lookup_df.to_dict()["aqf_nr"])
-abs_Mekong["Q"] *= -1
-
-tops_Mekong = xr.concat([imod.idf.open(top) for top in M_tops], dim="layer").sortby("layer")
-bots_Mekong = xr.concat([imod.idf.open(bot) for bot in M_bots], dim="layer").sortby("layer")
-
-bots_Mekong = bots_Mekong.assign_coords(layer = bots_Mekong.layer-1)
-
-z = (tops_Mekong + bots_Mekong)/2
-
-kwargs = dict(x     = xr.DataArray(abs_Mekong["X"],     dims="index", coords = {"index" : abs_Mekong.index }),
-              y     = xr.DataArray(abs_Mekong["Y"],     dims="index"),
-              layer = xr.DataArray(abs_Mekong["layer"], dims="index"), 
-              method="nearest")
-
-z_select   = z.sel(**kwargs)
-bot_select = bots_Mekong.sel(**kwargs)
-top_select = tops_Mekong.sel(**kwargs)
-
-abs_Mekong["z"] = z_select.values *-1
-abs_Mekong["top"] = top_select.values
-abs_Mekong["bot"] = bot_select.values
+#%%Prepare data Mississippi
+miss_index = pd.IntervalIndex.from_arrays(left  = abs_Mississippi["LowDepth"], 
+                                     right = abs_Mississippi["HighDepth"])
 
 #%%Process data for analysis
-args_Nile = abs_Nile, "Screen_Mid", 321, "Irrigation", "Drinking", "Industrial", "Conjunctive_Use"
+args_Nile = abs_Nile, "Zmid", 261, "Q"
 Q_sum_depth_Nile     = get_Q_per_depth(*args_Nile, func=sum_Q_per_group)
 Q_count_depth_Nile   = get_Q_per_depth(*args_Nile, func=count_Q_per_group)
 #Q_sum_aqf_Nile       = get_Q_per_aqf(abs_Nile, *args_Nile[3:], func=sum_Q_per_group)
