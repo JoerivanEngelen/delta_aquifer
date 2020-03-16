@@ -81,6 +81,8 @@ ts = ts / 1000.
 
 #%%Solver settings
 hclose = 2e-4
+if sim_nr in [16, 27, 29]:
+    hclose = 4e-4
 
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
 #its fluxes in mass, RCLOSE has to be multiplied with the reference density. 
