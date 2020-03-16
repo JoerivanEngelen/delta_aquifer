@@ -59,12 +59,15 @@ def hbar_plot_df(df, xlabel, path_out):
 path_Nile = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Nile\Nile_wells.csv"
 path_Mekong = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mekong\Wells_Mekong.csv"
 path_Mississippi = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mississippi\miss_wells.xlsx"
+path_NL = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Rhine-Meuse\wel_NL.csv"
+
 figure_folder   = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\depth_abstractions"
 
 #%%Read
 abs_Nile = pd.read_csv(path_Nile)
 abs_Mekong = pd.read_csv(path_Mekong)
 N_Missi= pd.read_excel(path_Mississippi)
+abs_NL = pd.read_csv(path_NL)
 
 #%%Prepare data Nile
 abs_Nile["Zmid"] = abs_Nile["Zmid"] * -1
@@ -76,6 +79,10 @@ miss_index = pd.IntervalIndex.from_arrays(left  = N_Missi["LowDepth"],
 
 N_Missi["z"] = miss_index.mid
 N_Missi = N_Missi.loc[N_Missi["z"] < 500.]
+
+#%%Prepare data NL
+abs_NL["z"] = abs_NL["z"] * -1
+abs_NL["q"] = abs_NL["q"] * -1
 
 #%%Process data for analysis
 args_Nile = abs_Nile, "Zmid", 261, "Q"
@@ -97,6 +104,10 @@ print(Mekong_Q.sum()/879522.3821543201)
 args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the count
 Q_count_Mississippi = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group)
 
+args_NL = abs_NL, "z", 361, "q"
+Q_sum_depth_NL = get_Q_per_depth(*args_NL, func=sum_Q_per_group)
+Q_count_depth_NL = get_Q_per_depth(*args_NL, func=count_Q_per_group)
+
 #%%Testing
 a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
 
@@ -109,3 +120,5 @@ hbar_plot_df(Q_sum_depth_Mekong, "rel GW abstracted (-)", os.path.join(figure_fo
 hbar_plot_df(Q_count_depth_Mekong, "rel number of wells (-)", os.path.join(figure_folder, "Mekong_count.png"))
 hbar_plot_df(Q_sum_aqf_Mekong,  "rel GW abstracted (-)", os.path.join(figure_folder, "Mekong_sum_aqf.png"))
 hbar_plot_df(Q_count_Mississippi, "rel number of wells (-)", os.path.join(figure_folder, "Mississippi_count.png"))
+hbar_plot_df(Q_sum_depth_NL,  "rel GW abstracted (-)", os.path.join(figure_folder, "NL_sum_depth.png"))
+hbar_plot_df(Q_count_depth_NL, "rel number of wells (-)", os.path.join(figure_folder, "NL_count_depth.png"))
