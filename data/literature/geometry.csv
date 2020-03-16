@@ -7,7 +7,7 @@ Pearl,China,250,250,2.86E-05,1.00E-03,2.20E-02,15,50,0.3,"(Wang and Jiao, 2012; 
 Yangtze,China,500,150,6.00E-05,3.00E-04,5.00E-03,50,250,0.2,"(Shi et al. 2012, Xue et al., 2008)",
 Red River,Vietnam,500,177,5.00E-05,3.54E-04,2.25E-02,40,150,0.266666667,"(Larsen et al., 2017; Winkel et al., 2011)",
 Ganges-Brahmaputra,Bangladesh,200,100,9.00E-05,5.00E-04,2.60E-02,250,500,0.5,"(Bonsor et al., 2017)",
-Yellow River,China,1000,150,1.00E-03,1.50E-04,5.00E-03,0,300,0,"(Han et al., 2011)",
+Yellow River,China,1000,150,1.00E-03,1.50E-04,5.00E-03,30,300,0.1,"(Han et al., 2011)",
 Rhone,France,75,100,1.10E-04,1.33E-03,2.67E-02,20,100,0.2,"(de Montety et al., 2008)",
 Po,Italy,500,200,4.00E-05,4.00E-04,1.33E-02,NaN,1000,NaN,"(Teatini et al., 2011)",
 Burdekin,Australia,120,80,5.00E-04,6.67E-04,1.60E-02,10,100,0.1,"(Fass et al., 2007) (McMahon, 2000)",
