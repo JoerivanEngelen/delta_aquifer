@@ -78,6 +78,8 @@ def _calc_1D_top_bot(l_a, alpha, beta, gamma, L, H_b, f_H, x):
     L_ab_old = 0
     L_ab = L
     
+    count=0
+    
     #Iteratively create crosssection as we do not know where the slope and
     #the coastal shelf will intersect
     while np.isclose(L_ab, L_ab_old) == False:
@@ -94,7 +96,12 @@ def _calc_1D_top_bot(l_a, alpha, beta, gamma, L, H_b, f_H, x):
             L_ab = L
         else:
             L_ab = x[ab_cells][-1]
-    
+        
+        count+=1
+        if count>999:
+            raise ValueError("Stuck in infinite loop, geometry did not converge."
+                             +"\nL_ab_old=%d \nL_ab=%d" % (L_ab_old, L_ab))
+        
     c_cells = ~ab_cells
     
     if np.all(c_cells): #For deep systems : We don't want a coastal slope everywhere, should be all shelf
