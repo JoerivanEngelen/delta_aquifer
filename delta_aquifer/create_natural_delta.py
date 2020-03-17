@@ -43,7 +43,7 @@ if len(sys.argv) > 1: #For local, interactive testing purposes.
 else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
-    sim_nr = 153
+    sim_nr = 64
     write_first_only=True
     
 mname = "RD_i{:03d}".format(sim_nr)
@@ -68,7 +68,6 @@ par = pd.concat([par, fixed_pars], axis=1)
 
 #%%Select simulation parameters
 sim_par = par.loc[sim_nr]
-
 #%%Set ts
 ts = np.array([30000, 25000, 20000, 15000, 13000, 12000, 11000, 10000, 9000,
                8000, 7000, 6000, 5000,  4000, 3000, 2000, 1000, 0])
@@ -81,7 +80,7 @@ ts = ts / 1000.
 
 #%%Solver settings
 hclose = 2e-4
-if sim_nr in [16, 27, 29]:
+if sim_nr in [16, 27, 29, 91]:
     hclose = 4e-4
 
 #Rule of thumb for 3D MODFLOW models is dx*dy*hclose. Since SEAWAT expresses
