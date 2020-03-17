@@ -13,7 +13,7 @@ import re
 #%%Path management
 if len(sys.argv) > 1:
     modelfol  = sys.argv[1]
-    mod_nr = sys.argv[2]
+    mod_nr = int(sys.argv[2])
 else:
     #Local testing on my own windows laptop
     modelfol = r"g:\test_UCN\RD_i153_nr00"
