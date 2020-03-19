@@ -46,7 +46,7 @@ else:
     #Local testing on my own windows laptop
     model_fol = r"c:\Users\engelen\test_imodpython\synth_delta_test"
     sim_nr = 217
-    init_fol = r"g:\30_deltas" #Note that z-values in this example wrong
+    init_fol = r"c:\Users\engelen\test_imodpython\test_results_30_deltas" #Note that z-values in this example wrong
     write_first_only=True
     
 mname = "AD_i{:03d}".format(sim_nr)
@@ -62,7 +62,7 @@ datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "
 spratt = os.path.join(datafol, "..", "spratt2016.txt")
 abstraction_f = os.path.join(datafol, "abstractions", "{}.nc")
 
-init_path = os.path.join(init_fol, "synth_RD_i{}_m24_*".format(sim_nr))
+init_path = os.path.join(init_fol, "synth_RD_i{:03d}_m24_*".format(sim_nr))
 
 n_results = len(glob(init_path))
 
@@ -103,7 +103,7 @@ M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol,
                     init_half2full=True, half_model=False)
 
 #%%Continue processing model
-M.prepare()   
+M.prepare()
 
 #TODO Add support in iMOD-python for directstop=True
 M.write_model(model_fol, mname, write_first_only=write_first_only)
