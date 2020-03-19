@@ -426,6 +426,7 @@ def get_pump_aqf(aqfrs, pumpable):
     for aqf_nr in aqf_nrs:
         #Warning, da.all of an allNaN slice returns True. 
         #This causes cells on the coastal slope to be considered pumpable
+        #since wells are only allowed onshore, this should not matter.
         da = pumpable.where(aqfrs==aqf_nr)
         all_nan = np.isnan(da).all(dim="z")
         da_ls.append(da.all(dim="z").where(~all_nan)) 
@@ -447,6 +448,18 @@ def get_pump_z(aqfrs, pump_aqf_nr, confining_layer):
     
     return(pump_z)
 
+def consistent_total_pumping(Q_tot, Q):
+    """Ensure that total amount of pumping is consistent in delta.
+    PCR-GLOBWB does not incorporate water quality so we correct for
+    that. Saline cells are deactivated in this model, so we multiply 
+    the abstractions by a factor to ensure the total amount of
+    groundwater pumped is conistent per delta
+    """
+    Q_tot_wel = Q.sum(dim=["x", "y"])
+    print(Q_tot_wel)
+    
+    return(Q/(Q_tot_wel/Q_tot))
+
 def get_wel_ds(wel, pump_z, pump_aqf_nr):
     wel, pump_z, pump_aqf_nr = xr.align(wel, pump_z, pump_aqf_nr) #Force inner join
     wel["well_z"] = pump_z
@@ -456,6 +469,8 @@ def get_wel_ds(wel, pump_z, pump_aqf_nr):
 
 def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     wf = create_well_field(abstraction_path, geo, bcs, **kwargs)
+    Q_tot = wf["Q"].sum(dim=["x", "y"])
+    
     aqfrs = geometry.calculate_aqfrs(geo, **kwargs)
     pumpable = find_pumpable_water(geo, sal)
     pump_aqf_nr = get_pump_aqf(aqfrs, pumpable)
@@ -465,6 +480,8 @@ def create_wells(abstraction_path, geo, bcs, sal, figfol=None, **kwargs):
     pump_z = get_pump_z(aqfrs, pump_aqf_nr, confining_layer)
     
     wel = get_wel_ds(wf, pump_z, pump_aqf_nr)
+    
+    wel["Q"] = consistent_total_pumping(Q_tot, wel["Q"])
     
     if figfol is not None:
         plot_wel_groups(wel, kwargs["Delta"], figfol)
