@@ -94,9 +94,12 @@ class Synthetic(object):
             self.assign_init_species=True
     
         if abstraction_path is not None:
+            if self.assign_init_species == False:
+                sal = self.sconc.sel(species=1)
+            else:
+                sal = 0
             self.wel = bc.create_wells(abstraction_path, self.geo, self.bcs, 
-                                       self.sconc.sel(species=1), 
-                                       figfol=figfol, **self.pars)
+                                       sal, figfol=figfol, **self.pars)
             
             self._assign_layers_to_wel()
 
@@ -431,8 +434,9 @@ class Synthetic(object):
                                                    density=ic.c2dens(bcs_mod["conc"].sel(species=1)), 
                                                    concentration=bcs_mod["conc"])
             
-            m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
-                                                     concentration=self.bcs["rch_conc"])
+            if self.pars["R"] != 0:
+                m["rch"] = imod.wq.RechargeHighestActive(rate=bcs_mod["rch"],
+                                                         concentration=self.bcs["rch_conc"])
             if self.wel is not None:
                 m["wel"] = imod.wq.Well(wel["name"].to_list(),
                                         wel["x"].to_list(), wel["y"].to_list(),
