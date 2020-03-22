@@ -182,7 +182,9 @@ class Synthetic(object):
     def _create_initial_conditions(self, init_salt=False):
         print("...creating initial conditions...")
         assert(type(init_salt)==bool)
-        if init_salt:
+        bcs_clipped = ((len(self.ts)-1)!=len(self.bcs.time))
+        
+        if init_salt and not bcs_clipped:
             salt_depth = 1000. #Set to depth at which salt begins way above 
                               #surface level so that everything is definitely salt
         else:
