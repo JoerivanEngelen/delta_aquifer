@@ -32,7 +32,8 @@ def add_timesteps(max_perlen, times, nper_extra):
     nu_times.append(times[-1])   
     return(nu_times)
 
-def time_discretization(model, max_perlen, endtime, starttime=None, n_timesteps_p1=1, **kwargs):
+def time_discretization(model, max_perlen, endtime, starttime=None, n_timesteps_p1=1, n_timesteps_rest=1,
+                        **kwargs):
     """
     Collect all unique times and subdivide. Adapted from the function in imod/wq/model.py
     """
@@ -63,7 +64,7 @@ def time_discretization(model, max_perlen, endtime, starttime=None, n_timesteps_
         nu_duration, coords={"time": np.array(nu_times)[:-1]}, dims=("time",)
     )
     
-    n_timesteps=xr.full_like(timestep_duration, 1).astype(np.int64)
+    n_timesteps=xr.full_like(timestep_duration, n_timesteps_rest).astype(np.int64)
     n_timesteps[0]=n_timesteps_p1
     
     model["time_discretization"] = imod.wq.TimeDiscretization(
