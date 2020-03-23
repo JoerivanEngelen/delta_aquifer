@@ -106,4 +106,5 @@ M = Model.Synthetic(sim_par.to_dict(), ts, hclose, rclose, figfol, ncfol,
 M.prepare()
 
 #TODO Add support in iMOD-python for directstop=True
-M.write_model(model_fol, mname, write_first_only=write_first_only, n_timesteps_rest=10)
+M.write_model(model_fol, mname, write_first_only=write_first_only,
+              transport_initial_timestep=1.)

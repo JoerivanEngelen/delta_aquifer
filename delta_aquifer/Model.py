@@ -372,7 +372,8 @@ class Synthetic(object):
 
 #%%Write
 
-    def write_model(self, model_fol, mname, write_first_only=False, max_perlen=1000., n_timesteps_rest=1):
+    def write_model(self, model_fol, mname, write_first_only=False, max_perlen=1000., n_timesteps_rest=1, 
+                    transport_initial_timestep=100.):
         if self.prepared == False:
             raise ValueError("Model has not been prepared. Please call Synthetic.prepare() first")
         splitted_t = enumerate(zip(self.time_sub["splits"][:-1], self.time_sub["splits"][1:]))
@@ -482,7 +483,7 @@ class Synthetic(object):
                                           n_timesteps_rest=n_timesteps_rest,
                                           timestep_multiplier=7.,
                                           max_n_transport_timestep=999_999,
-                                          transport_initial_timestep=100.)
+                                          transport_initial_timestep=transport_initial_timestep)
             
             directory = os.path.join(model_fol, mname, mname_sub)
             
