@@ -382,7 +382,8 @@ def create_well_field(abstraction_path, geo, bcs, dx=None, dy=None, **kwargs):
     
     #Unit conversions
     wel["Q"] = wel["Q"] * dx * dy #m/year to m3/year
-    wel["Q"] = wel["Q"] / 365.25 #m3/year to m3/d
+    wel["Q"] = wel["Q"] / 365.25  #m3/year to m3/d
+    wel["Q"] = wel["Q"] * -1      #Well extraction negative in MODFLOW
     
     return(wel)
 
