@@ -8,7 +8,7 @@ import math
 
 #Path management
 fol=sys.argv[1]
-nc_paths = glob.glob(os.path.join(fol, "*[0-9][0-9][0-9].nc"))
+nc_paths = glob.glob(os.path.join(fol, "results_[0-9][0-9][0-9].nc"))
 nc_paths.sort()
 
 bc_path=os.path.join(fol, "input", "data", "bcs.nc")
