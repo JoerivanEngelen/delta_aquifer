@@ -95,7 +95,7 @@ ant_results=glob(os.path.join(ant_fol, "results_[0-9][0-9][0-9].nc"))
 
 #%%Read
 ds = xr.open_mfdataset(nat_results, 
-                       chunks={"time" : 2, "z": -1, "y": -1, "x": -1},
+                       chunks={"time" : 10, "z": -1, "y": -1, "x": -1},
                        combine="nested",
                        concat_dim="time")
 
@@ -122,6 +122,8 @@ onshore = (ds["conc1"].x <= get_coastline(active))
 onshore_ant = (ds_ant["conc1"].x <= get_coastline(active_ant))
 
 mas, vol = get_mas_and_vol(ds, onshore, active)
+mas = mas * 2
+vol = vol * 2
 mas_ant, vol_ant = get_mas_and_vol(ds_ant, onshore_ant, active_ant)
 
 mas = xr.concat([mas, mas_ant], dim="time")
