@@ -226,7 +226,8 @@ def save_frames(out_frames, out_path):
 
 #%%Settings
 plot_trajectories=False
-plot_inputs=True
+plot_inputs=False
+plot_deltas=True
 
 #%%Figsizes
 agu_small = (9.5/2.54, 11.5/2.54)
@@ -240,22 +241,61 @@ if len(sys.argv) > 1:
     out_fol = sys.argv[2]
 else:
     #Local testing on my own windows laptop
-    globpath = r"g:\synthdelta\results\gifs\*.gif"
-    out_fol = r"g:\synthdelta\results"
+#    globpath = r"g:\synthdelta\results\gifs\*.gif"
+#    out_fol = r"g:\synthdelta\results"
+    globpath = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas\Natural\*.gif"
+    out_fol = os.path.join(globpath, "..", "..")
+    
 
 files = glob(globpath)
 files.sort()
 
 #Path with text aid
-datafol  = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
-traj_id  = os.path.join(datafol, "traj_id.csv")
-text_path = os.path.join(datafol, "text_aid.csv")
+datafol   = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
+traj_id   = os.path.join(datafol, "sensitivity_analysis", "traj_id.csv")
+text_path = os.path.join(datafol, "sensitivity_analysis", "text_aid.csv")
+delta_id  = os.path.join(datafol, "30_deltas", "model_inputs.csv")
 
-#%%Get text aids
+
+#%%Get text aids deltas
+delta_len = 9
+
+df = pd.read_csv(delta_id, index_col=0)
+from itertools import product
+
+texts_dlta = product("-+|", "+-|")
+texts_dlta = ["Kh_af{}-Kv_at{}".format(*t) for t in texts_dlta]
+
+#%%Plot all deltas
+to_finish = np.array([9, 18, 27, 63, 198, 207])
+re_render = np.array([54, 90])
+
+starts = np.array([0, 9, 18, 27, 36, 45, 54, 63, 81, 90, 153, 171, 198, 207, 216])
+starts = starts[~np.isin(starts, to_finish)]
+starts = starts[~np.isin(starts, re_render)]
+stops = starts+delta_len
+
+texts_dlta = texts_dlta * 30 #30 deltas
+
+if plot_deltas:
+    for start, stop in zip(starts, stops):
+        print(r"%d-%d" % (start, stop))
+        files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
+        assert(len(files_mod)==delta_len)
+        
+        nrows, ncols = 3, 3
+        mod_idx = slice(start, stop)
+        out_frames = create_frames(files_mod, texts_dlta[mod_idx], nrows, ncols, start=start)
+        
+        #Save
+        out_path = os.path.join(out_fol, "RD_i{:03d}-{:03d}.%s".format(start, stop-1))
+        save_frames(out_frames, out_path)
+
+#%%Get text aids sensitivity
 traj_len = 24
 
-diff = get_changes(traj_id, traj_len)
-texts = create_texts(diff, traj_len)
+diff_sa = get_changes(traj_id, traj_len)
+texts_sa = create_texts(diff_sa, traj_len)
 
 #%%Plot all trajectories
 skip = [96, 216]
@@ -272,7 +312,7 @@ if plot_trajectories:
         
         nrows, ncols = 3, 8 
         mod_idx = slice(start, stop)
-        out_frames = create_frames(files_mod, texts[mod_idx], nrows, ncols, start=start)
+        out_frames = create_frames(files_mod, texts_sa[mod_idx], nrows, ncols, start=start)
         
         #Save
         out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop-1))
@@ -283,7 +323,7 @@ bad_chars = r"{}\\/"
 pattern = re.compile('[%s]' % bad_chars)
 
 if plot_inputs:
-    df_text = pd.DataFrame(texts, columns=["par"])
+    df_text = pd.DataFrame(texts_sa, columns=["par"])
     invalid_ids = np.concatenate([np.arange(s, s+traj_len) for s in skip])
     
     inps = list(np.unique(df_text["par"].str[1:-2])) #Strip of sign (dollar signs)
