@@ -41,9 +41,15 @@ def get_coastline(active):
 def spat_sum(da, name):
     return(da.sum(dim=["x", "y", "z"]).rename(name))
 
-def get_mas_and_vol(ds, onshore, active):
+def get_mas_and_vol(ds, coastline, active):
+    onshore = (ds["conc1"].x <= coastline)
     fw_vols  = xr.where(active & (ds["conc1"] < 5.),
                         ds["vol"], 0)
+   
+    #Calculate distance from contemporary coastline, positive is intrusion onshore
+    distance_from_coastline = (ds.x - coastline.drop(["time", "z", "layer"])) * -1
+    intrusion_length = xr.where(active & (ds["conc1"] > 17.5),
+                        distance_from_coastline, np.nan)
     
     fw_vols_offshore = fw_vols.where(~onshore, 0)
     
@@ -58,13 +64,14 @@ def get_mas_and_vol(ds, onshore, active):
     ol_masses = sal_masses*ds["conc2"]
     
     mas={}
+    mas["x_sal"]       = intrusion_length.max(dim=["x", "y", "z"])
     mas["sal"]         = spat_sum(sal_masses, "sal")
     mas["ol_sal"]      = spat_sum(ol_masses, "ol_sal")
     mas["sal_onshore"] = spat_sum(xr.where(onshore, 
                            sal_masses, 0), "sal_onshore")
-    mas["ol_sal_onshore"] = spat_sum(xr.where(onshore, 
+    mas["ol_sal_onshore"]  = spat_sum(xr.where(onshore, 
                                ol_masses, 0), "ol_sal_onshore")
-    mas["sal_offshore"] = mas["sal"] - mas["sal_onshore"]
+    mas["sal_offshore"]    = mas["sal"] - mas["sal_onshore"]
     mas["ol_sal_offshore"] = mas["ol_sal"] - mas["ol_sal_onshore"]
     mas = xr.Dataset(data_vars=mas)
     
@@ -76,6 +83,16 @@ def get_mas_and_vol(ds, onshore, active):
     vol["fw_offshore"] = spat_sum(fw_vols_offshore, "fw_offshore")
     vol["fw_onshore"]  = vol["fw"] - vol["fw_offshore"]
     vol = xr.Dataset(data_vars=vol)
+
+    #Metadata for times
+    units = "days since 0000-01-01"
+    calendar = '365_day'
+    
+    mas["time"].encoding["units"] = units
+    mas["time"].encoding["calendar"] = calendar
+    vol["time"].encoding["units"] = units
+    vol["time"].encoding["calendar"] = calendar
+
     return(mas, vol)
 
 #%%Input control
@@ -101,21 +118,21 @@ ds = xr.open_mfdataset(nat_results,
 ds["vol"] = np.abs(ds.dx * ds.dy * ds.dz)
 
 active = (ds["conc1"] > -1.).isel(time=-1)
-onshore = (ds["conc1"].x <= get_coastline(active))
+coastline = get_coastline(active)
 
-mas, vol = get_mas_and_vol(ds, onshore, active)
+mas, vol = get_mas_and_vol(ds, coastline, active)
 mas = mas * 2
+mas["x_sal"] = mas["x_sal"]/2
 vol = vol * 2
 
-#%%Metadata for times
-units = "days since 0000-01-01"
-calendar = '365_day'
-
-mas["time"].encoding["units"] = units
-mas["time"].encoding["calendar"] = calendar
-vol["time"].encoding["units"] = units
-vol["time"].encoding["calendar"] = calendar
+mas_pump, vol_pump = get_mas_and_vol(ds.sel(z=slice(None, -300)), 
+                                     coastline, active.sel(z=slice(None, -300)))
+mas_pump = mas_pump * 2
+mas_pump["x_sal"] = mas_pump["x_sal"]/2
+vol_pump = vol_pump * 2
 
 #%%Save
 mas.to_netcdf(os.path.join(nat_fol, "mas_i{:03d}.nc".format(sim_nr)))
 vol.to_netcdf(os.path.join(nat_fol, "vol_i{:03d}.nc".format(sim_nr)))
+mas_pump.to_netcdf(os.path.join(nat_fol, "mas_pump_i{:03d}.nc".format(sim_nr)))
+vol_pump.to_netcdf(os.path.join(nat_fol, "vol_pump_i{:03d}.nc".format(sim_nr)))
