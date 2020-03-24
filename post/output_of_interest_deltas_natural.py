@@ -122,13 +122,13 @@ coastline = get_coastline(active)
 
 mas, vol = get_mas_and_vol(ds, coastline, active)
 mas = mas * 2
-mas["x_sal"] = mas["x_sal"]/2
+mas["x_sal"] = mas["x_sal"]/2 #Only masses should be multiplied by 2, not length in x-direction
 vol = vol * 2
 
 mas_pump, vol_pump = get_mas_and_vol(ds.sel(z=slice(None, -300)), 
                                      coastline, active.sel(z=slice(None, -300)))
 mas_pump = mas_pump * 2
-mas_pump["x_sal"] = mas_pump["x_sal"]/2
+mas_pump["x_sal"] = mas_pump["x_sal"]/2 #Only masses should be multiplied by 2, not length in x-direction
 vol_pump = vol_pump * 2
 
 #%%Save
