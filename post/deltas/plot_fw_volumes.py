@@ -14,6 +14,9 @@ from glob import glob
 import numpy as np
 import re
 
+
+from itertools import product
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -23,7 +26,38 @@ def get_model_id(file):
     number = int(re.search(pattern, file).group(1))
     return(number)
 
-#%%
+#%%Function to process data
+def t_to_ka(ds):
+    return([t.year/1000 for t in ds.time.values[::-1]])
+
+#%%Function to adapt plot
+def label_offset(ax, axis="y"):
+    if axis == "y":
+        fmt = ax.yaxis.get_major_formatter()
+        ax.yaxis.offsetText.set_visible(False)
+        set_label = ax.set_ylabel
+#        label = ax.get_ylabel()
+        label = "$V_{fw}$"
+    
+    elif axis == "x":
+        fmt = ax.xaxis.get_major_formatter()
+        ax.xaxis.offsetText.set_visible(False)
+        set_label = ax.set_xlabel
+        label = ax.get_xlabel()
+
+    def update_label(event_axes):
+        offset = fmt.get_offset()
+        if offset == '':
+            set_label("{} (m3)".format(label))
+        else:
+            minus_sign = u'\u2212'
+            expo = np.float(offset.replace(minus_sign, '-').split('e')[-1])
+            set_label("%s ($\mathregular{10^{%d}}$ m3)" % (label, expo))    
+
+    ax.callbacks.connect("ylim_changed", update_label)
+    ax.callbacks.connect("xlim_changed", update_label)
+    ax.figure.canvas.draw()
+    update_label(None)
 
 #%%Path management
 datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
@@ -39,13 +73,11 @@ par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
 #%%Create start and endpoints
 delta_len = 9
 
-to_finish = np.array([9, 18, 27, 63, 198, 207])
+to_finish = np.array([9, 18, 63, 198, 207])
 
 starts = np.array([0, 9, 18, 27, 36, 45, 54, 63, 81, 90, 153, 171, 198, 207, 216])
 starts = starts[~np.isin(starts, to_finish)]
 stops = starts+delta_len
-
-from itertools import product
 
 k_values = list(product(["min ", "max ", "mean "], ["max", "min", "mean"]))
 k_values = pd.DataFrame([[i, j] for (i, j) in list(k_values)], columns=["Kh_aqf", "Kv_aqt"])
@@ -54,15 +86,12 @@ k_values = pd.DataFrame([[i, j] for (i, j) in list(k_values)], columns=["Kh_aqf"
 ds_deltas = {}
 for start, stop in zip(starts, stops):
         delta_name = par.loc[start, "Delta"]
-#        k_values = par.loc[slice(start, stop-1), ["Kh_aqf", "Kv_aqt"]].reset_index(drop=True)
         
         files_mod = [i for i in vol_f if get_model_id(i) in range(start, stop)]
         assert(len(files_mod)==delta_len)
         
         ds_deltas[delta_name] = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
-        ds_deltas[delta_name] = [ds.assign_coords(
-                time=[t.year/1000 for t in ds.time.values[::-1]]
-                ) for ds in ds_deltas[delta_name]]
+        ds_deltas[delta_name] = [ds.assign_coords(time=t_to_ka(ds)) for ds in ds_deltas[delta_name]]
         
         ds_deltas[delta_name] = [ds.to_dataframe().reset_index().assign(
                 **k_values.loc[i].to_dict()
@@ -71,16 +100,33 @@ for start, stop in zip(starts, stops):
         ds_deltas[delta_name] = pd.concat(ds_deltas[delta_name])
 
 df_deltas = pd.concat([ds.assign(delta=delta) for delta, ds in ds_deltas.items()])
+df_deltas = df_deltas.rename(columns={"time" : "time (ka)"})
 
 #%%
-sns.set(style="whitegrid")
-paper_rc = {'lines.linewidth': 3}                  
-sns.set_context(rc = paper_rc, font_scale=4)                                    
+agu_whole = (19/2.54, 23/2.54)
+col_wrap = 4
 
-g = sns.relplot(x="time", y="fw_onshore", hue="Kh_aqf", style = "Kv_aqt", 
-             col="delta", col_wrap = 4, data=df_deltas, kind="line", 
+height = agu_whole[1]/col_wrap
+aspect = agu_whole[0]/agu_whole[1]
+
+sns.set(style="whitegrid")                               
+
+g = sns.relplot(x="time (ka)", y="fw_onshore", hue="Kh_aqf", style = "Kv_aqt", 
+             col="delta", col_wrap = col_wrap, data=df_deltas, kind="line", 
              palette = "Blues", hue_order = ["min ", "mean ", "max "],
-             size=1, aspect = 1.05, 
-             facet_kws=dict(sharey=False))
+             style_order = ["max", "mean", "min"], 
+             height=height, aspect = aspect, 
+             facet_kws=dict(sharey=False, legend_out=False, 
+                            margin_titles=False, xlim=(125, 0)))
 
+for ax in g.axes:
+    ax.set_ylim(ymin=0)
+    label_offset(ax, axis="y")
+    ax.invert_xaxis()
+
+g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
+      bbox_transform=g.fig.transFigure)
+
+plt.subplots_adjust(hspace=0.25, wspace=0.8)
+g.set_titles(template="{col_name}")
 g.savefig(os.path.join(res_fol, "fw_onshore.png"), dpi=300)
