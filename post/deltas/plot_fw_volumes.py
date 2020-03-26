@@ -85,19 +85,19 @@ k_values = pd.DataFrame([[i, j] for (i, j) in list(k_values)], columns=["Kh_aqf"
 #%%Process to long format for seaborn
 ds_deltas = {}
 for start, stop in zip(starts, stops):
-        delta_name = par.loc[start, "Delta"]
+        delta = par.loc[start, "Delta"]
         
         files_mod = [i for i in vol_f if get_model_id(i) in range(start, stop)]
         assert(len(files_mod)==delta_len)
         
-        ds_deltas[delta_name] = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
-        ds_deltas[delta_name] = [ds.assign_coords(time=t_to_ka(ds)) for ds in ds_deltas[delta_name]]
+        ds_deltas[delta] = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
+        ds_deltas[delta] = [ds.assign_coords(time=t_to_ka(ds)) for ds in ds_deltas[delta]]
         
-        ds_deltas[delta_name] = [ds.to_dataframe().reset_index().assign(
+        ds_deltas[delta] = [ds.to_dataframe().reset_index().assign(
                 **k_values.loc[i].to_dict()
-                ) for i, ds in enumerate(ds_deltas[delta_name])]
+                ) for i, ds in enumerate(ds_deltas[delta])]
         
-        ds_deltas[delta_name] = pd.concat(ds_deltas[delta_name])
+        ds_deltas[delta] = pd.concat(ds_deltas[delta])
 
 df_deltas = pd.concat([ds.assign(delta=delta) for delta, ds in ds_deltas.items()])
 df_deltas = df_deltas.rename(columns={"time" : "time (ka)"})
