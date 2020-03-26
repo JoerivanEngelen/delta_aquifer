@@ -100,8 +100,9 @@ if len(sys.argv)>1:
     res_fol = sys.argv[1]
     sim_nr = int(sys.argv[2])
 else:
-    res_fol = r"c:\Users\engelen\test_imodpython\test_results_30_deltas"
-    sim_nr = 157
+#    res_fol = r"c:\Users\engelen\test_imodpython\test_results_30_deltas"
+    res_fol = r"g:\30_deltas"
+    sim_nr = 4
 
 #%%Path management
 nat_fol=check_sub_fol(res_fol, "synth_RD_i{:03d}_m24_*".format(sim_nr))
@@ -130,6 +131,8 @@ mas_pump, vol_pump = get_mas_and_vol(ds.sel(z=slice(None, -300)),
 mas_pump = mas_pump * 2
 mas_pump["x_sal"] = mas_pump["x_sal"]/2 #Only masses should be multiplied by 2, not length in x-direction
 vol_pump = vol_pump * 2
+
+#mas["sal"].data.visualize(filename=os.path.join(nat_fol, "graph.png"))
 
 #%%Save
 mas.to_netcdf(os.path.join(nat_fol, "mas_i{:03d}.nc".format(sim_nr)))
