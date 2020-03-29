@@ -27,17 +27,30 @@ def get_model_id(file):
     return(number)
 
 #%%Function to process data
-def t_to_ka(ds):
+def time_in_ka(ds):
     return([t.year/1000 for t in ds.time.values[::-1]])
 
+def read_and_process_ds(files, delta_len, append, start, stop):
+    files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
+    assert(len(files_mod)==delta_len)
+    
+    ds_ls = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
+    ds_ls = [ds.assign_coords(time=time_in_ka(ds)) for ds in ds_ls]
+    ds_ls = [append_varname(ds, append=append) for ds in ds_ls]
+    return(ds_ls)
+
+def append_varname(ds, append):
+    keys = ds.keys()
+    renamed = dict([(key, key+append) for key in keys])
+    return(ds.rename(**renamed))
+
 #%%Function to adapt plot
-def label_offset(ax, axis="y"):
+def label_offset(ax, axis="y", label=None, unit=None):
     if axis == "y":
         fmt = ax.yaxis.get_major_formatter()
         ax.yaxis.offsetText.set_visible(False)
         set_label = ax.set_ylabel
 #        label = ax.get_ylabel()
-        label = "$V_{fw}$"
     
     elif axis == "x":
         fmt = ax.xaxis.get_major_formatter()
@@ -48,11 +61,11 @@ def label_offset(ax, axis="y"):
     def update_label(event_axes):
         offset = fmt.get_offset()
         if offset == '':
-            set_label("{} (m3)".format(label))
+            set_label("{} ({})".format(label, unit))
         else:
             minus_sign = u'\u2212'
             expo = np.float(offset.replace(minus_sign, '-').split('e')[-1])
-            set_label("%s ($\mathregular{10^{%d}}$ m3)" % (label, expo))    
+            set_label("%s ($\mathregular{10^{%d}}$ %s)" % (label, expo, unit))    
 
     ax.callbacks.connect("ylim_changed", update_label)
     ax.callbacks.connect("xlim_changed", update_label)
@@ -83,26 +96,33 @@ k_values = list(product(["min ", "max ", "mean "], ["max", "min", "mean"]))
 k_values = pd.DataFrame([[i, j] for (i, j) in list(k_values)], columns=["Kh_aqf", "Kv_aqt"])
 
 #%%Process to long format for seaborn
+not_porous = ["dx", "dy", "Kh_aqf", "Kv_aqt", 
+              "time", "x_sal", "x_sal_pump", "delta"]
+
 ds_deltas = {}
 for start, stop in zip(starts, stops):
         delta = par.loc[start, "Delta"]
+        por = par.loc[start, "n"]
         
-        files_mod = [i for i in vol_f if get_model_id(i) in range(start, stop)]
-        assert(len(files_mod)==delta_len)
+        file_append=zip([mas_f, vol_f, mas_pump_f, vol_pump_f], ["", "", "_pump", "_pump"])
+        ds_ls = [read_and_process_ds(f, delta_len, append, start, stop) for (f, append) in file_append]
         
-        ds_deltas[delta] = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
-        ds_deltas[delta] = [ds.assign_coords(time=t_to_ka(ds)) for ds in ds_deltas[delta]]
+        ds_deltas[delta] = [xr.merge(ds_ls_sim) for ds_ls_sim in zip(*ds_ls)]
         
         ds_deltas[delta] = [ds.to_dataframe().reset_index().assign(
                 **k_values.loc[i].to_dict()
                 ) for i, ds in enumerate(ds_deltas[delta])]
-        
+    
         ds_deltas[delta] = pd.concat(ds_deltas[delta])
+        porous = [var for var in ds_deltas[delta].columns if var not in not_porous]
+        ds_deltas[delta].loc[:, porous] = ds_deltas[delta].loc[:, porous] * por
 
 df_deltas = pd.concat([ds.assign(delta=delta) for delta, ds in ds_deltas.items()])
-df_deltas = df_deltas.rename(columns={"time" : "time (ka)"})
+df_deltas = df_deltas.rename(columns={"time" : "time (ka)", 
+                                      "Kh_aqf" : "$K_{h,aqf}$",
+                                      "Kv_aqt" : "$K_{v,aqt}$"})
 
-#%%
+#%%Plot settings
 agu_whole = (19/2.54, 23/2.54)
 col_wrap = 4
 
@@ -111,22 +131,44 @@ aspect = agu_whole[0]/agu_whole[1]
 
 sns.set(style="whitegrid")                               
 
-g = sns.relplot(x="time (ka)", y="fw_onshore", hue="Kh_aqf", style = "Kv_aqt", 
+plt_kwargs = dict(x="time (ka)", hue="$K_{h,aqf}$", 
+                style = "$K_{v,aqt}$", 
              col="delta", col_wrap = col_wrap, data=df_deltas, kind="line", 
-             palette = "Blues", hue_order = ["min ", "mean ", "max "],
+             hue_order = ["max ", "mean ", "min "],
              style_order = ["max", "mean", "min"], 
              height=height, aspect = aspect, 
              facet_kws=dict(sharey=False, legend_out=False, 
                             margin_titles=False, xlim=(125, 0)))
 
-for ax in g.axes:
-    ax.set_ylim(ymin=0)
-    label_offset(ax, axis="y")
-    ax.invert_xaxis()
+#%%Plot
+to_plot = ["fw_onshore", "fw_onshore_pump", "fw_offshore", "fw_offshore_pump", 
+           "sal_onshore", "sal_onshore_pump", "ol_sal_onshore", "ol_sal_onshore_pump",
+           "x_sal", "x_sal_pump"]
 
-g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
-      bbox_transform=g.fig.transFigure)
+palettes = ["Blues_r", "Blues_r", "Blues_r", "Blues_r",
+            "Reds_r", "Reds_r", "Greys_r", "Greys_r",
+            "Oranges_r", "Oranges_r"]
 
-plt.subplots_adjust(hspace=0.25, wspace=0.8)
-g.set_titles(template="{col_name}")
-g.savefig(os.path.join(res_fol, "fw_onshore.png"), dpi=300)
+ylabels = ["$V_{fw}$" , "$V_{fw}$" , "$V_{fw}$"  , "$V_{fw}$",
+           "$S_{on}$" , "$S_{on}$ ", "$S_{init}$", "$S_{init}$",
+           "$x_{toe}$", "$x_{toe}$"]
+
+units = ["m3", "m3", "m3", "m3",
+         "kg", "kg", "kg", "kg",
+         "m", "m"]
+
+for var, palette, ylabel, unit in zip(to_plot, palettes, ylabels, units):
+    g = sns.relplot(y=var, palette=palette, **plt_kwargs)
+    for ax in g.axes:
+        ax.set_ylim(ymin=0)
+        label_offset(ax, axis="y", label = ylabel, unit = unit)
+        ax.invert_xaxis()
+    
+    g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
+          bbox_transform=g.fig.transFigure)
+    
+    plt.subplots_adjust(hspace=0.25, wspace=0.8)
+    g.set_titles(template="{col_name}")
+    g.savefig(os.path.join(res_fol, "{}.png".format(var)), dpi=300)
+    g.savefig(os.path.join(res_fol, "{}.pdf".format(var)), dpi=300)
+    plt.close()
