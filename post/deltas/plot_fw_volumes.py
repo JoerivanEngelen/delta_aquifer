@@ -14,6 +14,7 @@ from glob import glob
 import numpy as np
 import re
 
+from analyze_input.ci_range import pointplotrange
 
 from itertools import product
 
@@ -32,7 +33,7 @@ def time_in_ka(ds):
 
 def read_and_process_ds(files, delta_len, append, start, stop):
     files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
-    assert(len(files_mod)==delta_len)
+#    assert(len(files_mod)==delta_len)
     
     ds_ls = [xr.open_dataset(f).sortby("time", ascending=True) for f in files_mod]
     ds_ls = [ds.assign_coords(time=time_in_ka(ds)) for ds in ds_ls]
@@ -43,6 +44,12 @@ def append_varname(ds, append):
     keys = ds.keys()
     renamed = dict([(key, key+append) for key in keys])
     return(ds.rename(**renamed))
+
+def calc_ddim(da, dim):
+    shifts = {dim : 1}
+    ddim = da[dim] - da[dim].shift(**shifts)
+    ddim[0] = ddim[1]
+    return(ddim)
 
 #%%Function to adapt plot
 def label_offset(ax, axis="y", label=None, unit=None):
@@ -72,6 +79,9 @@ def label_offset(ax, axis="y", label=None, unit=None):
     ax.figure.canvas.draw()
     update_label(None)
 
+def logmean(arr):
+    return(10**np.mean(np.log10(arr+1)))
+
 #%%Path management
 datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 res_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas"
@@ -82,14 +92,15 @@ vol_f = glob(os.path.join(res_fol, "vols", "vol_i*.nc"))
 vol_pump_f = glob(os.path.join(res_fol, "vols", "vol_pump_i*.nc"))
 
 par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
+abstractions = glob(os.path.join(datafol, "abstractions", "*.nc"))
 
 #%%Create start and endpoints
 delta_len = 9
 
-to_finish = np.array([9, 18, 63, 198, 207])
+#to_finish = np.array([63, 198, 207])
 
 starts = np.array([0, 9, 18, 27, 36, 45, 54, 63, 81, 90, 153, 171, 198, 207, 216])
-starts = starts[~np.isin(starts, to_finish)]
+#starts = starts[~np.isin(starts, to_finish)]
 stops = starts+delta_len
 
 k_values = list(product(["min ", "max ", "mean "], ["max", "min", "mean"]))
@@ -123,6 +134,8 @@ df_deltas = df_deltas.rename(columns={"time" : "time (ka)",
                                       "Kv_aqt" : "$K_{v,aqt}$"})
 
 #%%Plot settings
+plot_df=False
+    
 agu_whole = (19/2.54, 23/2.54)
 col_wrap = 4
 
@@ -149,26 +162,95 @@ palettes = ["Blues_r", "Blues_r", "Blues_r", "Blues_r",
             "Reds_r", "Reds_r", "Greys_r", "Greys_r",
             "Oranges_r", "Oranges_r"]
 
-ylabels = ["$V_{fw}$" , "$V_{fw}$" , "$V_{fw}$"  , "$V_{fw}$",
-           "$S_{on}$" , "$S_{on}$ ", "$S_{init}$", "$S_{init}$",
-           "$x_{toe}$", "$x_{toe}$"]
+ylabels = ["$V_{fw,on}$", "$V_{fw,on}$", "$V_{fw,off}$", "$V_{fw,off}$",
+           "$S_{on}$"   , "$S_{on}$"   , "$S_{init}$"  , "$S_{init}$",
+           "$x_{toe}$"  , "$x_{toe}$"]
 
 units = ["m3", "m3", "m3", "m3",
          "kg", "kg", "kg", "kg",
          "m", "m"]
 
-for var, palette, ylabel, unit in zip(to_plot, palettes, ylabels, units):
-    g = sns.relplot(y=var, palette=palette, **plt_kwargs)
-    for ax in g.axes:
-        ax.set_ylim(ymin=0)
-        label_offset(ax, axis="y", label = ylabel, unit = unit)
-        ax.invert_xaxis()
+if plot_df==True:
+    for var, palette, ylabel, unit in zip(to_plot, palettes, ylabels, units):
+        g = sns.relplot(y=var, palette=palette, **plt_kwargs)
+        for ax in g.axes:
+            ax.set_ylim(ymin=0)
+            label_offset(ax, axis="y", label = ylabel, unit = unit)
     
-    g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
-          bbox_transform=g.fig.transFigure)
+        if (len(g.axes) % 2) == 0:
+            ax.invert_xaxis()   
+        
+        g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
+              bbox_transform=g.fig.transFigure)
+        
+        plt.subplots_adjust(hspace=0.25, wspace=0.8)
+        g.set_titles(template="{col_name}")
+        g.savefig(os.path.join(res_fol, "{}.png".format(var)), dpi=300)
+        g.savefig(os.path.join(res_fol, "{}.pdf".format(var)), dpi=300)
+        plt.close()
+
+#%%Process abstractions
+deltas = pd.unique(df_deltas["delta"])
+name = "__xarray_dataarray_variable__"
+
+da_ls = [xr.open_dataset(os.path.join(datafol, "abstractions", "{}.nc".format(delta)))[name] for delta in deltas]
+cellsizes = [calc_ddim(da, "x") * calc_ddim(da, "y") for da in da_ls]
+da_ls = [da*cellsizes[i] for i, da in enumerate(da_ls)]
+
+rch = [par.loc[par["Delta"]==delta, "R"].mean()*cellsizes[i] for i, delta in enumerate(deltas)]
+rch = [r.sum().values*365.25 for r in rch] 
+
+#tot_abs = [da.isel(time=-1).sum().values - r for da, r in zip(da_ls, rch)]
+tot_abs = [da.isel(time=-1).sum().values for da in da_ls]
+tot_abs = pd.DataFrame(data = tot_abs, index = deltas, columns = ["Q"])
+tot_abs = tot_abs.reset_index().rename(columns={"index" : "delta"})
+
+#Update deltas for which we have data
+tot_abs.loc[tot_abs["delta"]=="Nile",   "Q"] = 7.162345e6 * 365.25
+tot_abs.loc[tot_abs["delta"]=="Mekong", "Q"] = 2.4e6 * 365.25
+
+#%%Create formatted table
+to_pointplot = ["fw_onshore_pump", "fw_offshore", 
+                "ol_sal_onshore" , "t_depleted"]
+to_log  = ["fw_onshore_pump", "fw_offshore", "t_depleted"]
+xlabels = ["$V_{fw, on}$ (m3)", "$V_{fw, off}$ (m3)", 
+           "$S_{init}$ (%)", "$t_{d}$ (year)"]
+colors = ["navy", "royalblue", "firebrick", "darkslategray"]
+
+#Process
+df_fin = df_deltas.loc[df_deltas["time (ka)"]==1., (to_pointplot+["delta", "sal_onshore"])]
+df_fin = df_fin.merge(tot_abs, on="delta")
+df_fin["t_depleted"] = df_fin["fw_onshore_pump"]/df_fin["Q"]
+df_fin["ol_sal_onshore"] = df_fin["ol_sal_onshore"]/df_fin["sal_onshore"] 
+
+#df_fin.loc[:, to_log] = np.log10(df_fin.loc[:, to_log]+1)
+df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
+
+df_fin = df_fin.sort_values("delta")
+
+fig, axes = plt.subplots(nrows=2,ncols=2, sharey=True, figsize=agu_whole)
+axes = axes.flatten()
+
+opts = dict(ci="range", join=False, errwidth=1.5,scale=0.4)
+for i, var in enumerate(to_pointplot):
+    if var in to_log:
+        estimator = logmean
+    else:
+        estimator = np.mean
     
-    plt.subplots_adjust(hspace=0.25, wspace=0.8)
-    g.set_titles(template="{col_name}")
-    g.savefig(os.path.join(res_fol, "{}.png".format(var)), dpi=300)
-    g.savefig(os.path.join(res_fol, "{}.pdf".format(var)), dpi=300)
-    plt.close()
+    pointplotrange(y="delta", x=var, data=df_fin, estimator=estimator, 
+                   ax=axes[i], color=colors[i], **opts)
+
+    labels = dict(xlabel=xlabels[i])
+    if (i % 2) == 1:
+        labels["ylabel"] = ""
+    axes[i].set(**labels)
+    if var in to_log:
+        axes[i].set_xscale('log')
+    if var == "t_depleted":
+        axes[i].set_xticks([1e2, 1e4, 1e6, 1e8])
+
+plt.tight_layout()
+plt.savefig(os.path.join(res_fol, "end-states.png"), dpi=300)
+plt.savefig(os.path.join(res_fol, "end-states.pdf"))
+plt.close()
