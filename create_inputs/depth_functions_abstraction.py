@@ -91,15 +91,15 @@ Q_count_depth_Nile   = get_Q_per_depth(*args_Nile, func=count_Q_per_group)
 #Q_sum_aqf_Nile       = get_Q_per_aqf(abs_Nile, *args_Nile[3:], func=sum_Q_per_group)
 
 Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
-print(Nile_Q.sum()/497038.69440162915)
-
+#print(Nile_Q.sum()/497038.69440162915)
+print(Nile_Q.sum()/1.8e6)
 args_Mekong = abs_Mekong, "z", 641, "Q"
 Q_sum_depth_Mekong   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group)
 Q_count_depth_Mekong = get_Q_per_depth(*args_Mekong, func=count_Q_per_group)
 Q_sum_aqf_Mekong     = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_per_group)
 
 Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
-print(Mekong_Q.sum()/879522.3821543201)
+print(Mekong_Q.sum()/2.2e6)
 
 args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the count
 Q_count_Mississippi = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group)
