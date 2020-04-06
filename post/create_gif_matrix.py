@@ -137,17 +137,21 @@ def get_figure_sizes(cropbox, nrows, ncols, mag=1):
     output_size = panel_size[0] * ncols, panel_size[1] * nrows
     return(panel_size, output_size)
 
-def create_text_overlay(texts, output_size, panel_size, idxs):
+def create_text_overlay(texts, output_size, panel_size, idxs, plot_nr=True):
     text_overlay = Image.new("RGBA", output_size)
     
     for j, (r, c, nr) in enumerate(idxs):
         sub_extent=(c*panel_size[0], r*panel_size[1], (c+1)*panel_size[0], (r+1)*panel_size[1])
-        text_im = get_text_image(texts[j], panel_size, nr)
+        if plot_nr==True:
+            txt_nr = nr
+        else:
+            txt_nr = None
+        text_im = get_text_image(texts[j], panel_size, txt_nr)
         text_overlay.paste(text_im, sub_extent)
     return(text_overlay)
 
 def create_frames(files, texts, nrows, ncols, enhance=None, start=None, 
-                  output_frame=None, draw_lines=None):
+                  output_frame=None, draw_lines=None, plot_nr=True):
     def add_if_start(i, start):
         if start is None:
             return(None)
@@ -175,7 +179,7 @@ def create_frames(files, texts, nrows, ncols, enhance=None, start=None,
     iterators=[ImageSequence.Iterator(im) for im in ims]
     
     #Create text overlay
-    text_overlay = create_text_overlay(texts, output_size, panel_size, idxs)
+    text_overlay = create_text_overlay(texts, output_size, panel_size, idxs, plot_nr=plot_nr)
     
     #Process
     out_frames = []
@@ -225,9 +229,9 @@ def save_frames(out_frames, out_path):
 #Time + (Colorbar?)
 
 #%%Settings
-plot_trajectories=False
+plot_trajectories=True
 plot_inputs=False
-plot_deltas=True
+plot_deltas=False
 
 #%%Figsizes
 agu_small = (9.5/2.54, 11.5/2.54)
@@ -243,12 +247,16 @@ else:
     #Local testing on my own windows laptop
 #    globpath = r"g:\synthdelta\results\gifs\*.gif"
 #    out_fol = r"g:\synthdelta\results"
-    globpath = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas\Natural\*.gif"
+    globpath_deltas = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas\Natural\*.gif"
+    globpath = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results\gifs\*.gif"
     out_fol = os.path.join(globpath, "..", "..")
+    out_fol_deltas = os.path.join(globpath_deltas, "..", "..")
     
-
 files = glob(globpath)
 files.sort()
+
+files_deltas=glob(globpath_deltas)
+files_deltas.sort()
 
 #Path with text aid
 datafol   = os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data")))
@@ -280,15 +288,15 @@ texts_dlta = texts_dlta * 30 #30 deltas
 if plot_deltas:
     for start, stop in zip(starts, stops):
         print(r"%d-%d" % (start, stop))
-        files_mod = [i for i in files if get_model_id(i) in range(start, stop)]
+        files_mod = [i for i in files_deltas if get_model_id(i) in range(start, stop)]
         assert(len(files_mod)==delta_len)
         
         nrows, ncols = 3, 3
         mod_idx = slice(start, stop)
-        out_frames = create_frames(files_mod, texts_dlta[mod_idx], nrows, ncols, start=start)
+        out_frames = create_frames(files_mod, texts_dlta[mod_idx], nrows, ncols, start=start, plot_nr=False)
         
         #Save
-        out_path = os.path.join(out_fol, "RD_i{:03d}-{:03d}.%s".format(start, stop-1))
+        out_path = os.path.join(out_fol_deltas, "RD_i{:03d}-{:03d}.%s".format(start, stop-1))
         save_frames(out_frames, out_path)
 
 #%%Get text aids sensitivity
@@ -312,7 +320,8 @@ if plot_trajectories:
         
         nrows, ncols = 3, 8 
         mod_idx = slice(start, stop)
-        out_frames = create_frames(files_mod, texts_sa[mod_idx], nrows, ncols, start=start)
+        out_frames = create_frames(files_mod, texts_sa[mod_idx], nrows, ncols, start=start, 
+                                   output_frame = [1248, 810], plot_nr=False)
         
         #Save
         out_path = os.path.join(out_fol, "SD_i{:03d}-{:03d}.%s".format(start, stop-1))
