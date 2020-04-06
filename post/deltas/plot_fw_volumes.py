@@ -91,6 +91,8 @@ mas_pump_f = glob(os.path.join(res_fol, "mas",  "mas_pump_i*.nc"))
 vol_f = glob(os.path.join(res_fol, "vols", "vol_i*.nc"))
 vol_pump_f = glob(os.path.join(res_fol, "vols", "vol_pump_i*.nc"))
 
+recharge_path = os.path.join(res_fol, "recharges", "recharges.csv")
+
 par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
 abstractions = glob(os.path.join(datafol, "abstractions", "*.nc"))
 
@@ -197,17 +199,18 @@ da_ls = [xr.open_dataset(os.path.join(datafol, "abstractions", "{}.nc".format(de
 cellsizes = [calc_ddim(da, "x") * calc_ddim(da, "y") for da in da_ls]
 da_ls = [da*cellsizes[i] for i, da in enumerate(da_ls)]
 
-rch = [par.loc[par["Delta"]==delta, "R"].mean()*cellsizes[i] for i, delta in enumerate(deltas)]
-rch = [r.sum().values*365.25 for r in rch] 
-
-#tot_abs = [da.isel(time=-1).sum().values - r for da, r in zip(da_ls, rch)]
 tot_abs = [da.isel(time=-1).sum().values for da in da_ls]
 tot_abs = pd.DataFrame(data = tot_abs, index = deltas, columns = ["Q"])
 tot_abs = tot_abs.reset_index().rename(columns={"index" : "delta"})
 
-#Update deltas for which we have data
-tot_abs.loc[tot_abs["delta"]=="Nile",   "Q"] = 7.162345e6 * 365.25
-tot_abs.loc[tot_abs["delta"]=="Mekong", "Q"] = 2.4e6 * 365.25
+##Update deltas for which we have data
+#tot_abs.loc[tot_abs["delta"]=="Nile",   "Q"] = 7.162345e6 * 365.25
+#tot_abs.loc[tot_abs["delta"]=="Mekong", "Q"] = 2.4e6 * 365.25
+
+#%%Process recharges
+rch = pd.read_csv(recharge_path, index_col=0)
+rch = rch.sort_index()
+rch = rch.join(par["Delta"]).rename(columns = {"Delta" : "delta"})
 
 #%%Create formatted table
 to_pointplot = ["fw_onshore_pump", "fw_offshore", 
@@ -220,13 +223,16 @@ colors = ["navy", "royalblue", "firebrick", "darkslategray"]
 #Process
 df_fin = df_deltas.loc[df_deltas["time (ka)"]==1., (to_pointplot+["delta", "sal_onshore"])]
 df_fin = df_fin.merge(tot_abs, on="delta")
-df_fin["t_depleted"] = df_fin["fw_onshore_pump"]/df_fin["Q"]
+df_fin = df_fin.merge(rch.drop_duplicates(), on="delta")
+df_fin["t_depleted"] = df_fin["fw_onshore_pump"]/(df_fin["Q"] - df_fin["rch"])
+df_fin["t_depleted_4"] = df_fin["fw_onshore_pump"]/((df_fin["Q"] * 4) - df_fin["rch"])
 df_fin["ol_sal_onshore"] = df_fin["ol_sal_onshore"]/df_fin["sal_onshore"] 
 
-#df_fin.loc[:, to_log] = np.log10(df_fin.loc[:, to_log]+1)
 df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
-
 df_fin = df_fin.sort_values("delta")
+
+df_fin["is_recharging"] = df_fin["t_depleted"] < 0
+df_fin.loc[df_fin["is_recharging"] == True, ["t_depleted"]] = 1e8
 
 fig, axes = plt.subplots(nrows=2,ncols=2, sharey=True, figsize=agu_whole)
 axes = axes.flatten()
@@ -237,9 +243,13 @@ for i, var in enumerate(to_pointplot):
         estimator = logmean
     else:
         estimator = np.mean
+
+    if var == "t_depleted":
+        pointplotrange(y="delta", x="t_depleted_4", data=df_fin, estimator=estimator, 
+                       ax=axes[i], color="lightgray", **opts)      
     
     pointplotrange(y="delta", x=var, data=df_fin, estimator=estimator, 
-                   ax=axes[i], color=colors[i], **opts)
+                   ax=axes[i], color=colors[i], **opts)  
 
     labels = dict(xlabel=xlabels[i])
     if (i % 2) == 1:
@@ -249,6 +259,9 @@ for i, var in enumerate(to_pointplot):
         axes[i].set_xscale('log')
     if var == "t_depleted":
         axes[i].set_xticks([1e2, 1e4, 1e6, 1e8])
+        axes[i].set_xticklabels(
+                [r"$\mathregular{10^{%d}}$" % i for i in [2, 4, 6]] + [r"$\infty$"]
+                )
 
 plt.tight_layout()
 plt.savefig(os.path.join(res_fol, "end-states.png"), dpi=300)
