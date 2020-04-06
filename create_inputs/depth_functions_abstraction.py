@@ -10,7 +10,10 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pkg_resources import resource_filename
+from glob import glob
 import os
+import json
 
 def assign_bin_depths(df, depth_col, max_depth):
     df["depth (m)"] = pd.cut(df[depth_col], np.arange(0, max_depth, 20), duplicates="drop")
@@ -34,17 +37,20 @@ def get_Q_per_depth(df, depth_col, max_depth, *Q_cols, func=sum_Q_per_group, sca
     assign_bin_depths(df, depth_col, max_depth)
     
     Q_per_depth = func(df, "depth (m)", *Q_cols)
-    
-    mid_depth = bin_to_mids(Q_per_depth.index)
+    Q_per_depth = reindex_with_mids(Q_per_depth, scale=scale)
+    return(Q_per_depth)
 
+def reindex_with_mids(df, scale=True):
+    mid_depth = bin_to_mids(df.index)
+    
     #Scale
     if scale==True:
-        Q_per_depth /= Q_per_depth.values.sum()
+        df /= df.values.sum()
     
-    #For some reason I had to reindex it twice befire the actual index was assigned
-    Q_per_depth = Q_per_depth.reindex(mid_depth)
-    Q_per_depth = Q_per_depth.reindex(mid_depth) 
-    return(Q_per_depth)
+    #For some reason I had to reindex it twice before the actual index was assigned
+    df = df.reindex(mid_depth)
+    df = df.reindex(mid_depth) 
+    return(df)
 
 def hbar_plot_df(df, xlabel, path_out):
     df = df.sort_index(ascending=False)
@@ -55,6 +61,14 @@ def hbar_plot_df(df, xlabel, path_out):
     plt.savefig(path_out, dpi=300)
     plt.close()    
 
+def reindex_str_to_IntervalIndex(df):
+    """Saving Intervals with pandas is horrible at the moment as there are no parsers yet, so this
+    clunky code is needed unfortunately.
+    """
+    idx = pd.IntervalIndex([pd.Interval(*json.loads(i)) for i in df.index.str.replace("(", "[").to_list()])
+    df.index = idx
+    return(df)
+
 #%%Path management
 path_Nile = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Nile\Nile_wells.csv"
 path_Mekong = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\wells\Mekong\Wells_Mekong.csv"
@@ -63,12 +77,28 @@ path_NL = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\
 
 figure_folder   = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\Data\depth_abstractions"
 
-#%%Read
-abs_Nile = pd.read_csv(path_Nile)
-abs_Mekong = pd.read_csv(path_Mekong)
-N_Missi= pd.read_excel(path_Mississippi)
-abs_NL = pd.read_csv(path_NL)
+globpath_validation = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas\validation_deltas\*"
+paths_validation = glob(globpath_validation)
 
+delta_names = ["Nile", "Mekong", "Rhine-Meuse"]#, "Mississippi"]
+datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
+par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
+idxs = [par.loc[par["Delta"]==delta].index for delta in delta_names]
+
+paths_val = [[os.path.join(globpath_validation, "..", "AD_i{:03d}".format(i), "well_dist_depth.csv") for i in idx] for idx in idxs]
+
+#%%Read
+abs_Nile = pd.read_csv(path_Nile, index_col=0)
+abs_Mekong = pd.read_csv(path_Mekong, index_col=0)
+N_Missi= pd.read_excel(path_Mississippi)
+abs_NL = pd.read_csv(path_NL, index_col=0)
+
+#%%Prepare model depth distributions
+dfs_validate = [[pd.read_csv(path).set_index("well_depth_bins").add_suffix(sim_nr) for sim_nr, path in zip(idxs[i], paths_val[i])] for i in range(len(idxs))]
+dfs_validate = [pd.concat(df, axis=1) for df in dfs_validate]
+dfs_validate = [reindex_str_to_IntervalIndex(df).sort_index() for df in dfs_validate]
+dfs_validate = [reindex_with_mids(df, scale=False) for df in dfs_validate]
+dfs_validate = [df.set_index(df.index * -1) for df in dfs_validate]
 #%%Prepare data Nile
 abs_Nile["Zmid"] = abs_Nile["Zmid"] * -1
 abs_Nile["Q"] = abs_Nile["Q"] * -1
@@ -105,11 +135,15 @@ args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the c
 Q_count_Mississippi = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group)
 
 args_NL = abs_NL, "z", 361, "q"
-Q_sum_depth_NL = get_Q_per_depth(*args_NL, func=sum_Q_per_group)
+Q_sum_depth_NL   = get_Q_per_depth(*args_NL, func=sum_Q_per_group)
 Q_count_depth_NL = get_Q_per_depth(*args_NL, func=count_Q_per_group)
 
-#%%Testing
-a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
+##%%Testing
+#a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
+
+#%%Setup plot
+agu_whole = (19/2.54, 23/2.54)
+#gridspec = 
 
 #%%Plot
 sns.set()
