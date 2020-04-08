@@ -88,6 +88,7 @@ globpath_validation = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth
 paths_validation = glob(globpath_validation)
 
 delta_names = ["Nile", "Mekong", "Rhine-Meuse"]#, "Mississippi"]
+
 datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
 par = pd.read_csv(os.path.join(datafol, r"model_inputs.csv"), index_col=0)
 idxs = [par.loc[par["Delta"]==delta].index for delta in delta_names]
@@ -133,7 +134,7 @@ dfs_obs["Nile"] = dict(sum = get_Q_per_depth(*args_Nile, func=sum_Q_per_group),
 #Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
 #print(Nile_Q.sum()/1.8e6)
 
-args_Mekong = abs_Mekong, "z", 251, "Q"
+args_Mekong = abs_Mekong, "z", 301, "Q"
 
 dfs_obs["Mekong"] = dict(sum = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group),
                 count = get_Q_per_depth(*args_Mekong, func=count_Q_per_group),
@@ -142,10 +143,10 @@ dfs_obs["Mekong"] = dict(sum = get_Q_per_depth(*args_Mekong, func=sum_Q_per_grou
 #Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
 #print(Mekong_Q.sum()/2.2e6)
 
-args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the count
+args_Mississippi = N_Missi, "z",301, "Count" #Count per 20m bin by summing the count
 dfs_obs["Mississippi"] = dict(count = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group))
 
-args_NL = abs_NL, "z", 251, "Q"
+args_NL = abs_NL, "z", 301, "Q"
 dfs_obs["Rhine-Meuse"] = dict(sum = get_Q_per_depth(*args_NL, func=sum_Q_per_group),
                         count = get_Q_per_depth(*args_NL, func=count_Q_per_group))
 
@@ -163,6 +164,7 @@ gs_mod = [gs_main[i, 1].subgridspec(3,3) for i in range(3)]
 #%%Initiate subplots
 ax_obs = []
 ax_mod = [[], [], []]
+ax_title = []
 
 for r in range(len(gs_obs)):
     ax_obs.append(fig.add_subplot(gs_obs[r][0,0]))
@@ -187,8 +189,12 @@ row_titles = ["$K_{h}$ min", "$K_{h}$ max", "$K_{h}$ mean"]
 col_titles = ["$K_{v}$ max", "$K_{v}$ min", "$K_{v}$ mean"]
 
 for r in range(len(gs_obs)):
-    ax_obs[r].set_title("Observed")
+    if r == 0:
+        ax_obs[r].set_title("Observed", weight = "bold")
     ax_obs[r].set_ylabel("depth (m)")
+    ax_obs[r].set_xlabel("$Q$/$Q_{tot}$ (-)")
+    ax_obs[r].annotate(delta_names[r], xy=(-0.25, .5), xycoords="axes fraction", 
+          rotation=90, ha="right", va="center", weight = "bold")
     
     for id, title in zip(row_title_idx, row_titles):
         ax_mod[r][id].annotate(title, xy=(1.02, .5), xycoords="axes fraction",
@@ -197,9 +203,12 @@ for r in range(len(gs_obs)):
         ax_mod[r][id].set_title(title)
 
 plt.tight_layout()
-fig.canvas.draw() #Ensure ticklabels are created so we can adapt them
+fig.canvas.draw() #Ensure ticklabels are created so we can only show every second ticklabel
 for r, delta in enumerate(delta_names):
     xlabels = [txt_obj._text.rstrip("0") if ((i % 2) == 0) else "" for i, txt_obj in enumerate(ax_obs[r].get_xticklabels())]
     ax_obs[r].set_xticklabels(xlabels)
     ylabels = [txt_obj._text if ((i % 2) == 0) else "" for i, txt_obj in enumerate(ax_obs[r].get_yticklabels())]
     ax_obs[r].set_yticklabels(ylabels)
+
+#%%Save
+plt.savefig(os.path.join(figure_folder, "Comparison_Validation.png"), dpi=300)
