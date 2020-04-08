@@ -15,6 +15,8 @@ from glob import glob
 import os
 import json
 
+from itertools import product
+
 def assign_bin_depths(df, depth_col, max_depth):
     df["depth (m)"] = pd.cut(df[depth_col], np.arange(0, max_depth, 20), duplicates="drop")
 
@@ -52,14 +54,19 @@ def reindex_with_mids(df, scale=True):
     df = df.reindex(mid_depth) 
     return(df)
 
-def hbar_plot_df(df, xlabel, path_out):
-    df = df.sort_index(ascending=False)
-    ax = df.plot(kind="barh", stacked=True)
+def save_hbar_df(df, xlabel, path_out):
+    ax = hbar_df(df)
     ax.set_xlabel(xlabel)
     
     plt.tight_layout()
     plt.savefig(path_out, dpi=300)
     plt.close()    
+
+def hbar_df(df, ax=None):
+    df = df.sort_index(ascending=False)
+#    ax = df.plot(kind="barh", stacked=True, ax = ax, width=1, align="center")
+    ax.barh(df.index, df.values, align="center", height=20)
+    return(ax)
 
 def reindex_str_to_IntervalIndex(df):
     """Saving Intervals with pandas is horrible at the moment as there are no parsers yet, so this
@@ -98,7 +105,8 @@ dfs_validate = [[pd.read_csv(path).set_index("well_depth_bins").add_suffix(sim_n
 dfs_validate = [pd.concat(df, axis=1) for df in dfs_validate]
 dfs_validate = [reindex_str_to_IntervalIndex(df).sort_index() for df in dfs_validate]
 dfs_validate = [reindex_with_mids(df, scale=False) for df in dfs_validate]
-dfs_validate = [df.set_index(df.index * -1) for df in dfs_validate]
+dfs_validate = [dfs.loc[dfs.index<260] for dfs in dfs_validate]
+#dfs_validate = [df.set_index(df.index * -1) for df in dfs_validate]
 #%%Prepare data Nile
 abs_Nile["Zmid"] = abs_Nile["Zmid"] * -1
 abs_Nile["Q"] = abs_Nile["Q"] * -1
@@ -113,46 +121,85 @@ N_Missi = N_Missi.loc[N_Missi["z"] < 500.]
 #%%Prepare data NL
 abs_NL["z"] = abs_NL["z"] * -1
 abs_NL["q"] = abs_NL["q"] * -1
+abs_NL = abs_NL.rename(columns={"q" : "Q"})
 
 #%%Process data for analysis
-args_Nile = abs_Nile, "Zmid", 261, "Q"
-Q_sum_depth_Nile     = get_Q_per_depth(*args_Nile, func=sum_Q_per_group)
-Q_count_depth_Nile   = get_Q_per_depth(*args_Nile, func=count_Q_per_group)
-#Q_sum_aqf_Nile       = get_Q_per_aqf(abs_Nile, *args_Nile[3:], func=sum_Q_per_group)
+dfs_obs = {}
 
-Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
-#print(Nile_Q.sum()/497038.69440162915)
-print(Nile_Q.sum()/1.8e6)
-args_Mekong = abs_Mekong, "z", 641, "Q"
-Q_sum_depth_Mekong   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group)
-Q_count_depth_Mekong = get_Q_per_depth(*args_Mekong, func=count_Q_per_group)
-Q_sum_aqf_Mekong     = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_per_group)
+args_Nile = abs_Nile, "Zmid", 251, "Q"
+dfs_obs["Nile"] = dict(sum = get_Q_per_depth(*args_Nile, func=sum_Q_per_group),
+              count =get_Q_per_depth(*args_Nile, func=count_Q_per_group))
 
-Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
-print(Mekong_Q.sum()/2.2e6)
+#Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
+#print(Nile_Q.sum()/1.8e6)
+
+args_Mekong = abs_Mekong, "z", 251, "Q"
+
+dfs_obs["Mekong"] = dict(sum = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group),
+                count = get_Q_per_depth(*args_Mekong, func=count_Q_per_group),
+                sum_aqf = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_per_group))
+
+#Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
+#print(Mekong_Q.sum()/2.2e6)
 
 args_Mississippi = N_Missi, "z",501, "Count" #Count per 20m bin by summing the count
-Q_count_Mississippi = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group)
+dfs_obs["Mississippi"] = dict(count = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group))
 
-args_NL = abs_NL, "z", 361, "q"
-Q_sum_depth_NL   = get_Q_per_depth(*args_NL, func=sum_Q_per_group)
-Q_count_depth_NL = get_Q_per_depth(*args_NL, func=count_Q_per_group)
-
-##%%Testing
-#a = abs_Mekong.loc[abs_Mekong["depth (m)"] == abs_Mekong["depth (m)"].cat.categories[6]]
+args_NL = abs_NL, "z", 251, "Q"
+dfs_obs["Rhine-Meuse"] = dict(sum = get_Q_per_depth(*args_NL, func=sum_Q_per_group),
+                        count = get_Q_per_depth(*args_NL, func=count_Q_per_group))
 
 #%%Setup plot
 agu_whole = (19/2.54, 23/2.54)
-#gridspec = 
 
-#%%Plot
+#%%Prepare figure and gridspec
 sns.set()
 
-hbar_plot_df(Q_sum_depth_Nile, "rel GW abstracted (-)", os.path.join(figure_folder, "Nile_sum.png"))
-hbar_plot_df(Q_count_depth_Nile, "rel number of wells (-)", os.path.join(figure_folder, "Nile_count.png"))
-hbar_plot_df(Q_sum_depth_Mekong, "rel GW abstracted (-)", os.path.join(figure_folder, "Mekong_sum.png"))
-hbar_plot_df(Q_count_depth_Mekong, "rel number of wells (-)", os.path.join(figure_folder, "Mekong_count.png"))
-hbar_plot_df(Q_sum_aqf_Mekong,  "rel GW abstracted (-)", os.path.join(figure_folder, "Mekong_sum_aqf.png"))
-hbar_plot_df(Q_count_Mississippi, "rel number of wells (-)", os.path.join(figure_folder, "Mississippi_count.png"))
-hbar_plot_df(Q_sum_depth_NL,  "rel GW abstracted (-)", os.path.join(figure_folder, "NL_sum_depth.png"))
-hbar_plot_df(Q_count_depth_NL, "rel number of wells (-)", os.path.join(figure_folder, "NL_count_depth.png"))
+fig = plt.figure(figsize=agu_whole)
+gs_main = fig.add_gridspec(3,2)
+gs_obs = [gs_main[i, 0].subgridspec(1,1) for i in range(3)] #Slice mapping not available on gridspec objects, therefore work with these lists
+gs_mod = [gs_main[i, 1].subgridspec(3,3) for i in range(3)]
+
+#%%Initiate subplots
+ax_obs = []
+ax_mod = [[], [], []]
+
+for r in range(len(gs_obs)):
+    ax_obs.append(fig.add_subplot(gs_obs[r][0,0]))
+    for i, j in product(range(3), repeat=2):
+            ax_mod[r].append(fig.add_subplot(gs_mod[r][i, j], 
+                  sharex = ax_obs[r], 
+                  sharey = ax_obs[r]))
+
+#%%Plot
+for r, delta in enumerate(delta_names):
+    hbar_df(dfs_obs[delta]["sum"]["Q"], ax=ax_obs[r])
+    ax_obs[r].invert_yaxis()
+    for i, (ax, idx) in enumerate(zip(ax_mod[r], idxs[r])):
+        hbar_df(dfs_validate[r]["sum{}".format(idx)], ax=ax)
+        ax.label_outer()
+
+#%%Fix ticklabels and axis titles
+row_title_idx = range(2, 9, 3)
+col_title_idx = range(3)
+
+row_titles = ["$K_{h}$ min", "$K_{h}$ max", "$K_{h}$ mean"]
+col_titles = ["$K_{v}$ max", "$K_{v}$ min", "$K_{v}$ mean"]
+
+for r in range(len(gs_obs)):
+    ax_obs[r].set_title("Observed")
+    ax_obs[r].set_ylabel("depth (m)")
+    
+    for id, title in zip(row_title_idx, row_titles):
+        ax_mod[r][id].annotate(title, xy=(1.02, .5), xycoords="axes fraction",
+            rotation=270, ha="left", va="center")
+    for id, title in zip(col_title_idx, col_titles):
+        ax_mod[r][id].set_title(title)
+
+plt.tight_layout()
+fig.canvas.draw() #Ensure ticklabels are created so we can adapt them
+for r, delta in enumerate(delta_names):
+    xlabels = [txt_obj._text.rstrip("0") if ((i % 2) == 0) else "" for i, txt_obj in enumerate(ax_obs[r].get_xticklabels())]
+    ax_obs[r].set_xticklabels(xlabels)
+    ylabels = [txt_obj._text if ((i % 2) == 0) else "" for i, txt_obj in enumerate(ax_obs[r].get_yticklabels())]
+    ax_obs[r].set_yticklabels(ylabels)
