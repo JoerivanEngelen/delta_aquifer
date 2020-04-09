@@ -99,7 +99,7 @@ paths_val = [[os.path.join(globpath_validation, "..", "AD_i{:03d}".format(i), "w
 abs_Nile = pd.read_csv(path_Nile, index_col=0)
 abs_Mekong = pd.read_csv(path_Mekong, index_col=0)
 N_Missi= pd.read_excel(path_Mississippi)
-abs_NL = pd.read_csv(path_NL, index_col=0)
+abs_Rhine = pd.read_csv(path_NL, index_col=0)
 
 #%%Prepare model depth distributions
 dfs_validate = [[pd.read_csv(path).set_index("well_depth_bins").add_suffix(sim_nr) for sim_nr, path in zip(idxs[i], paths_val[i])] for i in range(len(idxs))]
@@ -120,19 +120,19 @@ N_Missi["z"] = miss_index.mid
 N_Missi = N_Missi.loc[N_Missi["z"] < 500.]
 
 #%%Prepare data NL
-abs_NL["z"] = abs_NL["z"] * -1
-abs_NL["q"] = abs_NL["q"] * -1
-abs_NL = abs_NL.rename(columns={"q" : "Q"})
+abs_Rhine["z"] = abs_Rhine["z"] * -1
+abs_Rhine["q"] = abs_Rhine["q"] * -1
+abs_Rhine = abs_Rhine.rename(columns={"q" : "Q"})
 
 #%%Process data for analysis
 dfs_obs = {}
 
-args_Nile = abs_Nile, "Zmid", 251, "Q"
+args_Nile = abs_Nile, "Zmid", 301, "Q"
 dfs_obs["Nile"] = dict(sum = get_Q_per_depth(*args_Nile, func=sum_Q_per_group),
               count =get_Q_per_depth(*args_Nile, func=count_Q_per_group))
 
-#Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
-#print(Nile_Q.sum()/1.8e6)
+Nile_Q = get_Q_per_depth(*args_Nile, func=sum_Q_per_group, scale=False)
+print(Nile_Q.sum()/1.8e6)
 
 args_Mekong = abs_Mekong, "z", 301, "Q"
 
@@ -140,16 +140,18 @@ dfs_obs["Mekong"] = dict(sum = get_Q_per_depth(*args_Mekong, func=sum_Q_per_grou
                 count = get_Q_per_depth(*args_Mekong, func=count_Q_per_group),
                 sum_aqf = get_Q_per_aqf(abs_Mekong, *args_Mekong[3:], func=sum_Q_per_group))
 
-#Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
-#print(Mekong_Q.sum()/2.2e6)
+Mekong_Q   = get_Q_per_depth(*args_Mekong, func=sum_Q_per_group, scale=False)
+print(Mekong_Q.sum()/2.2e6)
 
 args_Mississippi = N_Missi, "z",301, "Count" #Count per 20m bin by summing the count
 dfs_obs["Mississippi"] = dict(count = get_Q_per_depth(*args_Mississippi, func=sum_Q_per_group))
 
-args_NL = abs_NL, "z", 301, "Q"
-dfs_obs["Rhine-Meuse"] = dict(sum = get_Q_per_depth(*args_NL, func=sum_Q_per_group),
-                        count = get_Q_per_depth(*args_NL, func=count_Q_per_group))
+args_Rhine = abs_Rhine, "z", 301, "Q"
+dfs_obs["Rhine-Meuse"] = dict(sum = get_Q_per_depth(*args_Rhine, func=sum_Q_per_group),
+                        count = get_Q_per_depth(*args_Rhine, func=count_Q_per_group))
 
+Rhine_Q = get_Q_per_depth(*args_Rhine, func=sum_Q_per_group, scale=False)
+print(Rhine_Q.sum())
 #%%Setup plot
 agu_whole = (19/2.54, 23/2.54)
 
@@ -212,3 +214,4 @@ for r, delta in enumerate(delta_names):
 
 #%%Save
 plt.savefig(os.path.join(figure_folder, "Comparison_Validation.png"), dpi=300)
+plt.savefig(os.path.join(figure_folder, "Comparison_Validation.pdf"), dpi=300)
