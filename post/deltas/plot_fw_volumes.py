@@ -20,6 +20,7 @@ from itertools import product
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 #%%Functions to parse 
 def get_model_id(file):     
@@ -84,12 +85,14 @@ def logmean(arr):
 
 #%%Path management
 datafol= os.path.abspath(resource_filename("delta_aquifer", os.path.join("..", "data", "30_deltas")))
+val_fol = os.path.join(datafol, "..", "validation")
 res_fol = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results_30deltas"
 
 mas_f = glob(os.path.join(res_fol, "mas",  "mas_i*.nc"))
 mas_pump_f = glob(os.path.join(res_fol, "mas",  "mas_pump_i*.nc"))
 vol_f = glob(os.path.join(res_fol, "vols", "vol_i*.nc"))
 vol_pump_f = glob(os.path.join(res_fol, "vols", "vol_pump_i*.nc"))
+val_f = glob(os.path.join(val_fol, "*.csv"))
 
 recharge_path = os.path.join(res_fol, "recharges", "recharges.csv")
 
@@ -134,7 +137,12 @@ df_deltas = pd.concat([ds.assign(delta=delta) for delta, ds in ds_deltas.items()
 df_deltas = df_deltas.rename(columns={"time" : "time (ka)", 
                                       "Kh_aqf" : "$K_{h,aqf}$",
                                       "Kv_aqt" : "$K_{v,aqt}$"})
+#%%Validations
+val_df = dict([(os.path.splitext(os.path.basename(path))[0].split("FW_vol_")[1], 
+                #Reindex to pad with NaNs
+                pd.read_csv(path).reindex(range(delta_len))) for path in val_f])
 
+  
 #%%Plot settings
 plot_df=False
     
@@ -226,13 +234,19 @@ df_fin = df_fin.merge(tot_abs, on="delta")
 df_fin = df_fin.merge(rch.drop_duplicates(), on="delta")
 df_fin["t_depleted"] = df_fin["fw_onshore_pump"]/(df_fin["Q"] - df_fin["rch"])
 df_fin["t_depleted_4"] = df_fin["fw_onshore_pump"]/((df_fin["Q"] * 4) - df_fin["rch"])
+df_fin["t_depleted_0.4"] = df_fin["fw_onshore_pump"]/((df_fin["Q"] * 0.41) - df_fin["rch"])
 df_fin["ol_sal_onshore"] = df_fin["ol_sal_onshore"]/df_fin["sal_onshore"] 
 
-df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
+#df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
 df_fin = df_fin.sort_values("delta")
+
+df_fin["fw_onshore_observed"] = np.nan
+df_fin.loc[df_fin["delta"]=="Rhine-Meuse", "fw_onshore_observed"] = val_df["Rhine-Meuse"]["FW_vols"].values
+df_fin.loc[df_fin["delta"]=="Nile", "fw_onshore_observed"] = val_df["Nile"]["FW_vols"].values
 
 df_fin["is_recharging"] = df_fin["t_depleted"] < 0
 df_fin.loc[df_fin["is_recharging"] == True, ["t_depleted"]] = 1e8
+df_fin.loc[df_fin["t_depleted_0.4"] < 0, ["t_depleted_0.4"]] = 1e8
 
 fig, axes = plt.subplots(nrows=2,ncols=2, sharey=True, figsize=agu_whole)
 axes = axes.flatten()
@@ -246,7 +260,24 @@ for i, var in enumerate(to_pointplot):
 
     if var == "t_depleted":
         pointplotrange(y="delta", x="t_depleted_4", data=df_fin, estimator=estimator, 
-                       ax=axes[i], color="lightgray", **opts)      
+                       ax=axes[i], color="peru", **opts)      
+        pointplotrange(y="delta", x="t_depleted_0.4", data=df_fin, estimator=estimator, 
+                       ax=axes[i], color="burlywood", **opts)
+        axes[i].axvline(200,linestyle=":", color="darkgray")
+        customlines = [Line2D([0], [0], color=c) for c in ["burlywood", colors[i], "peru"]]
+        axes[i].legend(customlines, 
+            ["$0.4 \; Q$", "$1.0 \; Q$", "$4.0 \; Q$"],
+            loc = "upper right",
+            bbox_to_anchor=[0.94, 1.01])
+    
+    elif var == "fw_onshore_pump":
+        pointplotrange(y="delta", x="fw_onshore_observed", data=df_fin, estimator=estimator, 
+                       ax=axes[i], color="limegreen", markers = "d", **opts)            
+        customlines = [Line2D([0], [0], color=c) for c in [colors[i], "limegreen"]]
+        axes[i].legend(customlines, 
+            ["simulated", "observed"],
+            loc = "upper left",
+            bbox_to_anchor=[-0.01, 1.01])
     
     pointplotrange(y="delta", x=var, data=df_fin, estimator=estimator, 
                    ax=axes[i], color=colors[i], **opts)  
@@ -257,7 +288,10 @@ for i, var in enumerate(to_pointplot):
     axes[i].set(**labels)
     if var in to_log:
         axes[i].set_xscale('log')
-    if var == "t_depleted":
+    
+    if var in ["fw_onshore_pump", "fw_offshore"]:
+        axes[i].set_xticks([1e4, 1e6, 1e8, 1e10, 1e12])
+    elif var == "t_depleted":
         axes[i].set_xticks([1e2, 1e4, 1e6, 1e8])
         axes[i].set_xticklabels(
                 [r"$\mathregular{10^{%d}}$" % i for i in [2, 4, 6]] + [r"$\infty$"]
