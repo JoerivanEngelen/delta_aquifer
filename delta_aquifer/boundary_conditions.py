@@ -153,7 +153,7 @@ def coastlines(geo, d1, sea_level, phi_f=None, L = None, L_a = None,
     coastline_rho = d1_inv.sel(z=sea_level, method="pad")["rho"]
 
     weights_trans = np.clip((sea_level.time - t_start)/(t_tra - t_start), 0, 1)
-    weights_reg = np.clip((sea_level.time - t_tra)/(t_end - t_tra), 0, 1)
+    weights_reg = np.clip((sea_level.time - t_tra)/(t_end - (t_tra+1e-20)), 0, 1) #Add 1e-20 to ensure there is no division by zero when t_tra = 0
     weights = weights_trans - weights_reg
     
     coastline_rho = L_a * (1-l_tra) * weights + (1-weights) * coastline_rho
