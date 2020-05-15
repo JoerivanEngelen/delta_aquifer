@@ -314,8 +314,8 @@ def create_confining_layer(l_conf, d2, d1, phis, L_a, frac, n_inp):
     rhos_clay = np.linspace(0, rho_clay, num=n_inp)
     phis_clay = np.linspace(-phi_clay, phi_clay, num=n_inp-20)
   
-    topf = interpolate.interp1d(d1["rho"], d1["top"])
-    botf = interpolate.interp1d(d1["rho"], d1["bot"])
+    topf = interpolate.interp1d(d1["rho"], d1["top"], bounds_error=False, fill_value = np.nan)
+    botf = interpolate.interp1d(d1["rho"], d1["bot"], bounds_error=False, fill_value = "extrapolate")
     d_clay_coast = (botf(rhos_clay[-1]+x_offset) * frac)
     
     depth_conf =  np.linspace(0, d_clay_coast, num=n_inp)
