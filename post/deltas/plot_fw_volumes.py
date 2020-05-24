@@ -144,7 +144,7 @@ val_df = dict([(os.path.splitext(os.path.basename(path))[0].split("FW_vol_")[1],
 
   
 #%%Plot settings
-plot_df=False
+plot_df=True
     
 agu_whole = (19/2.54, 23/2.54)
 col_wrap = 4
@@ -161,7 +161,7 @@ plt_kwargs = dict(x="time (ka)", hue="$K_{h,aqf}$",
              style_order = ["max", "mean", "min"], 
              height=height, aspect = aspect, 
              facet_kws=dict(sharey=False, legend_out=False, 
-                            margin_titles=False, xlim=(125, 0)))
+                            margin_titles=False, xlim=(125, 1)))
 
 #%%Plot
 to_plot = ["fw_onshore", "fw_onshore_pump", "fw_offshore", "fw_offshore_pump", 
@@ -186,9 +186,8 @@ if plot_df==True:
         for ax in g.axes:
             ax.set_ylim(ymin=0)
             label_offset(ax, axis="y", label = ylabel, unit = unit)
-    
-        if (len(g.axes) % 2) == 0:
-            ax.invert_xaxis()   
+            ax.set_xscale("log")
+            ax.set_xticks([100, 10, 1])
         
         g.axes[0].legend(loc='lower right', bbox_to_anchor=(0.975, 0.025), 
               bbox_transform=g.fig.transFigure)
