@@ -175,11 +175,21 @@ for r in range(len(gs_obs)):
                   sharex = ax_obs[r], 
                   sharey = ax_obs[r]))
 
+#%%Change order of idxs to 
+#Old order
+#row_titles = ["$K_{h}$ min", "$K_{h}$ max", "$K_{h}$ mean"]
+#col_titles = ["$K_{v}$ max", "$K_{v}$ min", "$K_{v}$ mean"]
+
+#Swap for Kh
+idxs_plot = [[j for n in [0, 2, 1] for j in idxs[r][n*3:(n*3+3)]] for r in range(len(idxs))] 
+#Swap for Kv
+idxs_plot = [[idxs_plot[r][n*3:(n*3+3)][j] for n in range(3) for j in [1, 2, 0]] for r in range(len(idxs))]
+
 #%%Plot
 for r, delta in enumerate(delta_names):
     hbar_df(dfs_obs[delta]["sum"]["Q"], ax=ax_obs[r])
     ax_obs[r].invert_yaxis()
-    for i, (ax, idx) in enumerate(zip(ax_mod[r], idxs[r])):
+    for i, (ax, idx) in enumerate(zip(ax_mod[r], idxs_plot[r])):
         hbar_df(dfs_validate[r]["sum{}".format(idx)], ax=ax)
         ax.label_outer()
 
@@ -187,8 +197,8 @@ for r, delta in enumerate(delta_names):
 row_title_idx = range(2, 9, 3)
 col_title_idx = range(3)
 
-row_titles = ["$K_{h}$ min", "$K_{h}$ max", "$K_{h}$ mean"]
-col_titles = ["$K_{v}$ max", "$K_{v}$ min", "$K_{v}$ mean"]
+row_titles = ["$K_{h}$ min", "$K_{h}$ mean", "$K_{h}$ max"]
+col_titles = ["$K_{v}$ min", "$K_{v}$ mean", "$K_{v}$ max"]
 
 for r in range(len(gs_obs)):
     if r == 0:
