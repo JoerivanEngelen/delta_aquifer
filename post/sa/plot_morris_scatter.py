@@ -58,25 +58,32 @@ def convert_texts(texts):
     return(texts)
 
 def labeled_scatter(fig, ax, data, labels, legend_out=True, 
-                    plot_y_label=True, plot_x_label=True, 
+                    plot_y_label=True, plot_x_label=True, plot_y="sigma",
                     **exceptions):
     markers={"negative": "v", "positive": "^"}
     if legend_out == True:
         legend_out = "brief"
     
-    sns.scatterplot(x = "mu_star", y = "sigma", style="sign", ax = ax, 
+    sns.scatterplot(x = "mu_star", y = plot_y, style="sign", ax = ax, 
                     data = data, hue = "group", palette = "Set2", alpha=1.0,
                     markers = markers, legend=legend_out, s=80)
     
     x_max=np.nanmax(data["mu_star"])
-    y_max=np.nanmax(data["sigma"])
+    y_max=np.nanmax(data[plot_y])
+    y_min=np.nanmin(data[plot_y])
+    if y_min > 0.0:
+            y_min=0.0
+    if y_max <= 0.0:
+            y_max = 0.0 + -1 * y_min * 0.1
     x_max += 0.1 * x_max
     y_max += 0.1 * y_max
+    y_min += 0.1 * y_min
     ax.set_xlim(left=0.0, right=x_max)
-    ax.set_ylim(bottom=0.0, top=y_max)
+    ax.set_ylim(bottom=y_min, top=y_max)
     
     x_line = np.linspace(0, x_max)
-    ax.plot(x_line, x_line, ls=":", alpha=0.5, color="k")
+    if plot_y=="sigma":
+        ax.plot(x_line, x_line, ls=":", alpha=0.5, color="k")
     
     if plot_x_label:
         ax.set_xlabel("$\mu *$")
@@ -84,7 +91,11 @@ def labeled_scatter(fig, ax, data, labels, legend_out=True,
         ax.axes.get_xaxis().get_label().set_visible(False)
     
     if plot_y_label:
-        ax.set_ylabel("$\sigma$")
+        if plot_y == "epsilon":
+            y_label = "$\log\{}$".format(plot_y)
+        else:    
+            y_label = "$\{}$".format(plot_y)
+        ax.set_ylabel(y_label)
     else:
         ax.axes.get_yaxis().get_label().set_visible(False)
     
@@ -96,12 +107,14 @@ def labeled_scatter(fig, ax, data, labels, legend_out=True,
     
     texts=[]
     
-    for x, y, label in zip(data["mu_star"], data["sigma"], labels):
+    for x, y, label in zip(data["mu_star"], data[plot_y], labels):
         if (
                 (x > (0.3  * dx)) and (label not in exceptions_off)
                 ) or (
-                (y > (0.41 * dy)) and (label not in exceptions_off)
+                (y > (0.41 * dy)) and (label not in exceptions_off) and (plot_y=="sigma")
                 ) or (
+#                (y < (-1*0.8 * dy)) and (label not in exceptions_off) and (plot_y=="epsilon")
+#                ) or (
                 (label in exceptions_on)
             ):
             texts.append(ax.text(x, y, label, va="center", ha="center"))
@@ -124,7 +137,7 @@ def labeled_scatter(fig, ax, data, labels, legend_out=True,
 #%%Path management
 #path = r"c:\Users\engelen\OneDrive - Stichting Deltares\PhD\Synth_Delta\results\outputs_of_interest"
 path = r"g:\synthdelta\results\outputs_of_interest"
-traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/traj_id.csv"))
+traj_id_path = os.path.abspath(resource_filename("delta_aquifer", "../data/sensitivity_analysis/traj_id.csv"))
 outf = os.path.join(path, "..", "morris")
 
 #%%Process paths
@@ -195,6 +208,7 @@ for var in df.columns:
     output[var] = output[var].set_index("inputs")
     output[var]["mu"] = np.average(ee[var], axis=0)
     output[var]["mu_star"] = np.average(np.abs(ee[var]), axis=0)
+    output[var]["epsilon"] = np.log(np.abs(output[var]["mu"]/output[var]["mu_star"]))
     output[var]["sigma"] = np.std(ee[var], ddof=1, axis=0)
     
 #%%Check monotonicity
@@ -252,7 +266,15 @@ exceptions = {"offshore_fw": {"$n$" : 1},
               "old_water" : {},
               "onshore_sw": {}}
 
+# exceptions = {"offshore_fw": {"$n$" : 1, "$K_{v,aqt}$":1, "$K_{h,aqf}$":1},
+#               "s_gradient" : {"$f_{aqt}$" : 0, "$K_{h,aqf}$":1, "$H_b$":1, "$\alpha$":1,"$l_{tra}$":1},
+#               "old_water" : {"$K_{h,aqf}$":1, "$H_b$":1},
+#               "onshore_sw": {"$K_{h,aqf}$":1, "$H_b$":1, "$\alpha$":1, "$l_{tra}$":1, "$l_a$":1}}
+
 texts_all = []
+
+plot_y = "epsilon"
+
 for i, var in enumerate(order):
     ax=axes_scatter[i]
     output[var]["sign"] = np.where(output[var]["mu"] < 0, "negative", "positive")
@@ -263,7 +285,8 @@ for i, var in enumerate(order):
     kwargs = plot_labels[i]
     kwargs.update(exceptions[var])
     
-    texts_all.append(labeled_scatter(fig, ax, output[var], labels, legend_out= (var == 'offshore_fw'),
+    texts_all.append(labeled_scatter(fig, ax, output[var], labels, plot_y = plot_y,
+                                     legend_out= (var == 'offshore_fw'),
                                      **kwargs))
     ax.set_title(lookup[var])
 
@@ -296,7 +319,7 @@ dpi_paper = 300
 dpi_poster = 12.5/5 * 1.1 * dpi_paper
 
 plt.tight_layout()
-plt.savefig(outf + ".pdf")
-plt.savefig(outf + ".png", dpi=dpi_paper)
-plt.savefig(outf + ".svg")
+plt.savefig(outf + "_{}.pdf".format(plot_y))
+plt.savefig(outf + "_{}.png".format(plot_y), dpi=dpi_paper)
+plt.savefig(outf + "_{}.svg".format(plot_y))
 plt.close()
