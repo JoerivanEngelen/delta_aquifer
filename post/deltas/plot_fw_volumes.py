@@ -142,7 +142,13 @@ val_df = dict([(os.path.splitext(os.path.basename(path))[0].split("FW_vol_")[1],
                 #Reindex to pad with NaNs
                 pd.read_csv(path).reindex(range(delta_len))) for path in val_f])
 
-  
+#Add Mekong data
+#Gunnink, J.L., Hung, V.P., Oude Essink, G.H.P., Bierkens, M.F.P. 2020.  
+#Geostatistical estimation of the 3D groundwater salinity distribution in the 
+#Mekong Delta, Vietnam. Submitted to HESSD
+
+val_df["Mekong"] = pd.DataFrame(data={"FW_vols" : [830e9, 876e9, 890e9]}).reindex(range(delta_len))
+
 #%%Plot settings
 plot_df=True
     
@@ -220,15 +226,16 @@ rch = rch.sort_index()
 rch = rch.join(par["Delta"]).rename(columns = {"Delta" : "delta"})
 
 #%%Create formatted table
-to_pointplot = ["fw_onshore_pump", "fw_offshore", 
-                "ol_sal_onshore" , "t_depleted"]
+col_select = ["fw_onshore_pump", "fw_offshore", 
+                "ol_sal_onshore"]
+to_pointplot =  col_select + ["t_depleted"]
 to_log  = ["fw_onshore_pump", "fw_offshore", "t_depleted"]
 xlabels = ["$V_{fw, on}$ (m3)", "$V_{fw, off}$ (m3)", 
            "$S_{init}$ (%)", "$t_{d}$ (year)"]
 colors = ["navy", "royalblue", "firebrick", "darkslategray"]
 
 #Process
-df_fin = df_deltas.loc[df_deltas["time (ka)"]==1., (to_pointplot+["delta", "sal_onshore"])]
+df_fin = df_deltas.loc[df_deltas["time (ka)"]==1., (col_select+["delta", "sal_onshore"])]
 df_fin = df_fin.merge(tot_abs, on="delta")
 df_fin = df_fin.merge(rch.drop_duplicates(), on="delta")
 df_fin["t_depleted"] = df_fin["fw_onshore_pump"]/(df_fin["Q"] - df_fin["rch"])
@@ -242,6 +249,7 @@ df_fin = df_fin.sort_values("delta")
 df_fin["fw_onshore_observed"] = np.nan
 df_fin.loc[df_fin["delta"]=="Rhine-Meuse", "fw_onshore_observed"] = val_df["Rhine-Meuse"]["FW_vols"].values
 df_fin.loc[df_fin["delta"]=="Nile", "fw_onshore_observed"] = val_df["Nile"]["FW_vols"].values
+df_fin.loc[df_fin["delta"]=="Mekong", "fw_onshore_observed"] = val_df["Mekong"]["FW_vols"].values
 
 df_fin["is_recharging"] = df_fin["t_depleted"] < 0
 df_fin.loc[df_fin["is_recharging"] == True, ["t_depleted"]] = 1e8
@@ -267,9 +275,12 @@ for i, var in enumerate(to_pointplot):
         axes[i].legend(customlines, 
             ["$0.4 \; Q$", "$1.0 \; Q$", "$4.0 \; Q$"],
             loc = "upper right",
-            bbox_to_anchor=[0.94, 1.01])
+            bbox_to_anchor=[0.94, 1.01]) 
     
-    elif var == "fw_onshore_pump":
+    pointplotrange(y="delta", x=var, data=df_fin, estimator=estimator, 
+                   ax=axes[i], color=colors[i], **opts) 
+    
+    if var == "fw_onshore_pump":
         pointplotrange(y="delta", x="fw_onshore_observed", data=df_fin, estimator=estimator, 
                        ax=axes[i], color="limegreen", markers = "d", **opts)            
         customlines = [Line2D([0], [0], color=c) for c in [colors[i], "limegreen"]]
@@ -278,9 +289,6 @@ for i, var in enumerate(to_pointplot):
             loc = "upper left",
             bbox_to_anchor=[-0.01, 1.01])
     
-    pointplotrange(y="delta", x=var, data=df_fin, estimator=estimator, 
-                   ax=axes[i], color=colors[i], **opts)  
-
     labels = dict(xlabel=xlabels[i])
     if (i % 2) == 1:
         labels["ylabel"] = ""
