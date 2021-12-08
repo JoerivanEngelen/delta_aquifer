@@ -123,13 +123,22 @@ cell_frac = cell_frac.T
 # Nature: More than 33% landsurface covered with Nature
 deltas_classification = pd.DataFrame()
 deltas_classification["Hub"] = cell_frac["Urban"] > 0.20
-deltas_classification["Breadbasket"] = cell_frac["Agriculture"] > 0.5
+deltas_classification["Breadbasket"] = cell_frac["Agriculture"] > 0.45
 deltas_classification["Habitat"] = cell_frac["Nature"] > 0.33
 
 deltas_classification = deltas_classification.astype(np.int8)
 
 #Due to coarse data, we have to correct some small deltas:
 deltas_classification.loc["Donana"] = [0,0,1]
+
+#%%Convert to binary classification, easier for plotting in Qgis
+df = deltas_classification.loc[
+        :, ["Hub", "Breadbasket", "Habitat"]
+        ].astype(str)
+
+df["Total"] = df["Hub"] + df["Breadbasket"] + df["Habitat"]
+
+deltas_classification["Total"] = [int(i, 2) for i in df["Total"]]
 
 #%%Create shapefile
 deltas_classification["geometry"] = gdf.geometry.centroid
