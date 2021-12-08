@@ -16,16 +16,56 @@ import matplotlib.pyplot as plt
 """Override the following function to allow for error bars to present the data range.
 """
 
-def pointplotrange(x=None, y=None, hue=None, data=None, order=None, hue_order=None,
-              estimator=np.mean, ci=95, n_boot=1000, units=None,
-              markers="o", linestyles="-", dodge=False, join=True, scale=1,
-              orient=None, color=None, palette=None, errwidth=None,
-              capsize=None, ax=None, **kwargs):
 
-    plotter = _PointPlotterRange(x, y, hue, data, order, hue_order,
-                            estimator, ci, n_boot, units,
-                            markers, linestyles, dodge, join, scale,
-                            orient, color, palette, errwidth, capsize)
+def pointplotrange(
+    x=None,
+    y=None,
+    hue=None,
+    data=None,
+    order=None,
+    hue_order=None,
+    estimator=np.mean,
+    ci=95,
+    n_boot=1000,
+    units=None,
+    seed=None,
+    markers="o",
+    linestyles="-",
+    dodge=False,
+    join=True,
+    scale=1,
+    orient=None,
+    color=None,
+    palette=None,
+    errwidth=None,
+    capsize=None,
+    ax=None,
+    **kwargs
+):
+
+    plotter = _PointPlotterRange(
+        x,
+        y,
+        hue,
+        data,
+        order,
+        hue_order,
+        estimator,
+        ci,
+        n_boot,
+        units,
+        seed,
+        markers,
+        linestyles,
+        dodge,
+        join,
+        scale,
+        orient,
+        color,
+        palette,
+        errwidth,
+        capsize,
+    )
 
     if ax is None:
         ax = plt.gca()
@@ -33,8 +73,9 @@ def pointplotrange(x=None, y=None, hue=None, data=None, order=None, hue_order=No
     plotter.plot(ax)
     return ax
 
+
 class _PointPlotterRange(_PointPlotter):
-    def estimate_statistic(self, estimator, ci, n_boot):
+    def estimate_statistic(self, estimator, ci, n_boot, seed):
 
         if self.hue_names is None:
             statistic = []
@@ -77,15 +118,15 @@ class _PointPlotterRange(_PointPlotter):
                         estimate = estimator(stat_data)
                         sd = np.std(stat_data)
                         confint.append((estimate - sd, estimate + sd))
-                    
+
                     elif ci == "range":
                         confint.append((np.min(stat_data), np.max(stat_data)))
 
                     else:
 
-                        boots = bootstrap(stat_data, func=estimator,
-                                          n_boot=n_boot,
-                                          units=unit_data)
+                        boots = bootstrap(
+                            stat_data, func=estimator, n_boot=n_boot, units=unit_data
+                        )
                         confint.append(utils.ci(boots, ci))
 
             # Option 2: we are grouping by a hue layer
@@ -106,9 +147,7 @@ class _PointPlotterRange(_PointPlotter):
                         unit_data = None
                     else:
                         group_units = self.plot_units[i]
-                        have = pd.notnull(
-                            np.c_[group_data, group_units]
-                            ).all(axis=1)
+                        have = pd.notnull(np.c_[group_data, group_units]).all(axis=1)
                         stat_data = group_data[hue_mask & have]
                         unit_data = group_units[hue_mask & have]
 
@@ -136,9 +175,13 @@ class _PointPlotterRange(_PointPlotter):
 
                         else:
 
-                            boots = bootstrap(stat_data, func=estimator,
-                                              n_boot=n_boot,
-                                              units=unit_data)
+                            boots = bootstrap(
+                                stat_data,
+                                func=estimator,
+                                n_boot=n_boot,
+                                units=unit_data,
+                                seed=seed,
+                            )
                             confint[i].append(utils.ci(boots, ci))
 
         # Save the resulting values for plotting
