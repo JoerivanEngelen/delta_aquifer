@@ -177,7 +177,7 @@ val_df["Mekong"] = pd.DataFrame(data={"FW_vols": [830e9, 876e9, 890e9]}).reindex
 )
 
 #%%Plot settings
-plot_df = True
+plot_df = False
 
 agu_whole = (19 / 2.54, 23 / 2.54)
 col_wrap = 4
@@ -276,13 +276,13 @@ da_ls = [
 cellsizes = [calc_ddim(da, "x") * calc_ddim(da, "y") for da in da_ls]
 da_ls = [da * cellsizes[i] for i, da in enumerate(da_ls)]
 
-tot_abs = [da.isel(time=-1).sum().values for da in da_ls]
-tot_abs = pd.DataFrame(data=tot_abs, index=deltas, columns=["Q"])
-tot_abs = tot_abs.reset_index().rename(columns={"index": "delta"})
+end_abs = [da.isel(time=-1).sum().values for da in da_ls]
+end_abs = pd.DataFrame(data=end_abs, index=deltas, columns=["Q"])
+end_abs = end_abs.reset_index().rename(columns={"index": "delta"})
 
 ##Update deltas for which we have data
-# tot_abs.loc[tot_abs["delta"]=="Nile",   "Q"] = 7.162345e6 * 365.25
-# tot_abs.loc[tot_abs["delta"]=="Mekong", "Q"] = 2.4e6 * 365.25
+# end_abs.loc[end_abs["delta"]=="Nile",   "Q"] = 7.162345e6 * 365.25
+# end_abs.loc[end_abs["delta"]=="Mekong", "Q"] = 2.4e6 * 365.25
 
 #%%Process recharges
 rch = pd.read_csv(recharge_path, index_col=0)
@@ -305,7 +305,7 @@ colors = ["navy", "royalblue", "firebrick", "darkslategray"]
 df_fin = df_deltas.loc[
     df_deltas["time (ka)"] == 1.0, (col_select + ["delta", "sal_onshore"])
 ]
-df_fin = df_fin.merge(tot_abs, on="delta")
+df_fin = df_fin.merge(end_abs, on="delta")
 df_fin = df_fin.merge(rch.drop_duplicates(), on="delta")
 df_fin["t_depleted"] = df_fin["fw_onshore_pump"] / (df_fin["Q"] - df_fin["rch"])
 df_fin["t_depleted_4"] = df_fin["fw_onshore_pump"] / ((df_fin["Q"] * 4) - df_fin["rch"])
