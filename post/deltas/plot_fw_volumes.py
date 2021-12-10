@@ -269,14 +269,14 @@ if plot_df == True:
 deltas = pd.unique(df_deltas["delta"])
 name = "__xarray_dataarray_variable__"
 
-da_ls = [
+abs_ls = [
     xr.open_dataset(os.path.join(datafol, "abstractions", "{}.nc".format(delta)))[name]
     for delta in deltas
 ]
-cellsizes = [calc_ddim(da, "x") * calc_ddim(da, "y") for da in da_ls]
-da_ls = [da * cellsizes[i] for i, da in enumerate(da_ls)]
+cellsizes = [calc_ddim(da, "x") * calc_ddim(da, "y") for da in abs_ls]
+abs_ls = [da * cellsizes[i] for i, da in enumerate(abs_ls)]
 
-end_abs = [da.isel(time=-1).sum().values for da in da_ls]
+end_abs = [da.isel(time=-1).sum().values for da in abs_ls]
 end_abs = pd.DataFrame(data=end_abs, index=deltas, columns=["Q"])
 end_abs = end_abs.reset_index().rename(columns={"index": "delta"})
 
@@ -288,6 +288,30 @@ end_abs = end_abs.reset_index().rename(columns={"index": "delta"})
 rch = pd.read_csv(recharge_path, index_col=0)
 rch = rch.sort_index()
 rch = rch.join(par["Delta"]).rename(columns={"Delta": "delta"})
+# Recharge constant through time for paleo reconstruction,
+# so dropping duplicates results in the present-day recharge.
+rch = rch.drop_duplicates()
+
+#%%Process historical abstractions
+hist_abs = [da.sel(time=slice(1958, 2013)).sum(dim=["x", "y"]) for da in abs_ls]
+hist_abs = [
+    da.assign_coords(delta=delta).to_dataframe(name="Q_hist")
+    for da, delta in zip(hist_abs, deltas)
+]
+hist_abs = pd.concat(hist_abs).set_index(["delta"], append=True)
+
+# Compute historical depletion
+hist_depletion = pd.DataFrame()
+hist_depletion["Q_hist"] = hist_abs["Q_hist"] - rch.set_index("delta")["rch"]
+hist_depletion["Q_hist_4"] = hist_abs["Q_hist"] * 4 - rch.set_index("delta")["rch"]
+hist_depletion["Q_hist_0.4"] = hist_abs["Q_hist"] * 0.41 - rch.set_index("delta")["rch"]
+
+# Assume all excess recharge water is drained,
+# so we can clip negative values
+hist_depletion = hist_depletion.clip(lower=0.0)
+
+# Sum across time
+hist_depletion = hist_depletion.groupby("delta").sum()
 
 #%%Create formatted table
 col_select = ["fw_onshore_pump", "fw_offshore", "ol_sal_onshore"]
@@ -306,12 +330,19 @@ df_fin = df_deltas.loc[
     df_deltas["time (ka)"] == 1.0, (col_select + ["delta", "sal_onshore"])
 ]
 df_fin = df_fin.merge(end_abs, on="delta")
-df_fin = df_fin.merge(rch.drop_duplicates(), on="delta")
-df_fin["t_depleted"] = df_fin["fw_onshore_pump"] / (df_fin["Q"] - df_fin["rch"])
-df_fin["t_depleted_4"] = df_fin["fw_onshore_pump"] / ((df_fin["Q"] * 4) - df_fin["rch"])
-df_fin["t_depleted_0.4"] = df_fin["fw_onshore_pump"] / (
-    (df_fin["Q"] * 0.41) - df_fin["rch"]
-)
+df_fin = df_fin.merge(rch, on="delta")
+df_fin = df_fin.merge(hist_depletion, on="delta")
+
+df_fin["t_depleted"] = (df_fin["fw_onshore_pump"] - df_fin["Q_hist"]).clip(
+    lower=0.0
+) / (df_fin["Q"] - df_fin["rch"])
+df_fin["t_depleted_4"] = (df_fin["fw_onshore_pump"] - df_fin["Q_hist_4"]).clip(
+    lower=0.0
+) / ((df_fin["Q"] * 4) - df_fin["rch"])
+df_fin["t_depleted_0.4"] = (df_fin["fw_onshore_pump"] - df_fin["Q_hist_0.4"]).clip(
+    lower=0.0
+) / ((df_fin["Q"] * 0.41) - df_fin["rch"])
+
 df_fin["ol_sal_onshore"] = df_fin["ol_sal_onshore"] / df_fin["sal_onshore"]
 
 # df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
@@ -328,10 +359,18 @@ df_fin.loc[df_fin["delta"] == "Mekong", "fw_onshore_observed"] = val_df["Mekong"
     "FW_vols"
 ].values
 
-df_fin["is_recharging"] = df_fin["t_depleted"] < 0
-df_fin.loc[df_fin["is_recharging"] == True, ["t_depleted"]] = 1e8
-df_fin.loc[df_fin["t_depleted_0.4"] < 0, ["t_depleted_0.4"]] = 1e8
+#
+depletion_columns = ["t_depleted_0.4", "t_depleted", "t_depleted_4"]
+# Negative depletion times are infinite
+for colname in depletion_columns:
+    df_fin.loc[df_fin[colname] < 0, [colname]] = 1e8
 
+# Set everything between 0 and 1 to
+for colname in depletion_columns:
+    df_fin.loc[df_fin[colname] < 1, [colname]] = 1.0
+
+
+#%% Plot
 fig, axes = plt.subplots(nrows=2, ncols=2, sharey=True, figsize=agu_whole)
 axes = axes.flatten()
 
@@ -411,12 +450,14 @@ for i, var in enumerate(to_pointplot):
     if var in ["fw_onshore_pump", "fw_offshore"]:
         axes[i].set_xticks([1e4, 1e6, 1e8, 1e10, 1e12])
     elif var == "t_depleted":
-        axes[i].set_xticks([1e2, 1e4, 1e6, 1e8])
+        axes[i].set_xticks([1e0, 1e2, 1e4, 1e6, 1e8])
         axes[i].set_xticklabels(
-            [r"$\mathregular{10^{%d}}$" % i for i in [2, 4, 6]] + [r"$\infty$"]
+            [r"$\mathregular{10^{%d}}$" % i for i in [0, 2, 4, 6]] + [r"$\infty$"]
         )
 
 plt.tight_layout()
 plt.savefig(os.path.join(res_fol, "end-states.png"), dpi=300)
 plt.savefig(os.path.join(res_fol, "end-states.pdf"))
 plt.close()
+
+# %%
