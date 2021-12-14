@@ -14,6 +14,8 @@ from glob import glob
 import numpy as np
 import re
 
+from pathlib import Path
+
 from analyze_input.ci_range import pointplotrange
 
 from itertools import product
@@ -103,7 +105,7 @@ mas_f = glob(os.path.join(res_fol, "mas", "mas_i*.nc"))
 mas_pump_f = glob(os.path.join(res_fol, "mas", "mas_pump_i*.nc"))
 vol_f = glob(os.path.join(res_fol, "vols", "vol_i*.nc"))
 vol_pump_f = glob(os.path.join(res_fol, "vols", "vol_pump_i*.nc"))
-val_f = glob(os.path.join(val_fol, "*.csv"))
+val_f = glob(os.path.join(val_fol, "FW_vol*.csv"))
 
 recharge_path = os.path.join(res_fol, "recharges", "recharges.csv")
 
@@ -175,6 +177,9 @@ val_df = dict(
 val_df["Mekong"] = pd.DataFrame(data={"FW_vols": [830e9, 876e9, 890e9]}).reindex(
     range(delta_len)
 )
+
+#%% Estimations
+est_df = pd.read_csv(Path(val_fol) / "FW_estimations.csv", index_col=0)
 
 #%%Plot settings
 plot_df = False
@@ -348,18 +353,21 @@ df_fin["ol_sal_onshore"] = df_fin["ol_sal_onshore"] / df_fin["sal_onshore"]
 # df_fin = df_fin.loc[df_fin["fw_onshore_pump"]!=0] #Saloum has a few simulations where V_fw = 0., these cannot be True.
 df_fin = df_fin.sort_values("delta")
 
-df_fin["fw_onshore_observed"] = np.nan
-df_fin.loc[df_fin["delta"] == "Rhine-Meuse", "fw_onshore_observed"] = val_df[
-    "Rhine-Meuse"
-]["FW_vols"].values
-df_fin.loc[df_fin["delta"] == "Nile", "fw_onshore_observed"] = val_df["Nile"][
-    "FW_vols"
-].values
-df_fin.loc[df_fin["delta"] == "Mekong", "fw_onshore_observed"] = val_df["Mekong"][
-    "FW_vols"
-].values
+# Add observed FW vols
+obs_name = "fw_onshore_observed"
+df_fin[obs_name] = np.nan
+for delta in val_df.keys():
+    df_fin.loc[df_fin["delta"] == delta, obs_name] = val_df[delta]["FW_vols"].values
 
-#
+# Add estimated FW vols
+est_name = "fw_onshore_estimated"
+est_df = est_df.set_index(est_df.index.str.replace("Red_River", "Red River"))
+
+df_fin[est_name] = np.nan
+for delta in est_df.index.values:
+    df_fin.loc[df_fin["delta"] == delta, est_name] = est_df.loc[delta, "V_fw,on"]
+
+
 depletion_columns = ["t_depleted_0.4", "t_depleted", "t_depleted_4"]
 # Negative depletion times are infinite
 for colname in depletion_columns:
@@ -422,20 +430,42 @@ for i, var in enumerate(to_pointplot):
     )
 
     if var == "fw_onshore_pump":
+        col_obs = "limegreen"
+        col_est = "tomato"
+        m_obs = "d"
+        m_est = "^"
+
         pointplotrange(
             y="delta",
             x="fw_onshore_observed",
             data=df_fin,
             estimator=estimator,
             ax=axes[i],
-            color="limegreen",
-            markers="d",
+            color=col_obs,
+            markers=m_obs,
             **opts
         )
-        customlines = [Line2D([0], [0], color=c) for c in [colors[i], "limegreen"]]
+        pointplotrange(
+            y="delta",
+            x="fw_onshore_estimated",
+            data=df_fin,
+            estimator=estimator,
+            ax=axes[i],
+            color=col_est,
+            markers=m_est,
+            **opts
+        )
+
+        colors_vol = [colors[i], col_obs, col_est]
+        markers = ["o", m_obs, m_est]
+
+        customlines = [
+            Line2D([0], [0], color=c, marker=m, markerfacecolor=c)
+            for c, m in zip(colors_vol, markers)
+        ]
         axes[i].legend(
             customlines,
-            ["simulated", "observed"],
+            ["simulated", "observed", "estimated"],
             loc="upper left",
             bbox_to_anchor=[-0.01, 1.01],
         )
