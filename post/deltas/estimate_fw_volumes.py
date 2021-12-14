@@ -5,7 +5,7 @@ import os
 
 
 def calc_area_sector(l, phi):
-    return phi / 2 * l ** 2
+    return phi / 2 * (l ** 2)
 
 
 #%% Path management
@@ -19,14 +19,14 @@ df_cross = pd.DataFrame(columns=colnames)
 ## Fig 2 in Sarker et al. 2018
 name = "Ganges-Brahmaputra"
 scale = 100_000 / 4.1
-extent = scale * 21  # Total length figure
+extent = scale * 20.5  # Total length figure
 l_fw = scale * 15.3  # length towards fresh-salt interface aqf 1 & 2
-l_hinge = scale * 10  # length towards hinge zone
+l_hinge = scale * 11.6  # length towards hinge zone
 
 df_cross.loc[0] = [name, 1, 0, l_hinge, 37.5, 0.31]
-df_cross.loc[1] = [name, 1, l_hinge, l_fw, 80, 0.31]
-df_cross.loc[2] = [name, 2, l_hinge, l_fw, 75, 0.31]
-df_cross.loc[3] = [name, 3, l_hinge, extent, 75, 0.31]
+df_cross.loc[1] = [name, 1, l_hinge, l_fw, 50, 0.31]
+df_cross.loc[2] = [name, 2, l_hinge, l_fw, 50, 0.31]
+df_cross.loc[3] = [name, 3, l_hinge, extent, 50, 0.31]
 
 ## Compute area and volume based on cross-section and phi
 df_cross["A"] = calc_area_sector(df_cross["l_end"], df_cross["phi"]) - calc_area_sector(
@@ -41,7 +41,7 @@ deltas = [i.parent.name for i in shp_paths]
 
 # Aquifer thicknesses estimated from cross-sections in the sources
 # See sources.md
-thicknesses = [60, 30, 50, 30]
+thicknesses = [60, 10, 30, 30]
 
 gdf = pd.concat([gpd.read_file(shp_path) for shp_path in shp_paths])
 gdf = gdf.reset_index(drop=True)
@@ -63,4 +63,4 @@ V_fw_on = gdf.groupby("delta").sum()["V_fw,on"]
 # %% Add Ganges
 V_fw_on.loc["Ganges-Brahmaputra"] = df_cross["V_fw,on"].sum()
 # %% Write to csv
-V_fw_on.to_csv(data_dir / "FW_vol_estimations.csv")
+V_fw_on.to_csv(data_dir / "FW_estimations.csv")
